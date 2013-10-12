@@ -1,6 +1,4 @@
 '''
-Created on 17 aout 2013
-
 @author: sylvain
 '''
 from twisted.internet import protocol
