@@ -6,7 +6,10 @@ from stream import Stream
 
 class ProtocolBuffer(protocol.Protocol):
     '''
-    classdocs
+    Inherit from protocol twisted class
+    allow this protocol to wait until expected size of packet
+    throw expect function and set a callback or by default
+    call recv function (may be override)
     '''
     def __init__(self):
         '''
@@ -23,10 +26,15 @@ class ProtocolBuffer(protocol.Protocol):
         inherit from protocol class
         main event of received data
         '''
+        #add in buffer
         self._buffer += data
+        #while buffer have expected size call local callback
         while len(self._buffer) >= self._expectedLen:
+            #expected data is first expected bytes
             expectedData = Stream(self._buffer[0:self._expectedLen])
+            #rest is for next event of automata
             self._buffer = self._buffer[self._expectedLen:]
+            #call recv function
             self.recv(expectedData)
             
     def expect(self, expectedLen, callback = None):

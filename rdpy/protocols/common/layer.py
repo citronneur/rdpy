@@ -1,5 +1,5 @@
 '''
-@author: citronneur
+@author: sylvain
 '''
 class Layer(object):
     '''
