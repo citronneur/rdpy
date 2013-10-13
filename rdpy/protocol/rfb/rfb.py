@@ -4,8 +4,8 @@ Created on 12 aout 2013
 @author: sylvain
 '''
 
-from rdpy.protocols.common.stream import Stream
-from rdpy.protocols.common.protocolbuffer import ProtocolBuffer
+from rdpy.protocol.common.stream import Stream
+from rdpy.protocol.common.protocolbuffer import ProtocolBuffer
 from types import PixelFormat,ProtocolVersion,SecurityType, Rectangle, Encoding
 
 class Rfb(ProtocolBuffer):

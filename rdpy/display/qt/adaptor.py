@@ -3,7 +3,7 @@ Created on 4 sept. 2013
 @author: sylvain
 '''
 from PyQt4 import QtGui
-from rdpy.protocols.rfb.observer import RfbObserver
+from rdpy.protocol.rfb.observer import RfbObserver
 
 class QAdaptor(object):
     '''

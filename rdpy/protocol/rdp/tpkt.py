@@ -4,9 +4,9 @@ Created on 5 sept. 2013
 @author: sylvain
 '''
 
-from rdpy.protocols.common.protocolbuffer import ProtocolBuffer
-from rdpy.protocols.common.layer import Layer
-from rdpy.protocols.common.stream import Stream
+from rdpy.protocol.common.protocolbuffer import ProtocolBuffer
+from rdpy.protocol.common.layer import Layer
+from rdpy.protocol.common.stream import Stream
 class TPKT(ProtocolBuffer, Layer):
     '''
     classdocs
