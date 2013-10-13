@@ -5,7 +5,7 @@ Created on 4 sept. 2013
 '''
 import sys
 from PyQt4 import QtGui
-from rdpy.qt import adaptor, widget
+from rdpy.ui.qt import adaptor, widget
 from rdpy.protocols.rfb import rfb, factory
 from rdpy.protocols.rdp import tpkt, tpdu
 from twisted.internet import ssl
