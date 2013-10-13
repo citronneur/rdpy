@@ -35,20 +35,21 @@ class ProtocolBuffer(protocol.Protocol):
             #rest is for next event of automata
             self._buffer = self._buffer[self._expectedLen:]
             #call recv function
-            self.recv(expectedData)
+            self.recvExpectedData(expectedData)
             
     def expect(self, expectedLen, callback = None):
         '''
-        newt expected len
+        new expected len
         '''
         self._expectedLen = expectedLen
         
+        #default callback is recvExpectedData
         if callback is None:
-            callback = self.__class__.recv
+            callback = self.__class__.recvExpectedData
         
-        self.recv = callback
+        self.recvExpectedData = callback
         
-    def recv(self, data):
+    def recvExpectedData(self, data):
         '''
         call when expected data is receive
         '''

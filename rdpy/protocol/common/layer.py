@@ -27,14 +27,14 @@ class Layer(object):
         if not self._presentation is None:
             self._presentation.connect()
     
-    def read(self, data):
+    def recv(self, data):
         '''
         signal that data is available for this layer
         call by transport layer
         default is to pass data to presentation layer
         '''
         if not self._presentation is None:
-            self._presentation.read(data)
+            self._presentation.recv(data)
       
     def write(self, data):
         '''
@@ -42,4 +42,5 @@ class Layer(object):
         write data for this layer
         default pass data to transport layer
         '''
-        self.transport.write(data)
+        if not self._transport is None:
+            self._transport.write(data)

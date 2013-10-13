@@ -19,7 +19,7 @@ if __name__ == '__main__':
     protocol = rfb.Rfb(rfb.Rfb.CLIENT)
     w = widget.QRemoteDesktop(adaptor.RfbAdaptor(protocol))
     w.resize(1000, 700)
-    w.setWindowTitle('QVNCViewer')
+    w.setWindowTitle('vncclient')
     w.show()
     from twisted.internet import reactor
     reactor.connectTCP("127.0.0.1", 5901, factory.RfbFactory(protocol))
