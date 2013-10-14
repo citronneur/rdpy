@@ -3,7 +3,7 @@
 '''
 from rdpy.protocol.common.layer import LayerAutomata
 from rdpy.protocol.common.stream import Stream
-from rdpy.protocol.common.error import InvalidExpectedDataException
+from rdpy.protocol.common.error import InvalidExpectedDataException, NegotiationFailure
 
 class TPDU(LayerAutomata):
     '''
@@ -121,6 +121,8 @@ class TPDU(LayerAutomata):
             self.readNegResp(data)
         else:
             raise InvalidExpectedDataException("bad protocol negotiation response code")
+        #_transport is TPKT and transport is TCP layer of twisted
+        self._transport.transport.startTLS(ClientTLSContext())
     
     def readNegFailure(self, data):
         '''
@@ -130,7 +132,30 @@ class TPDU(LayerAutomata):
     
     def readNegResp(self, data):
         '''
-        read negotiatiion response packet
+        read negotiation response packet
         '''
-        pass
+        flag = data.read_uint8()
+        len = data.read_leuint16()
         
+        if len != 0x0008:
+            raise InvalidExpectedDataException("invalid size of negotiation response")
+        
+        protocol = data.read_leuint32()
+        if protocol != self._protocol:
+            raise NegotiationFailure("protocol negotiation failure")
+        
+
+#open ssl needed
+from twisted.internet import ssl
+from OpenSSL import SSL
+
+class ClientTLSContext(ssl.ClientContextFactory):
+    '''
+    client context factory for open ssl
+    '''
+    isClient = 1
+    def getContext(self):
+        context = SSL.Context(SSL.TLSv1_METHOD)
+        context.set_options(SSL.OP_DONT_INSERT_EMPTY_FRAGMENTS)
+        context.set_options(SSL.OP_TLS_BLOCK_PADDING_BUG)
+        return context
