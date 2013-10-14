@@ -1,11 +1,10 @@
 '''
 @author: sylvain
 '''
-from rdpy.protocol.common.protocolbuffer import ProtocolBuffer
-from rdpy.protocol.common.layer import Layer
+from rdpy.protocol.common.layer import RawLayer
 from rdpy.protocol.common.stream import Stream
 
-class TPKT(ProtocolBuffer, Layer):
+class TPKT(RawLayer):
     '''
     TPKT layer in RDP protocol stack
     this layer only handle size of packet
@@ -15,8 +14,7 @@ class TPKT(ProtocolBuffer, Layer):
         '''
         Constructor
         '''
-        ProtocolBuffer.__init__(self)
-        Layer.__init__(self, presentation)
+        RawLayer.__init__(self, presentation)
         #last packet version read from header
         self._lastPacketVersion = 0
         #length may be coded on more than 1 bytes
@@ -25,7 +23,7 @@ class TPKT(ProtocolBuffer, Layer):
     def connectionMade(self):
         '''
         call when transport layer connection
-        is made (inherit from ProtocolBuffer)
+        is made (inherit from RawLayer)
         '''
         #header is on two bytes
         self.expect(2, self.readHeader)

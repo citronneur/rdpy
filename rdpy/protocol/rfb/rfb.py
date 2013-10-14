@@ -5,10 +5,10 @@ Created on 12 aout 2013
 '''
 
 from rdpy.protocol.common.stream import Stream
-from rdpy.protocol.common.protocolbuffer import ProtocolBuffer
+from rdpy.protocol.common.layer import RawLayer
 from types import PixelFormat,ProtocolVersion,SecurityType, Rectangle, Encoding
 
-class Rfb(ProtocolBuffer):
+class Rfb(RawLayer):
     '''
     implements rfb protocol message
     '''
@@ -20,7 +20,7 @@ class Rfb(ProtocolBuffer):
         constructor
         mode can be only client or server mode
         '''
-        ProtocolBuffer.__init__(self)
+        RawLayer.__init__(self)
         #usefull for rfb protocol
         self._callbackBody = None
         #mode of automata
