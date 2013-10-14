@@ -81,7 +81,7 @@ class TPKT(RawLayer):
         self._presentation.recv(data)
         self.expect(2, self.readHeader)
         
-    def write(self, data):
+    def send(self, data):
         s = Stream()
         s.write_uint8(3)
         s.write_uint8(0)

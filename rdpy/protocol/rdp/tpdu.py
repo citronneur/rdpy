@@ -1,12 +1,11 @@
 '''
-Created on 5 sept. 2013
-
 @author: sylvain
 '''
-from rdpy.protocol.common.layer import Layer
+from rdpy.protocol.common.layer import LayerAutomata
 from rdpy.protocol.common.stream import Stream
 from rdpy.protocol.common.error import InvalidExpectedDataException
-class TPDU(Layer):
+
+class TPDU(LayerAutomata):
     '''
     classdocs
     '''
@@ -15,40 +14,63 @@ class TPDU(Layer):
     X224_TPDU_DISCONNECT_REQUEST =    0x80
     X224_TPDU_DATA =                  0xF0
     X224_TPDU_ERROR =                 0x70
+    
+    #negotiation header
+    TYPE_RDP_NEG_REQ =                  0x01
+    TYPE_RDP_NEG_RSP =                  0x02
+    TYPE_RDP_NEG_FAILURE =              0x03
+    #rdp negotiation protocol
+    PROTOCOL_RDP =                      0x00000000
+    PROTOCOL_SSL =                      0x00000001
+    PROTOCOL_HYBRID =                   0x00000002
+    PROTOCOL_HYBRID_EX =                0x00000008
 
     def __init__(self, presentation = None):
         '''
         Constructor
         '''
-        Layer.__init__(self, presentation)
+        LayerAutomata.__init__(self, presentation)
+        
+        #default protocol is SSl because is the only supported
+        #in this version of RDPY
+        self._protocol = TPDU.PROTOCOL_SSL
     
     def connect(self):
-        self.writeMessage(TPDU.X224_TPDU_CONNECTION_REQUEST)
-        
-    def recv(self, data):
         '''
-        main receive function
-        layer complexity doesn't need automata
+        connection request
+        for client send a connection request packet
         '''
-        #unused length
-        len = data.read_uint8()
-        code = data.read_uint8()
-        
-        if code == TPDU.X224_TPDU_DATA:
-            data.read_uint8()
-            self._presentation.recv(data)
-        else:
-            #padding
-            data.read_leuint32()
-            if code == TPDU.X224_TPDU_CONNECTION_CONFIRM:
-                self._presentation.connect()
-            elif code == TPDU.X224_TPDU_CONNECTION_REQUEST:
-                self.writeMessage(TPDU.X224_TPDU_CONNECTION_CONFIRM)
-                self._presentation.connect()
-            else:
-                raise InvalidExpectedDataException("invalid TPDU header code %d"%code) 
+        self.sendConnectionRequest()
+
+    def readHeader(self, data):
+        '''
+        read a typical TPDU header (len and code)
+        '''            
+        return data.read_uint8(), data.read_uint8()
     
-    def write(self, data):
+    def recvConnectionConfirm(self, data):
+        '''
+        recv connection confirm message
+        '''
+        (len, code) = self.readHeader(data)
+        if code != TPDU.X224_TPDU_CONNECTION_CONFIRM:
+            raise InvalidExpectedDataException("invalid TPDU header code X224_TPDU_CONNECTION_CONFIRM != %d"%code)
+        data.read_leuint32()
+        data.read_uint8()
+        #check presence of negotiation response
+        if data.dataLen() == 8:
+            self.readNeg(data)
+        
+    def sendConnectionRequest(self):
+        '''
+        write connection request message
+        '''
+        s = Stream()
+        self.writeNegReq(s)
+        self.sendMessage(TPDU.X224_TPDU_CONNECTION_REQUEST, s)
+        self.setNextState(self.recvConnectionConfirm)
+        
+    def send(self, data):
         '''
         write message packet for TPDU layer
         add TPDU header
@@ -58,17 +80,57 @@ class TPDU(Layer):
         s.write_uint8(TPDU.X224_TPDU_DATA)
         s.write_uint8(0x80)
         s.write(data.getvalue())
-        self._transport.write(data)
+        self._transport.send(data)
         
-    def writeMessage(self, code):
+    def sendMessage(self, code, data = Stream()):
         '''
         special write function
         that packet TPDU message
         '''
         s = Stream()
-        s.write_uint8(6)
+        s.write_uint8(6 + data.len)
         s.write_uint8(code)
         s.write_beuint16(0)
         s.write_beuint16(0)
         s.write_uint8(0)
-        self.write(s)
+        if data.len > 0:
+            s.write(data.getvalue())
+        self._transport.send(s)
+        
+    def writeNegReq(self, s):
+        '''
+        write negociation request structure
+        '''
+        s.write_uint8(TPDU.TYPE_RDP_NEG_REQ)
+        #flags
+        s.write_uint8(0)
+        #write fixed packet size
+        s.write_leuint16(0x0008)
+        #write protocol
+        s.write_leuint32(self._protocol)
+        
+    def readNeg(self, data):
+        '''
+        read neagotiation response
+        '''
+        code = data.read_uint8()
+        
+        if code == TPDU.TYPE_RDP_NEG_FAILURE:
+            self.readNegFailure(data)
+        elif code == TPDU.TYPE_RDP_NEG_RSP:
+            self.readNegResp(data)
+        else:
+            raise InvalidExpectedDataException("bad protocol negotiation response code")
+    
+    def readNegFailure(self, data):
+        '''
+        read negotiation failure packet
+        '''
+        pass
+    
+    def readNegResp(self, data):
+        '''
+        read negotiatiion response packet
+        '''
+        pass
+        

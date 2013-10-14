@@ -37,14 +37,14 @@ class Layer(object):
         if not self._presentation is None:
             self._presentation.recv(data)
       
-    def write(self, data):
+    def send(self, data):
         '''
         classical use by presentation layer
         write data for this layer
         default pass data to transport layer
         '''
         if not self._transport is None:
-            self._transport.write(data)
+            self._transport.send(data)
             
 class LayerAutomata(Layer):
     '''
@@ -104,6 +104,13 @@ class RawLayer(protocol.Protocol, LayerAutomata):
             self._buffer = self._buffer[self._expectedLen:]
             #call recv function
             self.recv(expectedData)
+            
+    def connectionMade(self):
+        '''
+        inherit from twisted protocol
+        '''
+        #join two scheme
+        self.connect()
             
     def expect(self, expectedLen, callback = None):
         '''

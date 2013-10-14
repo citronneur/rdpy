@@ -54,10 +54,10 @@ class RfbAdaptor(RfbObserver, QAdaptor):
         '''
         convert qt mouse event to rfb mouse event
         '''
-        self._rfb.writePointerEvent(0, e.pos().x(), e.pos().y())
+        self._rfb.sendPointerEvent(0, e.pos().x(), e.pos().y())
         
     def sendKeyEvent(self, e):
         '''
         convert qt key press event to rfb press event
         '''
-        self._rfb.writeKeyEvent(True, e.nativeVirtualKey())
+        self._rfb.sendKeyEvent(True, e.nativeVirtualKey())

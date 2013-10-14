@@ -85,7 +85,7 @@ class Rfb(RawLayer):
             return
         self._version = ProtocolVersion.UNKNOWN
     
-    def writeProtocolVersionFormat(self):
+    def sendProtocolVersionFormat(self):
         s = Stream()
         if self._version == ProtocolVersion.RFB003003:
             s.write("RFB 003.003\n")
@@ -95,7 +95,7 @@ class Rfb(RawLayer):
             s.write("RFB 003.008\n")
         self.transport.write(s.getvalue())
         
-    def connectionMade(self):
+    def connect(self):
         '''
         call when transport layer connection
         is made
@@ -103,7 +103,7 @@ class Rfb(RawLayer):
         if self._mode == Rfb.CLIENT:
             self.expect(12, self.readProtocolVersion)
         else:
-            self.writeProtocolVersionFormat()
+            self.sendProtocolVersionFormat()
     
     def readProtocolVersion(self, data):
         '''
@@ -116,7 +116,7 @@ class Rfb(RawLayer):
             #protocol version is unknow try best version we can handle
             self._version = ProtocolVersion.RFB003008
         #send same version of 
-        self.writeProtocolVersionFormat()
+        self.sendProtocolVersionFormat()
         
         #next state read security
         if self._version == ProtocolVersion.RFB003003:
@@ -161,7 +161,7 @@ class Rfb(RawLayer):
                 self.expectWithHeader(4, self.readSecurityFailed)
         else:
             print "Authentification OK"
-            self.writeClientInit()
+            self.sendClientInit()
         
     def readSecurityFailed(self, data):
         print "Security failed cause to %s"%data.getvalue()
@@ -184,11 +184,11 @@ class Rfb(RawLayer):
         print "Server name %s"%self._serverName
         #end of handshake
         #send pixel format
-        self.writeSetPixelFormat(self._pixelFormat)
+        self.sendSetPixelFormat(self._pixelFormat)
         #write encoding
-        self.writeSetEncoding()
+        self.sendSetEncoding()
         #request entire zone
-        self.writeFramebufferUpdateRequest(False, 0, 0, self._width, self._height)
+        self.sendFramebufferUpdateRequest(False, 0, 0, self._width, self._height)
         self.expect(1, self.readServerOrder)
         
     def readServerOrder(self, data):
@@ -231,12 +231,12 @@ class Rfb(RawLayer):
         #if there is another rect to read
         if self._nbRect == 0:
             #job is finish send a request
-            self.writeFramebufferUpdateRequest(True, 0, 0, self._width, self._height)
+            self.sendFramebufferUpdateRequest(True, 0, 0, self._width, self._height)
             self.expect(1, self.readServerOrder)
         else:
             self.expect(12, self.readRectHeader)
         
-    def writeClientInit(self):
+    def sendClientInit(self):
         '''
         write client init packet
         '''
@@ -245,7 +245,7 @@ class Rfb(RawLayer):
         self.transport.write(s.getvalue())
         self.expect(20, self.readServerInit)
         
-    def writeSetPixelFormat(self, pixelFormat):
+    def sendSetPixelFormat(self, pixelFormat):
         '''
         write set pixel format packet
         '''
@@ -259,7 +259,7 @@ class Rfb(RawLayer):
         pixelFormat.write(s)
         self.transport.write(s.getvalue())
         
-    def writeSetEncoding(self):
+    def sendSetEncoding(self):
         '''
         write set encoding packet
         '''
@@ -274,7 +274,7 @@ class Rfb(RawLayer):
         s.write_besint32(0)
         self.transport.write(s.getvalue())
         
-    def writeFramebufferUpdateRequest(self, incremental, x, y, width, height):
+    def sendFramebufferUpdateRequest(self, incremental, x, y, width, height):
         '''
         request server the specified zone
         incremental means request only change before last update
@@ -288,7 +288,7 @@ class Rfb(RawLayer):
         s.write_beuint16(height)
         self.transport.write(s.getvalue())
         
-    def writeKeyEvent(self, downFlag, key):
+    def sendKeyEvent(self, downFlag, key):
         '''
         write key event packet
         '''
@@ -299,7 +299,7 @@ class Rfb(RawLayer):
         s.write_beuint32(key)
         self.transport.write(s.getvalue())
         
-    def writePointerEvent(self, mask, x, y):
+    def sendPointerEvent(self, mask, x, y):
         '''
         write pointer event packet
         '''
@@ -310,7 +310,7 @@ class Rfb(RawLayer):
         s.write_beuint16(y)
         self.transport.write(s.getvalue())
         
-    def writeClientCutText(self, text):
+    def sendClientCutText(self, text):
         '''
         write client cut text event packet
         '''

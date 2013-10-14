@@ -10,11 +10,5 @@ class InvalidExpectedDataException(Exception):
         '''
         constructor with message
         '''
-        self._message = message
-        
-    def __str__(self):
-        '''
-        return string representation of exception
-        '''
-        return "%s"%self._message
+        Exception.__init__(self, message)
         
