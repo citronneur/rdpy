@@ -78,7 +78,7 @@ class TPKT(RawLayer):
         read classic TPKT packet
         '''
         #next state is pass to 
-        self.recv(data)
+        self._presentation.recv(data)
         self.expect(2, self.readHeader)
         
     def write(self, data):
