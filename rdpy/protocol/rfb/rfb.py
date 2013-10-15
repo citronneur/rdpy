@@ -4,7 +4,7 @@ Created on 12 aout 2013
 @author: sylvain
 '''
 
-from rdpy.protocol.common.stream import Stream
+from rdpy.protocol.common.network import Stream, UInt8, UInt16Be, UInt32Be
 from rdpy.protocol.common.layer import RawLayer
 from types import PixelFormat,ProtocolVersion,SecurityType, Rectangle, Encoding
 
@@ -61,17 +61,18 @@ class Rfb(RawLayer):
         '''
         read header and expect body
         '''
-        bodyLen = 0
+        bodyLen = None
         if data.len == 1:
-            bodyLen = data.read_uint8()
+            bodyLen = UInt8()
         elif data.len == 2:
-            bodyLen = data.read_beuint16()
+            bodyLen = UInt16Be()
         elif data.len == 4:
-            bodyLen = data.read_beuint32()
+            bodyLen = UInt32Be()
         else:
             print "invalid header length"
             return
-        self.expect(bodyLen, self._callbackBody)
+        data.readType(bodyLen)
+        self.expect(bodyLen.value, self._callbackBody)
         
     def readProtocolVersionFormat(self, data):
         if data.getvalue() == "RFB 003.003\n":
