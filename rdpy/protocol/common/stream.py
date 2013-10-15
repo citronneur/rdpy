@@ -26,10 +26,24 @@ class SimpleType(Type):
     '''
     simple type
     '''
-    def __init__(self, value):
+    def __init__(self, typeSize, structFormat, value):
+        self._typeSize = typeSize
+        self._structFormat = structFormat
         self._value = value
         
-class ComplexType(Type):
+    def write(self, s):
+        '''
+        write value in stream s
+        '''
+        s.write(struct.pack(self._structFormat, self._value))
+        
+    def read(self, s):
+        '''
+        read value from stream
+        '''
+        self._value = struct.unpack(self._structFormat,self.read(self._typeSize))[0]
+        
+class CompositeType(Type):
     '''
     keep ordering declaration of simple type
     in list and transparent for other type
@@ -66,25 +80,38 @@ class Uint8(SimpleType):
     '''
     unsigned byte
     '''
-    def __init__(self, value):
+    def __init__(self, value = 0):
         '''
         constructor check value range
         '''
         if value < 0 or value > 0xff:
             raise InvalidValue("invalid uint8 value")
-        SimpleType.__init__(self, value)
-    
-    def write(self, s):
-        '''
-        write value in stream s
-        '''
-        s.write(struct.pack("B", self._value))
+        SimpleType.__init__(self, "B", 1, value)
         
-    def read(self, s):
+class Uint16Be(SimpleType):
+    '''
+    unsigned short with big endian representation
+    '''
+    def __init__(self, value = 0):
         '''
-        read value from stream
+        constructor check value range
         '''
-        self._value = struct.unpack("B",self.read(1))[0]
+        if value < 0 or value > 0xffff:
+            raise InvalidValue("invalid Uint16Be value")
+        SimpleType.__init__(self, ">H", 2, value)
+        
+class Uint16Le(SimpleType):
+    '''
+    unsigned short with big endian representation
+    '''
+    def __init__(self, value = 0):
+        '''
+        constructor check value range
+        '''
+        if value < 0 or value > 0xffff:
+            raise InvalidValue("invalid Uint16Le value")
+        SimpleType.__init__(self, "<H", 2, value)
+
     
 
 class Stream(StringIO):
@@ -96,15 +123,6 @@ class Stream(StringIO):
         no read length
         '''
         return self.len - self.pos
-
-    def read_uint8(self):
-        return struct.unpack("B",self.read(1))[0]
-    
-    def read_beuint16(self):
-        return struct.unpack(">H",self.read(2))[0]
-    
-    def read_leuint16(self):
-        return struct.unpack("<H",self.read(2))[0]
     
     def read_beuint24(self):
         return struct.unpack(">I",'\x00'+self.read(3))[0]
@@ -124,17 +142,12 @@ class Stream(StringIO):
     def read_lesint32(self):
         return struct.unpack("<i",self.read(4))[0]
     
+    def readType(self, t):
+        t.read(self)
+    
     def writeType(self, t):
         t.write(self)
-    
-    def write_uint8(self, value):
-        self.write(struct.pack("B", value))
-    
-    def write_beuint16(self, value):
-        self.write(struct.pack(">H", value))
         
-    def write_leuint16(self, value):
-        self.write(struct.pack("<H", value))
     
     def write_beuint24(self, value):
         self.write(struct.pack(">I", value)[1:])
