@@ -2,6 +2,16 @@
 @author: sylvain
 '''
 
+class InvalidValue(Exception):
+    '''
+    raise when invalid value type occured
+    '''
+    def __init__(self, message):
+        '''
+        constructor with message
+        '''
+        Exception.__init__(self, message)
+
 class InvalidExpectedDataException(Exception):
     '''
     raise when expected data on network is invalid

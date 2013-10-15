@@ -1,14 +1,100 @@
 '''
-Created on 12 aout 2013
-
 @author: sylvain
 '''
+
 import struct
 from StringIO import StringIO
+from error import InvalidValue
+
+class Type(object):
+    '''
+    root type
+    '''
+    def write(self, s):
+        '''
+        interface definition of write function
+        '''
+        pass
+    
+    def read(self, s):
+        '''
+        interface definition of read value
+        '''
+        pass
+
+class SimpleType(Type):
+    '''
+    simple type
+    '''
+    def __init__(self, value):
+        self._value = value
+        
+class ComplexType(Type):
+    '''
+    keep ordering declaration of simple type
+    in list and transparent for other type
+    '''
+    def __init__(self):
+        '''
+        init list of simple value
+        '''
+        self._type = []
+    
+    def __setattr__(self, name, value):
+        '''
+        magic function to update type list
+        '''
+        if isinstance(value, Type):
+            self._type.append(value)
+        self.__dict__[name] = value
+        
+    def __iter__(self):
+        '''
+        iteration over object
+        '''
+        for i in self._type:
+            yield i
+            
+    def write(self, s):
+        '''
+        call format on each ordered subtype
+        '''
+        for i in self._type:
+            i.write(s)
+
+class Uint8(SimpleType):
+    '''
+    unsigned byte
+    '''
+    def __init__(self, value):
+        '''
+        constructor check value range
+        '''
+        if value < 0 or value > 0xff:
+            raise InvalidValue("invalid uint8 value")
+        SimpleType.__init__(self, value)
+    
+    def write(self, s):
+        '''
+        write value in stream s
+        '''
+        s.write(struct.pack("B", self._value))
+        
+    def read(self, s):
+        '''
+        read value from stream
+        '''
+        self._value = struct.unpack("B",self.read(1))[0]
+    
 
 class Stream(StringIO):
-    
+    '''
+    use string io inheritance
+    '''
     def dataLen(self):
+        '''
+        no read length
+        '''
         return self.len - self.pos
 
     def read_uint8(self):
@@ -37,6 +123,9 @@ class Stream(StringIO):
     
     def read_lesint32(self):
         return struct.unpack("<i",self.read(4))[0]
+    
+    def writeType(self, t):
+        t.write(self)
     
     def write_uint8(self, value):
         self.write(struct.pack("B", value))
