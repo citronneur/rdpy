@@ -20,7 +20,7 @@ class TPKT(RawLayer):
         #length may be coded on more than 1 bytes
         self._lastShortLength = 0
         
-    def connectionMade(self):
+    def connect(self):
         '''
         call when transport layer connection
         is made (inherit from RawLayer)
@@ -28,7 +28,8 @@ class TPKT(RawLayer):
         #header is on two bytes
         self.expect(2, self.readHeader)
         #no connection automata on this layer
-        self.connect()
+        if not self._presentation is None:
+            self._presentation.connect()
         
     def readHeader(self, data):
         '''

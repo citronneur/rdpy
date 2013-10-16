@@ -61,38 +61,12 @@ class PixelFormat(CompositeType):
         self.RedShift = UInt8(16)
         self.GreenShift = UInt8(8)
         self.BlueShift = UInt8(0)
-        self.padding1 = UInt16Be()
-        self.padding2 = UInt8()
-        
-class PixelFormatMessage(CompositeType):
-    '''
-    message structure used in rfb
-    to send pixel format structure
-    '''
-    def __init__(self, pixelFormat):
-        CompositeType.__init__(self)
-        self.type = UInt8(0)
-        self.padding1 = UInt16Be()
-        self.padding2 = UInt8()
-        self.pixelFormat = pixelFormat
-        
-class SetEncodingMessage(CompositeType):
-    '''
-    message structure used in rfb
-    to send set encoding
-    Actually basic message that only send
-    raw encoding
-    '''
-    def __init__(self):
-        self.type = UInt8(2)
-        self.padding = UInt8()
-        self.nbEncoding = UInt16Be(1)
-        self.raw = Encoding.RAW
+        self.padding = (UInt16Be(), UInt8())
     
         
 class ServerInit(CompositeType):
     '''
-    message send by server to indicate
+    server init structure
     framebuffer configuration
     '''
     def __init__(self):
@@ -100,12 +74,26 @@ class ServerInit(CompositeType):
         self.width = UInt16Be()
         self.height = UInt16Be()
         self.pixelFormat = PixelFormat()
+        
+class FrameBufferUpdateRequest(CompositeType):
+    '''
+    fb update request send from client to server
+    '''
+    def __init__(self, incremental = False, x = 0, y = 0, width = 0, height = 0):
+        CompositeType.__init__(self)
+        self.type = UInt8(3)
+        self.incremental = UInt8(incremental)
+        self.x = UInt16Be(x)
+        self.y = UInt16Be(y)
+        self.width = UInt16Be(width)
+        self.height = UInt16Be(height)
 
     
-class Rectangle(object):
+class Rectangle(CompositeType):
     def __init__(self):
-        self.X = 0
-        self.Y = 0
-        self.Width = 0
-        self.Height = 0
-        self.Encoding = 0
+        CompositeType.__init__(self)
+        self.x = UInt16Be()
+        self.y = UInt16Be()
+        self.width = UInt16Be()
+        self.height = UInt16Be()
+        self.encoding = SInt32Be()

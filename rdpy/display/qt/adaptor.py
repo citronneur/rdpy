@@ -4,6 +4,7 @@ Created on 4 sept. 2013
 '''
 from PyQt4 import QtGui
 from rdpy.protocol.rfb.observer import RfbObserver
+from rdpy.protocol.common.network import UInt8, UInt16Be
 
 class QAdaptor(object):
     '''
@@ -41,14 +42,14 @@ class RfbAdaptor(RfbObserver, QAdaptor):
         '''
         
         imageFormat = None
-        if pixelFormat.BitsPerPixel == 32 and pixelFormat.RedShift == 16:
+        if pixelFormat.BitsPerPixel == UInt8(32) and pixelFormat.RedShift == UInt8(16):
             imageFormat = QtGui.QImage.Format_RGB32
         else:
             print "Receive image in bad format"
             return
             
-        image = QtGui.QImage(data, width, height, imageFormat)
-        self.notifyImage(x, y, image)
+        image = QtGui.QImage(data, width.value, height.value, imageFormat)
+        self.notifyImage(x.value, y.value, image)
         
     def sendMouseEvent(self, e):
         '''

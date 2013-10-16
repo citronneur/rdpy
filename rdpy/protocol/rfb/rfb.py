@@ -6,8 +6,7 @@ Created on 12 aout 2013
 
 from rdpy.protocol.common.network import Stream, String, UInt8, UInt16Be, UInt32Be
 from rdpy.protocol.common.layer import RawLayer
-from types import ServerInit, PixelFormat, ProtocolVersion, SecurityType, Rectangle, Encoding
-from types import PixelFormatMessage, SetEncodingMessage
+from types import ServerInit, PixelFormat, FrameBufferUpdateRequest, ProtocolVersion, SecurityType, Rectangle, Encoding
 
 class Rfb(RawLayer):
     '''
@@ -37,7 +36,7 @@ class Rfb(RawLayer):
         #that contain framebuffer dim and pixel format
         self._serverInit = ServerInit()
         #client pixel format
-        self._clientPixelFormat = PixelFormat()
+        self._pixelFormat = PixelFormat()
         #server name
         self._serverName = String()
         #nb rectangle
@@ -86,7 +85,7 @@ class Rfb(RawLayer):
         if self._mode == Rfb.CLIENT:
             self.expect(12, self.readProtocolVersion)
         else:
-            self.send(self._version)
+            self.sendMessage(self._version)
         
     def readProtocolVersionFormat(self, data):
         '''
@@ -107,7 +106,7 @@ class Rfb(RawLayer):
             #protocol version is unknow try best version we can handle
             self._version = ProtocolVersion.RFB003008
         #send same version of 
-        self.send(self._version)
+        self.sendMessage(self._version)
         
         #next state read security
         if self._version == ProtocolVersion.RFB003003:
@@ -138,7 +137,7 @@ class Rfb(RawLayer):
                 self._securityLevel = s
                 break
         #send back security level choosen
-        self.send(self._securityLevel)
+        self.sendMessage(self._securityLevel)
         self.expect(4, self.readSecurityResult)
         
     def readSecurityResult(self, data):
@@ -173,11 +172,11 @@ class Rfb(RawLayer):
         print "Server name %s"%str(self._serverName)
         #end of handshake
         #send pixel format
-        self.send(PixelFormatMessage(self._clientPixelFormat))
+        self.sendPixelFormat(self._pixelFormat)
         #write encoding
-        self.send(SetEncodingMessage())
+        self.sendSetEncoding()
         #request entire zone
-        self.sendFramebufferUpdateRequest(False, 0, 0, self._width, self._height)
+        self.sendMessage(FrameBufferUpdateRequest(False, 0, 0, self._serverInit.width.value, self._serverInit.height.value))
         self.expect(1, self.readServerOrder)
         
     def readServerOrder(self, data):
@@ -194,34 +193,30 @@ class Rfb(RawLayer):
         read frame buffer update packet header
         '''
         #padding
-        data.readType(UInt8())
-        self._nbRect = data.read_beuint16();
+        nbRect = UInt16Be()
+        self._nbRect = data.readType((UInt8(), nbRect))
+        self._nbRect = nbRect.value
         self.expect(12, self.readRectHeader)
         
     def readRectHeader(self, data):
         '''
         read rectangle header
         '''
-        self._currentRect.X = data.read_beuint16()
-        self._currentRect.Y = data.read_beuint16()
-        self._currentRect.Width = data.read_beuint16()
-        self._currentRect.Height = data.read_beuint16()
-        self._currentRect.Encoding = data.read_besint32()
-        
-        if self._currentRect.Encoding == Encoding.RAW:
-            self.expect(self._currentRect.Width * self._currentRect.Height * (self._pixelFormat.BitsPerPixel / 8), self.readRectBody)
+        data.readType(self._currentRect)
+        if self._currentRect.encoding == Encoding.RAW:
+            self.expect(self._currentRect.width.value * self._currentRect.height.value * (self._pixelFormat.BitsPerPixel.value / 8), self.readRectBody)
     
     def readRectBody(self, data):
         '''
         read body of rect
         '''
         for observer in self._observer:
-            observer.notifyFramebufferUpdate(self._currentRect.Width, self._currentRect.Height, self._currentRect.X, self._currentRect.Y, self._pixelFormat, self._currentRect.Encoding, data.getvalue())
+            observer.notifyFramebufferUpdate(self._currentRect.width, self._currentRect.height, self._currentRect.x, self._currentRect.y, self._pixelFormat, self._currentRect.encoding, data.getvalue())
         self._nbRect = self._nbRect - 1
         #if there is another rect to read
         if self._nbRect == 0:
             #job is finish send a request
-            self.sendFramebufferUpdateRequest(True, 0, 0, self._width, self._height)
+            self.sendMessage(FrameBufferUpdateRequest(True, 0, 0, self._serverInit.width.value, self._serverInit.height.value))
             self.expect(1, self.readServerOrder)
         else:
             self.expect(12, self.readRectHeader)
@@ -230,37 +225,27 @@ class Rfb(RawLayer):
         '''
         write client init packet
         '''
-        self.send(self._sharedFlag)
+        self.sendMessage(self._sharedFlag)
         self.expect(20, self.readServerInit)
+        
+    def sendPixelFormat(self, pixelFormat):
+        '''
+        send pixel format structure
+        '''
+        self.sendMessage((UInt8(0), UInt16Be(), UInt8(), pixelFormat))
         
     def sendSetEncoding(self):
         '''
-        write set encoding packet
+        send set encoding packet
         '''
-        s = Stream()
-        #message type
-        s.write_uint8(2)
-        #padding
-        s.write_uint8(0)
-        #nb encoding
-        s.write_beuint16(1)
-        #raw encoding
-        s.write_besint32(0)
-        self.transport.write(s.getvalue())
+        self.sendMessage((UInt8(2), UInt8(), UInt16Be(1), Encoding.RAW))
         
     def sendFramebufferUpdateRequest(self, incremental, x, y, width, height):
         '''
         request server the specified zone
         incremental means request only change before last update
         '''
-        s = Stream()
-        s.write_uint8(3)
-        s.write_uint8(incremental)
-        s.write_beuint16(x)
-        s.write_beuint16(y)
-        s.write_beuint16(width)
-        s.write_beuint16(height)
-        self.transport.write(s.getvalue())
+        self.sendMessage(FrameBufferUpdateRequest(incremental, x, y, width, height))
         
     def sendKeyEvent(self, downFlag, key):
         '''

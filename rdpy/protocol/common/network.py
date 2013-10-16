@@ -83,30 +83,23 @@ class CompositeType(Type):
         '''
         magic function to update type list
         '''
-        if name[0] != '_' and isinstance(value, Type):
+        if name[0] != '_' and (isinstance(value, Type) or isinstance(value, tuple)):
             self._type.append(value)
         self.__dict__[name] = value
-        
-    def __iter__(self):
-        '''
-        iteration over object
-        '''
-        for i in self._type:
-            yield i
             
     def read(self, s):
         '''
         call read on each ordered subtype 
         '''
         for i in self._type:
-            i.read(s)
+            s.readType(i)
             
     def write(self, s):
         '''
         call write on each ordered subtype
         '''
         for i in self._type:
-            i.write(s)
+            s.writeType(i)
             
     def sizeof(self):
         '''
@@ -299,11 +292,16 @@ class Stream(StringIO):
         '''
         return self.len - self.pos
     
-    def readType(self, t):
+    def readType(self, value):
         '''
         call specific read on type object
         '''
-        t.read(self)
+        #read each tuple
+        if isinstance(value, tuple):
+            for element in value:
+                self.readType(element)
+            return
+        value.read(self)
         
     def readNextType(self, t):
         '''
@@ -312,11 +310,16 @@ class Stream(StringIO):
         self.readType(t)
         self.pos -= t.sizeof()
     
-    def writeType(self, t):
+    def writeType(self, value):
         '''
         call specific write on type object
         '''
-        t.write(self)
+        #write each element of tuple
+        if isinstance(value, tuple):
+            for element in value:
+                self.writeType(element)
+            return
+        value.write(self)
         
     def write_unistr(self, value):
         for c in value:

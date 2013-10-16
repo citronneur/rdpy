@@ -121,15 +121,10 @@ class RawLayer(protocol.Protocol, LayerAutomata):
         #default callback is recv from LayerAutomata
         self.setNextState(callback)
         
-    def send(self, message):
+    def sendMessage(self, message):
         '''
         send stream on tcp layer
         '''
-        if isinstance(message, Type):
-            s = Stream()
-            s.writeType(message)
-            self.transport.write(s.getvalue())
-        elif isinstance(message, Stream):
-            self.transport.write(message.getvalue())
-        else:
-            raise InvalidType("expected Stream or Type")
+        s = Stream()
+        s.writeType(message)
+        self.transport.write(s.getvalue())
