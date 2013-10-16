@@ -2,7 +2,7 @@
 @author: sylvain
 '''
 
-from rdpy.protocol.common.network import UInt8, UInt16Be, UInt32Be, String
+from rdpy.protocol.common.network import UInt8, UInt16Be, UInt32Be, SInt32Be, String
 from rdpy.protocol.common.network import CompositeType
 from rdpy.utils.const import ConstAttributes
 
@@ -17,7 +17,7 @@ class ProtocolVersion(object):
     RFB003008 = String("RFB 003.008\n")
 
 @ConstAttributes 
-class SecurityType:
+class SecurityType(object):
     '''
     security type supported 
     (or will be supported)
@@ -27,8 +27,8 @@ class SecurityType:
     NONE = UInt8(1)
     VNC = UInt8(2)
 
-@ConstAttributes 
-class Pointer:
+@ConstAttributes
+class Pointer(object):
     '''
     mouse event code (which button)
     actually in RFB specification only$
@@ -37,6 +37,13 @@ class Pointer:
     BUTTON1 = UInt32Be(0x1)
     BUTTON2 = UInt32Be(0x2)
     BUTTON3 = UInt32Be(0x4)
+
+@ConstAttributes  
+class Encoding(object):
+    '''
+    encoding types
+    '''
+    RAW = SInt32Be(0)
     
 class PixelFormat(CompositeType):
     '''
@@ -57,6 +64,32 @@ class PixelFormat(CompositeType):
         self.padding1 = UInt16Be()
         self.padding2 = UInt8()
         
+class PixelFormatMessage(CompositeType):
+    '''
+    message structure used in rfb
+    to send pixel format structure
+    '''
+    def __init__(self, pixelFormat):
+        CompositeType.__init__(self)
+        self.type = UInt8(0)
+        self.padding1 = UInt16Be()
+        self.padding2 = UInt8()
+        self.pixelFormat = pixelFormat
+        
+class SetEncodingMessage(CompositeType):
+    '''
+    message structure used in rfb
+    to send set encoding
+    Actually basic message that only send
+    raw encoding
+    '''
+    def __init__(self):
+        self.type = UInt8(2)
+        self.padding = UInt8()
+        self.nbEncoding = UInt16Be(1)
+        self.raw = Encoding.RAW
+    
+        
 class ServerInit(CompositeType):
     '''
     message send by server to indicate
@@ -69,13 +102,10 @@ class ServerInit(CompositeType):
         self.pixelFormat = PixelFormat()
 
     
-class Rectangle:
+class Rectangle(object):
     def __init__(self):
         self.X = 0
         self.Y = 0
         self.Width = 0
         self.Height = 0
         self.Encoding = 0
-        
-class Encoding:
-    RAW = 0

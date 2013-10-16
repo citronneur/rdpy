@@ -32,3 +32,13 @@ class NegotiationFailure(Exception):
         '''
         Exception.__init__(self, message)
         
+class InvalidType(Exception):
+    '''
+    raise when invalid value type occured
+    '''
+    def __init__(self, message):
+        '''
+        constructor with message
+        '''
+        Exception.__init__(self, message)
+        

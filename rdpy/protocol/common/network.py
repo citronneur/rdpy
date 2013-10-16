@@ -21,6 +21,12 @@ class Type(object):
         interface definition of read value
         '''
         pass
+    
+    def sizeof(self):
+        '''
+        return size of type
+        '''
+        pass
 
 class SimpleType(Type):
     '''
@@ -56,6 +62,12 @@ class SimpleType(Type):
         '''
         self._value = struct.unpack(self._structFormat,s.read(self._typeSize))[0]
         
+    def sizeof(self):
+        '''
+        return size of type
+        '''
+        return self._typeSize
+        
 class CompositeType(Type):
     '''
     keep ordering declaration of simple type
@@ -71,7 +83,7 @@ class CompositeType(Type):
         '''
         magic function to update type list
         '''
-        if isinstance(value, Type):
+        if name[0] != '_' and isinstance(value, Type):
             self._type.append(value)
         self.__dict__[name] = value
         
@@ -82,12 +94,27 @@ class CompositeType(Type):
         for i in self._type:
             yield i
             
+    def read(self, s):
+        '''
+        call read on each ordered subtype 
+        '''
+        for i in self._type:
+            i.read(s)
+            
     def write(self, s):
         '''
-        call format on each ordered subtype
+        call write on each ordered subtype
         '''
         for i in self._type:
             i.write(s)
+            
+    def sizeof(self):
+        '''
+        call sizeof on each subtype
+        '''
+        result = 0
+        for i in self._type:
+            result += i.sizeof()
 
 class UInt8(SimpleType):
     '''
@@ -237,6 +264,12 @@ class String(Type):
         '''
         return self._value == other._value
     
+    def __str__(self):
+        '''
+        call when str function is call
+        '''
+        return self._value
+    
     def write(self, s):
         '''
         write the entire raw value
@@ -248,6 +281,12 @@ class String(Type):
         read all stream
         '''
         self._value = s.getvalue()
+        
+    def sizeof(self):
+        '''
+        return len of string
+        '''
+        return len(self._value)
     
 
 class Stream(StringIO):
@@ -261,9 +300,22 @@ class Stream(StringIO):
         return self.len - self.pos
     
     def readType(self, t):
+        '''
+        call specific read on type object
+        '''
         t.read(self)
+        
+    def readNextType(self, t):
+        '''
+        read next type but didn't consume it
+        '''
+        self.readType(t)
+        self.pos -= t.sizeof()
     
     def writeType(self, t):
+        '''
+        call specific write on type object
+        '''
         t.write(self)
         
     def write_unistr(self, value):

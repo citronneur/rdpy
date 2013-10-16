@@ -4,9 +4,10 @@ Created on 12 aout 2013
 @author: sylvain
 '''
 
-from rdpy.protocol.common.network import Stream, UInt8, UInt16Be, UInt32Be
+from rdpy.protocol.common.network import Stream, String, UInt8, UInt16Be, UInt32Be
 from rdpy.protocol.common.layer import RawLayer
-from types import PixelFormat,ProtocolVersion,SecurityType, Rectangle, Encoding
+from types import ServerInit, PixelFormat, ProtocolVersion, SecurityType, Rectangle, Encoding
+from types import PixelFormatMessage, SetEncodingMessage
 
 class Rfb(RawLayer):
     '''
@@ -30,16 +31,15 @@ class Rfb(RawLayer):
         self._version = ProtocolVersion.RFB003008
         #nb security launch by server
         self._securityLevel = SecurityType.INVALID
-        #shared framebuffer
-        self._sharedFlag = UInt8
-        #framebuffer width
-        self._width = 0
-        #framebuffer height
-        self._height = 0
-        #pixel format structure
-        self._pixelFormat = PixelFormat()
+        #shared framebuffer client init message
+        self._sharedFlag = UInt8(False)
+        #server init message
+        #that contain framebuffer dim and pixel format
+        self._serverInit = ServerInit()
+        #client pixel format
+        self._clientPixelFormat = PixelFormat()
         #server name
-        self._serverName = None
+        self._serverName = String()
         #nb rectangle
         self._nbRect = 0
         #current rectangle header
@@ -78,19 +78,6 @@ class Rfb(RawLayer):
         data.readType(bodyLen)
         self.expect(bodyLen.value, self._callbackBody)
         
-    def readProtocolVersionFormat(self, data):
-        '''
-        read protocol version
-        '''
-        data.readType(self._version)
-        if not self._version in [ProtocolVersion.RFB003003, ProtocolVersion.RFB003007, ProtocolVersion.RFB003008]:
-            self._version = ProtocolVersion.UNKNOWN
-    
-    def sendProtocolVersionFormat(self):
-        s = Stream()
-        s.writeType(self._version)
-        self.send(s)
-        
     def connect(self):
         '''
         call when transport layer connection
@@ -99,7 +86,15 @@ class Rfb(RawLayer):
         if self._mode == Rfb.CLIENT:
             self.expect(12, self.readProtocolVersion)
         else:
-            self.sendProtocolVersionFormat()
+            self.send(self._version)
+        
+    def readProtocolVersionFormat(self, data):
+        '''
+        read protocol version
+        '''
+        data.readType(self._version)
+        if not self._version in [ProtocolVersion.RFB003003, ProtocolVersion.RFB003007, ProtocolVersion.RFB003008]:
+            self._version = ProtocolVersion.UNKNOWN
     
     def readProtocolVersion(self, data):
         '''
@@ -112,7 +107,7 @@ class Rfb(RawLayer):
             #protocol version is unknow try best version we can handle
             self._version = ProtocolVersion.RFB003008
         #send same version of 
-        self.sendProtocolVersionFormat()
+        self.send(self._version)
         
         #next state read security
         if self._version == ProtocolVersion.RFB003003:
@@ -143,9 +138,7 @@ class Rfb(RawLayer):
                 self._securityLevel = s
                 break
         #send back security level choosen
-        s = Stream()
-        s.writeType(self._securityLevel)
-        self.send(s)
+        self.send(self._securityLevel)
         self.expect(4, self.readSecurityResult)
         
     def readSecurityResult(self, data):
@@ -154,7 +147,7 @@ class Rfb(RawLayer):
         '''
         result = UInt32Be()
         data.readType(result)
-        if result == 1:
+        if result == UInt32Be(1):
             print "Authentification failed"
             if self._version == ProtocolVersion.RFB003008:
                 self.expectWithHeader(4, self.readSecurityFailed)
@@ -169,23 +162,20 @@ class Rfb(RawLayer):
         '''
         read server init packet
         '''
-        self._width = data.read_beuint16()
-        self._height = data.read_beuint16()
-        serverPixelFomat = PixelFormat()
-        serverPixelFomat.read(data)
+        data.readType(self._serverInit)
         self.expectWithHeader(4, self.readServerName)
     
     def readServerName(self, data):
         '''
         read server name from server init packet
         '''
-        self._serverName = data.getvalue()
-        print "Server name %s"%self._serverName
+        data.readType(self._serverName)
+        print "Server name %s"%str(self._serverName)
         #end of handshake
         #send pixel format
-        self.sendSetPixelFormat(self._pixelFormat)
+        self.send(PixelFormatMessage(self._clientPixelFormat))
         #write encoding
-        self.sendSetEncoding()
+        self.send(SetEncodingMessage())
         #request entire zone
         self.sendFramebufferUpdateRequest(False, 0, 0, self._width, self._height)
         self.expect(1, self.readServerOrder)
@@ -195,7 +185,7 @@ class Rfb(RawLayer):
         read order receive from server
         '''
         packet_type = UInt8()
-        data.readType(packet_type)
+        data.readNextType(packet_type)
         if packet_type == UInt8(0):
             self.expect(3, self.readFrameBufferUpdateHeader)
         
@@ -240,24 +230,8 @@ class Rfb(RawLayer):
         '''
         write client init packet
         '''
-        s = Stream()
-        s.writeType(self._sharedFlag)
-        self.send(s)
+        self.send(self._sharedFlag)
         self.expect(20, self.readServerInit)
-        
-    def sendSetPixelFormat(self, pixelFormat):
-        '''
-        write set pixel format packet
-        '''
-        s = Stream()
-        #message type
-        s.write_uint8(0)
-        #padding
-        s.write_uint8(0)
-        s.write_uint8(0)
-        s.write_uint8(0)
-        pixelFormat.write(s)
-        self.transport.write(s.getvalue())
         
     def sendSetEncoding(self):
         '''

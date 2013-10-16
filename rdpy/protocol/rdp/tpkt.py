@@ -2,7 +2,7 @@
 @author: sylvain
 '''
 from rdpy.protocol.common.layer import RawLayer
-from rdpy.protocol.common.stream import Stream
+from rdpy.protocol.common.network import Stream
 
 class TPKT(RawLayer):
     '''
