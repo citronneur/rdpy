@@ -1,72 +1,73 @@
 '''
-Created on 22 aout 2013
-
 @author: sylvain
 '''
+
+from rdpy.protocol.common.network import UInt8, UInt16Be, UInt32Be, String
+from rdpy.protocol.common.network import CompositeType
+from rdpy.utils.const import ConstAttributes
+
+@ConstAttributes
 class ProtocolVersion(object):
     '''
     different ptotocol version
     '''
-    UNKNOWN = 0
-    RFB003003 = 1
-    RFB003007 = 2
-    RFB003008 = 3
-    
+    UNKNOWN = String()
+    RFB003003 = String("RFB 003.003\n")
+    RFB003007 = String("RFB 003.007\n")
+    RFB003008 = String("RFB 003.008\n")
+
+@ConstAttributes 
 class SecurityType:
     '''
-    security type supported by twisted remote desktop
+    security type supported 
+    (or will be supported)
+    by rdpy
     '''
-    INVALID = 0
-    NONE = 1
-    VNC = 2
-    
-class PixelFormat(object):
-    def __init__(self):
-        self.BitsPerPixel = 32
-        self.Depth = 24
-        self.BigEndianFlag = False
-        self.TrueColorFlag = True
-        self.RedMax = 255
-        self.GreenMax = 255
-        self.BlueMax = 255
-        self.RedShift = 16
-        self.GreenShift = 8
-        self.BlueShift = 0
-        
-    def read(self, data):
-        self.BitsPerPixel = data.read_uint8()
-        self.Depth = data.read_uint8()
-        self.BigEndianFlag = data.read_uint8()
-        self.TrueColorFlag = data.read_uint8()
-        self.RedMax = data.read_beuint16()
-        self.GreenMax = data.read_beuint16()
-        self.BlueMax = data.read_beuint16()
-        self.RedShift = data.read_uint8()
-        self.GreenShift = data.read_uint8()
-        self.BlueShift = data.read_uint8()
-        #padding
-        data.read(3)
-        
-    def write(self, data):
-        data.write_uint8(self.BitsPerPixel)
-        data.write_uint8(self.Depth)
-        data.write_uint8(self.BigEndianFlag)
-        data.write_uint8(self.TrueColorFlag)
-        data.write_beuint16(self.RedMax)
-        data.write_beuint16(self.GreenMax)
-        data.write_beuint16(self.BlueMax)
-        data.write_uint8(self.RedShift)
-        data.write_uint8(self.GreenShift)
-        data.write_uint8(self.BlueShift)
-        #padding
-        data.write_uint8(0)
-        data.write_uint8(0)
-        data.write_uint8(0)
-        
+    INVALID = UInt8(0)
+    NONE = UInt8(1)
+    VNC = UInt8(2)
+
+@ConstAttributes 
 class Pointer:
-    BUTTON1 = 0x1
-    BUTTON2 = 0x2
-    BUTTON3 = 0x4
+    '''
+    mouse event code (which button)
+    actually in RFB specification only$
+    three buttons are supported
+    '''
+    BUTTON1 = UInt32Be(0x1)
+    BUTTON2 = UInt32Be(0x2)
+    BUTTON3 = UInt32Be(0x4)
+    
+class PixelFormat(CompositeType):
+    '''
+    pixel format structure
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.BitsPerPixel = UInt8(32)
+        self.Depth = UInt8(24)
+        self.BigEndianFlag = UInt8(False)
+        self.TrueColorFlag = UInt8(True)
+        self.RedMax = UInt16Be(255)
+        self.GreenMax = UInt16Be(255)
+        self.BlueMax = UInt16Be(255)
+        self.RedShift = UInt8(16)
+        self.GreenShift = UInt8(8)
+        self.BlueShift = UInt8(0)
+        self.padding1 = UInt16Be()
+        self.padding2 = UInt8()
+        
+class ServerInit(CompositeType):
+    '''
+    message send by server to indicate
+    framebuffer configuration
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.width = UInt16Be()
+        self.height = UInt16Be()
+        self.pixelFormat = PixelFormat()
+
     
 class Rectangle:
     def __init__(self):

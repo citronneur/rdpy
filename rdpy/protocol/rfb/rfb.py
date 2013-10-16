@@ -19,6 +19,7 @@ class Rfb(RawLayer):
         '''
         constructor
         mode can be only client or server mode
+        in this version of RDPY only support client mode
         '''
         RawLayer.__init__(self)
         #usefull for rfb protocol
@@ -30,7 +31,7 @@ class Rfb(RawLayer):
         #nb security launch by server
         self._securityLevel = SecurityType.INVALID
         #shared framebuffer
-        self._sharedFlag = 0
+        self._sharedFlag = UInt8
         #framebuffer width
         self._width = 0
         #framebuffer height
@@ -47,6 +48,9 @@ class Rfb(RawLayer):
         self._observer = []
         
     def addObserver(self, observer):
+        '''
+        add observer for input/ouput events
+        '''
         self._observer.append(observer)
     
     def expectWithHeader(self, expectedHeaderLen, callbackBody):
@@ -75,26 +79,17 @@ class Rfb(RawLayer):
         self.expect(bodyLen.value, self._callbackBody)
         
     def readProtocolVersionFormat(self, data):
-        if data.getvalue() == "RFB 003.003\n":
-            self._version = ProtocolVersion.RFB003003
-            return
-        if data.getvalue() == "RFB 003.007\n":
-            self._version = ProtocolVersion.RFB003007
-            return
-        if data.getvalue() == "RFB 003.008\n":
-            self._version = ProtocolVersion.RFB003008
-            return
-        self._version = ProtocolVersion.UNKNOWN
+        '''
+        read protocol version
+        '''
+        data.readType(self._version)
+        if not self._version in [ProtocolVersion.RFB003003, ProtocolVersion.RFB003007, ProtocolVersion.RFB003008]:
+            self._version = ProtocolVersion.UNKNOWN
     
     def sendProtocolVersionFormat(self):
         s = Stream()
-        if self._version == ProtocolVersion.RFB003003:
-            s.write("RFB 003.003\n")
-        if self._version == ProtocolVersion.RFB003007:
-            s.write("RFB 003.007\n")
-        if self._version == ProtocolVersion.RFB003008:
-            s.write("RFB 003.008\n")
-        self.transport.write(s.getvalue())
+        s.writeType(self._version)
+        self.send(s)
         
     def connect(self):
         '''
@@ -139,7 +134,9 @@ class Rfb(RawLayer):
         '''
         securityList = []
         while data.dataLen() > 0:
-            securityList.append(data.read_uint8())
+            securityElement = UInt8()
+            data.readType(securityElement)
+            securityList.append(securityElement)
         #select high security level
         for s in securityList:
             if s in [SecurityType.NONE, SecurityType.VNC] and s > self._securityLevel:
@@ -147,15 +144,16 @@ class Rfb(RawLayer):
                 break
         #send back security level choosen
         s = Stream()
-        s.write_uint8(self._securityLevel)
-        self.transport.write(s.getvalue())
+        s.writeType(self._securityLevel)
+        self.send(s)
         self.expect(4, self.readSecurityResult)
         
     def readSecurityResult(self, data):
         '''
         Read security result packet
         '''
-        result = data.read_beuint32()
+        result = UInt32Be()
+        data.readType(result)
         if result == 1:
             print "Authentification failed"
             if self._version == ProtocolVersion.RFB003008:
@@ -196,8 +194,9 @@ class Rfb(RawLayer):
         '''
         read order receive from server
         '''
-        packet_type = data.read_uint8()
-        if packet_type == 0:
+        packet_type = UInt8()
+        data.readType(packet_type)
+        if packet_type == UInt8(0):
             self.expect(3, self.readFrameBufferUpdateHeader)
         
     def readFrameBufferUpdateHeader(self, data):
@@ -205,7 +204,7 @@ class Rfb(RawLayer):
         read frame buffer update packet header
         '''
         #padding
-        data.read_uint8()
+        data.readType(UInt8())
         self._nbRect = data.read_beuint16();
         self.expect(12, self.readRectHeader)
         
@@ -242,8 +241,8 @@ class Rfb(RawLayer):
         write client init packet
         '''
         s = Stream()
-        s.write_uint8(self._sharedFlag)
-        self.transport.write(s.getvalue())
+        s.writeType(self._sharedFlag)
+        self.send(s)
         self.expect(20, self.readServerInit)
         
     def sendSetPixelFormat(self, pixelFormat):

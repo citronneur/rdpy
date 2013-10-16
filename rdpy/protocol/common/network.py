@@ -26,14 +26,23 @@ class SimpleType(Type):
     '''
     simple type
     '''
-    def __init__(self, typeSize, structFormat, value):
+    def __init__(self, structFormat, typeSize, value):
         self._typeSize = typeSize
         self._structFormat = structFormat
         self._value = value
         
     @property
     def value(self):
-        return self._value;
+        '''
+        shortcut to access inner value
+        '''
+        return self._value
+    
+    def __cmp__(self, other):
+        '''
+        compare inner value
+        '''
+        return self._value.__cmp__(other.value)
         
     def write(self, s):
         '''
@@ -211,7 +220,34 @@ class UInt24Le(SimpleType):
         special read for a special type
         '''
         self._value = struct.unpack("<I",s.read(3))[0]
-
+        
+class String(Type):
+    '''
+    String network type
+    '''
+    def __init__(self, value = ""):
+        '''
+        constructor with new string
+        '''
+        self._value = value
+        
+    def __eq__(self, other):
+        '''
+        call raw compare value
+        '''
+        return self._value == other._value
+    
+    def write(self, s):
+        '''
+        write the entire raw value
+        '''
+        s.write(self._value)
+    
+    def read(self, s):
+        '''
+        read all stream
+        '''
+        self._value = s.getvalue()
     
 
 class Stream(StringIO):

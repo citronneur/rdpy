@@ -2,7 +2,7 @@
 @author: sylvain
 '''
 from rdpy.protocol.common.layer import LayerAutomata
-from rdpy.protocol.common.stream import Stream
+from rdpy.protocol.common.network import Stream
 from rdpy.protocol.common.error import InvalidExpectedDataException, NegotiationFailure
 
 class TPDU(LayerAutomata):
