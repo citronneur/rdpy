@@ -70,8 +70,7 @@ class LayerAutomata(Layer):
 #twitsed layer concept
 from twisted.internet import protocol
 #first that handle stream     
-from network import Stream, Type
-from error import InvalidType
+from type import Stream
 
 class RawLayer(protocol.Protocol, LayerAutomata):
     '''
@@ -121,7 +120,7 @@ class RawLayer(protocol.Protocol, LayerAutomata):
         #default callback is recv from LayerAutomata
         self.setNextState(callback)
         
-    def sendMessage(self, message):
+    def send(self, message):
         '''
         send stream on tcp layer
         '''

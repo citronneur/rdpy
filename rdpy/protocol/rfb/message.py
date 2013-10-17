@@ -2,8 +2,7 @@
 @author: sylvain
 '''
 
-from rdpy.protocol.common.network import UInt8, UInt16Be, UInt32Be, SInt32Be, String
-from rdpy.protocol.common.network import CompositeType
+from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
 from rdpy.utils.const import ConstAttributes
 
 @ConstAttributes
@@ -44,6 +43,18 @@ class Encoding(object):
     encoding types
     '''
     RAW = SInt32Be(0)
+
+@ConstAttributes
+class ClientToServerMessages(object):
+    '''
+    messages types
+    '''
+    PIXEL_FORMAT = UInt8(0)
+    ENCODING = UInt8(2)
+    FRAME_BUFFER_UPDATE_REQUEST = UInt8(3)
+    KEY_EVENT = UInt8(4)
+    POINTER_EVENT = UInt8(5)
+    CUT_TEXT = UInt8(6)
     
 class PixelFormat(CompositeType):
     '''
@@ -81,7 +92,6 @@ class FrameBufferUpdateRequest(CompositeType):
     '''
     def __init__(self, incremental = False, x = 0, y = 0, width = 0, height = 0):
         CompositeType.__init__(self)
-        self.type = UInt8(3)
         self.incremental = UInt8(incremental)
         self.x = UInt16Be(x)
         self.y = UInt16Be(y)
@@ -90,6 +100,9 @@ class FrameBufferUpdateRequest(CompositeType):
 
     
 class Rectangle(CompositeType):
+    '''
+    header message of update rect
+    '''
     def __init__(self):
         CompositeType.__init__(self)
         self.x = UInt16Be()
@@ -97,3 +110,33 @@ class Rectangle(CompositeType):
         self.width = UInt16Be()
         self.height = UInt16Be()
         self.encoding = SInt32Be()
+        
+class KeyEvent(CompositeType):
+    '''
+    key event structure message
+    '''
+    def __init__(self, downFlag = False, key = 0):
+        CompositeType.__init__(self)
+        self.downFlag = UInt8(downFlag)
+        self.padding = UInt16Be()
+        self.key = UInt32Be(key)
+        
+class PointerEvent(CompositeType):
+    '''
+    pointer event structure message
+    '''
+    def __init__(self, mask = 0, x = 0, y = 0):
+        CompositeType.__init__(self)
+        self.mask = UInt8(mask)
+        self.x = UInt16Be(x)
+        self.y = UInt16Be(y)
+        
+class ClientCutText(CompositeType):
+    '''
+    client cut text message message
+    '''
+    def __init__(self, text = ""):
+        CompositeType.__init__(self)
+        self.padding = (UInt16Be(), UInt8())
+        self.size = UInt32Be(len(text))
+        self.message = String(text)

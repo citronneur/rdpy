@@ -4,9 +4,10 @@ Created on 12 aout 2013
 @author: sylvain
 '''
 
-from rdpy.protocol.common.network import Stream, String, UInt8, UInt16Be, UInt32Be
-from rdpy.protocol.common.layer import RawLayer
-from types import ServerInit, PixelFormat, FrameBufferUpdateRequest, ProtocolVersion, SecurityType, Rectangle, Encoding
+from rdpy.protocol.network.type import String, UInt8, UInt16Be, UInt32Be
+from rdpy.protocol.network.layer import RawLayer
+from message import ServerInit, PixelFormat, FrameBufferUpdateRequest, Rectangle, KeyEvent, PointerEvent, ClientCutText
+from message import ProtocolVersion, SecurityType, Encoding, ClientToServerMessages
 
 class Rfb(RawLayer):
     '''
@@ -33,7 +34,7 @@ class Rfb(RawLayer):
         #shared framebuffer client init message
         self._sharedFlag = UInt8(False)
         #server init message
-        #that contain framebuffer dim and pixel format
+        #which contain framebuffer dim and pixel format
         self._serverInit = ServerInit()
         #client pixel format
         self._pixelFormat = PixelFormat()
@@ -85,7 +86,7 @@ class Rfb(RawLayer):
         if self._mode == Rfb.CLIENT:
             self.expect(12, self.readProtocolVersion)
         else:
-            self.sendMessage(self._version)
+            self.send(self._version)
         
     def readProtocolVersionFormat(self, data):
         '''
@@ -106,7 +107,7 @@ class Rfb(RawLayer):
             #protocol version is unknow try best version we can handle
             self._version = ProtocolVersion.RFB003008
         #send same version of 
-        self.sendMessage(self._version)
+        self.send(self._version)
         
         #next state read security
         if self._version == ProtocolVersion.RFB003003:
@@ -137,7 +138,7 @@ class Rfb(RawLayer):
                 self._securityLevel = s
                 break
         #send back security level choosen
-        self.sendMessage(self._securityLevel)
+        self.send(self._securityLevel)
         self.expect(4, self.readSecurityResult)
         
     def readSecurityResult(self, data):
@@ -176,7 +177,7 @@ class Rfb(RawLayer):
         #write encoding
         self.sendSetEncoding()
         #request entire zone
-        self.sendMessage(FrameBufferUpdateRequest(False, 0, 0, self._serverInit.width.value, self._serverInit.height.value))
+        self.sendFramebufferUpdateRequest(False, 0, 0, self._serverInit.width.value, self._serverInit.height.value)
         self.expect(1, self.readServerOrder)
         
     def readServerOrder(self, data):
@@ -184,7 +185,7 @@ class Rfb(RawLayer):
         read order receive from server
         '''
         packet_type = UInt8()
-        data.readNextType(packet_type)
+        data.readType(packet_type)
         if packet_type == UInt8(0):
             self.expect(3, self.readFrameBufferUpdateHeader)
         
@@ -216,7 +217,7 @@ class Rfb(RawLayer):
         #if there is another rect to read
         if self._nbRect == 0:
             #job is finish send a request
-            self.sendMessage(FrameBufferUpdateRequest(True, 0, 0, self._serverInit.width.value, self._serverInit.height.value))
+            self.sendFramebufferUpdateRequest(True, 0, 0, self._serverInit.width.value, self._serverInit.height.value)
             self.expect(1, self.readServerOrder)
         else:
             self.expect(12, self.readRectHeader)
@@ -225,60 +226,42 @@ class Rfb(RawLayer):
         '''
         write client init packet
         '''
-        self.sendMessage(self._sharedFlag)
+        self.send(self._sharedFlag)
         self.expect(20, self.readServerInit)
         
     def sendPixelFormat(self, pixelFormat):
         '''
         send pixel format structure
         '''
-        self.sendMessage((UInt8(0), UInt16Be(), UInt8(), pixelFormat))
+        self.send((ClientToServerMessages.PIXEL_FORMAT, UInt16Be(), UInt8(), pixelFormat))
         
     def sendSetEncoding(self):
         '''
         send set encoding packet
         '''
-        self.sendMessage((UInt8(2), UInt8(), UInt16Be(1), Encoding.RAW))
+        self.send((ClientToServerMessages.ENCODING, UInt8(), UInt16Be(1), Encoding.RAW))
         
     def sendFramebufferUpdateRequest(self, incremental, x, y, width, height):
         '''
         request server the specified zone
         incremental means request only change before last update
         '''
-        self.sendMessage(FrameBufferUpdateRequest(incremental, x, y, width, height))
+        self.send((ClientToServerMessages.FRAME_BUFFER_UPDATE_REQUEST, FrameBufferUpdateRequest(incremental, x, y, width, height)))
         
     def sendKeyEvent(self, downFlag, key):
         '''
         write key event packet
         '''
-        s = Stream()
-        s.write_uint8(4)
-        s.write_uint8(downFlag)
-        s.write_beuint16(0)
-        s.write_beuint32(key)
-        self.transport.write(s.getvalue())
+        self.send((ClientToServerMessages.KEY_EVENT, KeyEvent(downFlag, key)))
         
     def sendPointerEvent(self, mask, x, y):
         '''
         write pointer event packet
         '''
-        s= Stream()
-        s.write_uint8(5)
-        s.write_uint8(mask)
-        s.write_beuint16(x)
-        s.write_beuint16(y)
-        self.transport.write(s.getvalue())
+        self.send((ClientToServerMessages.POINTER_EVENT, PointerEvent(mask, x, y)))
         
     def sendClientCutText(self, text):
         '''
         write client cut text event packet
         '''
-        s = Stream()
-        s.write_uint8(6)
-        #padding
-        s.write_uint8(0)
-        s.write_uint8(0)
-        s.write_uint8(0)
-        s.write_beuint32(len(text))
-        s.write(text)
-        self.transport.write(s.getvalue())
+        self.send((ClientToServerMessages.CUT_TEXT, ClientCutText(text)))

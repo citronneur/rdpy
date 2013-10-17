@@ -1,8 +1,8 @@
 '''
 @author: sylvain
 '''
-from rdpy.protocol.common.layer import RawLayer
-from rdpy.protocol.common.network import Stream
+from rdpy.protocol.network.layer import RawLayer
+from rdpy.protocol.network.type import UInt8, UInt16Be, sizeof
 
 class TPKT(RawLayer):
     '''
@@ -10,15 +10,18 @@ class TPKT(RawLayer):
     this layer only handle size of packet
     and determine if is a fast path packet
     '''
+    #first byte of classic tpkt header
+    TPKT_PACKET = UInt8(3)
+    
     def __init__(self, presentation = None):
         '''
         Constructor
         '''
         RawLayer.__init__(self, presentation)
         #last packet version read from header
-        self._lastPacketVersion = 0
+        self._lastPacketVersion = UInt8()
         #length may be coded on more than 1 bytes
-        self._lastShortLength = 0
+        self._lastShortLength = UInt8()
         
     def connect(self):
         '''
@@ -36,20 +39,21 @@ class TPKT(RawLayer):
         read header of TPKT packet
         '''
         #first read packet version
-        self._lastPacketVersion = data.read_uint8()
+        data.readType(self._lastPacketVersion)
         #classic packet
-        if self._lastPacketVersion == 3:
-            data.read_uint8()
+        if self._lastPacketVersion == TPKT.TPKT_PACKET:
+            #padding
+            data.readType(UInt8())
             #read end header
             self.expect(2, self.readExtendedHeader)
         else:
             #is fast path packet
-            self._lastShortLength = data.read_uint8()
-            if self._lastShortLength & 0x80:
+            data.readType(self._lastShortLength)
+            if self._lastShortLength.value & 0x80:
                 #size is 1 byte more
                 self.expect(1, self.readExtendedFastPathHeader)
                 return
-            self.expect(self._lastShortLength - 2, self.readFastPath)
+            self.expect(self._lastShortLength.value - 2, self.readFastPath)
                 
         
     def readExtendedHeader(self, data):
@@ -57,16 +61,20 @@ class TPKT(RawLayer):
         header may be on 4 bytes
         '''
         #next state is read data
-        self.expect(data.read_beuint16() - 4, self.readData)
+        size = UInt16Be()
+        data.readType(size)
+        self.expect(size.value - 4, self.readData)
     
     def readExtendedFastPathHeader(self, data):
         '''
         fast ath header may be on 1 byte more
         '''
-        self._lastShortLength &= ~0x80
-        self._lastShortLength = (self._lastShortLength << 8) + data.read_uint8()
+        leftPart = UInt8()
+        data.readType(leftPart)
+        self._lastShortLength.value &= ~0x80
+        self._lastShortLength.value = (self._lastShortLength.value << 8) + leftPart.value
         #next state is fast patn data
-        self.expect(self._lastShortLength - 3, self.readFastPath)
+        self.expect(self._lastShortLength.value - 3, self.readFastPath)
     
     def readFastPath(self, data):
         '''
@@ -82,10 +90,8 @@ class TPKT(RawLayer):
         self._presentation.recv(data)
         self.expect(2, self.readHeader)
         
-    def send(self, data):
-        s = Stream()
-        s.write_uint8(3)
-        s.write_uint8(0)
-        s.write_beuint16(data.len + 4)
-        s.write(data.getvalue())
-        self.transport.write(s.getvalue())
+    def send(self, message):
+        '''
+        send encapsuled data
+        '''
+        RawLayer.send(self, (TPKT.TPKT_PACKET, UInt8(0), UInt16Be(sizeof(message) + 4), message))

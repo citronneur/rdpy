@@ -4,7 +4,7 @@ Created on 4 sept. 2013
 '''
 from PyQt4 import QtGui
 from rdpy.protocol.rfb.observer import RfbObserver
-from rdpy.protocol.common.network import UInt8, UInt16Be
+from rdpy.protocol.network.type import UInt8
 
 class QAdaptor(object):
     '''
