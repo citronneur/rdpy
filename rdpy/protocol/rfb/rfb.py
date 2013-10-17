@@ -1,6 +1,4 @@
 '''
-Created on 12 aout 2013
-
 @author: sylvain
 '''
 
