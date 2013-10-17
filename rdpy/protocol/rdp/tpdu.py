@@ -47,13 +47,12 @@ class TPDUConnectHeader(CompositeType):
         self.padding = (UInt16Be(), UInt16Be(), UInt8())
         
     
-class NegotiationRequest(CompositeType):
+class Negotiation(CompositeType):
     '''
     negociation request message
     '''
     def __init__(self, protocol = Protocols.PROTOCOL_SSL):
         CompositeType.__init__(self)
-        self.header = NegociationType.TYPE_RDP_NEG_REQ
         self.padding = UInt8()
         #always 8
         self.len = UInt16Le(0x0008)
@@ -97,36 +96,29 @@ class TPDU(LayerAutomata):
         '''
         write connection request message
         '''
-        neqReq = NegotiationRequest(self._protocol)
-        self._transport.send((TPDUConnectHeader(MessageType.X224_TPDU_CONNECTION_REQUEST, sizeof(neqReq)), neqReq))
+        neqReq = Negotiation(self._protocol)
+        self._transport.send((TPDUConnectHeader(MessageType.X224_TPDU_CONNECTION_REQUEST, sizeof(neqReq)), NegociationType.TYPE_RDP_NEG_REQ, neqReq))
         self.setNextState(self.recvConnectionConfirm)
         
-    def send(self, data):
+    def send(self, message):
         '''
         write message packet for TPDU layer
         add TPDU header
         '''
-        s = Stream()
-        s.write_uint8(2)
-        s.write_uint8(TPDU.X224_TPDU_DATA)
-        s.write_uint8(0x80)
-        s.write(data.getvalue())
-        self._transport.send(data)
+        self._transport.send((UInt8(2), MessageType.X224_TPDU_DATA, UInt8(0x80), message))
         
     def readNeg(self, data):
         '''
         read neagotiation response
         '''
-        code = data.read_uint8()
-        
-        if code == TPDU.TYPE_RDP_NEG_FAILURE:
+        code = UInt8()
+        data.readType(code)
+        if code == NegociationType.TYPE_RDP_NEG_FAILURE:
             self.readNegFailure(data)
-        elif code == TPDU.TYPE_RDP_NEG_RSP:
+        elif code == NegociationType.TYPE_RDP_NEG_RSP:
             self.readNegResp(data)
         else:
             raise InvalidExpectedDataException("bad protocol negotiation response code")
-        #_transport is TPKT and transport is TCP layer of twisted
-        self._transport.transport.startTLS(ClientTLSContext())
     
     def readNegFailure(self, data):
         '''
@@ -138,15 +130,21 @@ class TPDU(LayerAutomata):
         '''
         read negotiation response packet
         '''
-        flag = data.read_uint8()
-        len = data.read_leuint16()
+        negResp = Negotiation()
+        data.readType(negResp)
         
-        if len != 0x0008:
+        if negResp.len != UInt16Le(0x0008):
             raise InvalidExpectedDataException("invalid size of negotiation response")
         
-        protocol = data.read_leuint32()
+        protocol = negResp.protocol
         if protocol != self._protocol:
             raise NegotiationFailure("protocol negotiation failure")
+        
+        #_transport is TPKT and transport is TCP layer of twisted
+        if self._protocol == Protocols.PROTOCOL_SSL:
+            self._transport.transport.startTLS(ClientTLSContext())
+        else:
+            raise NegotiationFailure("protocol negociation failure")
         
 
 #open ssl needed

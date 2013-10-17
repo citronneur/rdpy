@@ -31,6 +31,7 @@ if __name__ == '__main__':
     #w.show()
     from twisted.internet import reactor
     #reactor.connectTCP("127.0.0.1", 5901, factory.RfbFactory(protocol))
-    reactor.connectTCP("192.168.135.160", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU())))
+    #reactor.connectTCP("192.168.135.160", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU())))
+    reactor.connectTCP("192.168.122.184", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU())))
     reactor.run()
     sys.exit(app.exec_())
