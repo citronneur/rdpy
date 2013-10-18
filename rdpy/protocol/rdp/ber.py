@@ -11,6 +11,26 @@ class BerPc(object):
     BER_PRIMITIVE = UInt8(0x00)
     BER_CONSTRUCT = UInt8(0x20)
 
+@ConstAttributes  
+class Class(object):
+    BER_CLASS_MASK = UInt8(0xC0)
+    BER_CLASS_UNIV = UInt8(0x00)
+    BER_CLASS_APPL = UInt8(0x40)
+    BER_CLASS_CTXT = UInt8(0x80)
+    BER_CLASS_PRIV = UInt8(0xC0)
+    
+@ConstAttributes     
+class Tag(object):
+    BER_TAG_MASK = UInt8(0x1F)
+    BER_TAG_BOOLEAN = UInt8(0x01)
+    BER_TAG_INTEGER = UInt8(0x02)
+    BER_TAG_BIT_STRING = UInt8(0x03)
+    BER_TAG_OCTET_STRING = UInt8(0x04)
+    BER_TAG_OBJECT_IDENFIER = UInt8(0x06)
+    BER_TAG_ENUMERATED = UInt8(0x0A)
+    BER_TAG_SEQUENCE = UInt8(0x10)
+    BER_TAG_SEQUENCE_OF = UInt8(0x10)
+
 def berPC(pc):
     '''
     return BER_CONSTRUCT if true
@@ -44,9 +64,69 @@ def readLength(s):
 
 def writeLength(size):
     '''
-    write length as expected in Ber specification
+    return strcture length as expected in Ber specification
     '''
     if size > UInt16Be(0x7f):
         return (UInt8(0x82), size)
     else:
         return UInt8(size.value)
+    
+def readUniversalTag(s, tag, pc):
+    '''
+    read tag of ber packet
+    '''
+    byte = UInt8()
+    s.readType(byte)
+    return byte == (Class.BER_CLASS_UNIV | berPC(pc) | (Tag.BER_TAG_MASK & tag))
+
+def writeUniversalTag(tag, pc):
+    '''
+    return universal tag byte
+    '''
+    return (Class.BER_CLASS_UNIV | berPC(pc) | (Tag.BER_TAG_MASK & tag))
+
+def readApplicationTag(s, tag):
+    '''
+    read application tag
+    '''
+    byte = UInt8()
+    s.readType(byte)
+    if tag > UInt8(30):
+        if byte != ((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | Tag.BER_TAG_MASK):
+            raise InvalidExpectedDataException()
+        s.readType(byte)
+        if byte != tag:
+            raise InvalidExpectedDataException("bad tag")
+    else:
+        if byte != ((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | (Tag.BER_TAG_MASK & tag)):
+            raise InvalidExpectedDataException()
+        
+    return readLength(s)
+
+def writeApplicationTag(tag, size):
+    '''
+    return struct that represent ber application tag 
+    '''
+    if tag > UInt8(30):
+        return (((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | Tag.BER_TAG_MASK), tag, writeLength(size))
+    else:
+        return (((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | (Tag.BER_TAG_MASK & tag)), writeLength(size))
+    
+def readBoolean(s):
+    '''
+    return boolean
+    '''
+    if not readUniversalTag(s, Tag.BER_TAG_BOOLEAN, False):
+        raise InvalidExpectedDataException("bad boolean tag")
+    size = readLength(s)
+    if size != UInt8(1):
+        raise InvalidExpectedDataException("bad boolean size")
+    b = UInt8()
+    s.readType(b)
+    return bool(b.value)
+
+def writeBoolean(b):
+    '''
+    return structure that represent boolean in ber specification
+    '''
+    return (writeUniversalTag(Tag.BER_TAG_BOOLEAN, False), writeLength(UInt8(1)), UInt8(int(b)))
