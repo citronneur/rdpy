@@ -136,12 +136,10 @@ class TPDU(LayerAutomata):
         if negResp.len != UInt16Le(0x0008):
             raise InvalidExpectedDataException("invalid size of negotiation response")
         
-        protocol = negResp.protocol
-        if protocol != self._protocol:
-            raise NegotiationFailure("protocol negotiation failure")
+        self._protocol = negResp.protocol
         
-        #_transport is TPKT and transport is TCP layer of twisted
         if self._protocol == Protocols.PROTOCOL_SSL:
+            #_transport is TPKT and transport is TCP layer of twisted
             self._transport.transport.startTLS(ClientTLSContext())
         else:
             raise NegotiationFailure("protocol negociation failure")

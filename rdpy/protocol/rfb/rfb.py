@@ -118,6 +118,7 @@ class Rfb(RawLayer):
         security handshake for 33 rfb version
         server imposed security level
         '''
+        #TODO!!!
         self._version = data.read_beuint32()
         
         

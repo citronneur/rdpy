@@ -47,9 +47,10 @@ class SimpleType(Type):
     '''
     simple type
     '''
-    def __init__(self, structFormat, typeSize, value):
+    def __init__(self, structFormat, typeSize, signed, value):
         self._typeSize = typeSize
         self._structFormat = structFormat
+        self._signed = signed
         self.value = value
         
     @property
@@ -64,7 +65,7 @@ class SimpleType(Type):
         '''
         setter of value after check it
         '''
-        if self.__class__.__dict__.has_key("isInRange") and not self.__class__.isInRange(value):
+        if not self.isInRange(value):
             raise InvalidValue("value is out of range for %s"%self.__class__)
         self._value = value    
     
@@ -85,12 +86,69 @@ class SimpleType(Type):
         read value from stream
         '''
         self._value = struct.unpack(self._structFormat,s.read(self._typeSize))[0]
+    
+      
+    def mask(self):
+        '''
+        compute bit mask for type
+        beacause in python all numbers are int long or float
+        '''
+        if not self.__dict__.has_key("_mask"):
+            mask = 0xff
+            for i in range(1, self._typeSize):
+                mask = mask << 8
+                mask |= 0xff
+            self._mask = mask
+        return self._mask
+    
+    def isInRange(self, value):
+        '''
+        check if value is in mask range
+        '''
+        if self._signed:
+            return not (value < -(self.mask() >> 1) or value > (self.mask() >> 1))
+        else:
+            return not (value < 0 or value > self.mask())
         
     def __sizeof__(self):
         '''
         return size of type
         '''
         return self._typeSize
+    
+    def __invert__(self):
+        '''
+        implement not operator
+        '''
+        invert = ~self._value
+        if not self._signed:
+            invert &= self.mask()
+        return self.__class__(invert)
+    
+    def __add__(self, other):
+        '''
+        implement addition operator
+        '''
+        return self.__class__(self._value.__add__(other._value))
+    
+    def __sub__(self, other):
+        '''
+        implement sub operator
+        '''
+        return self.__class__(self._value.__sub__(other._value))
+    
+    def __and__(self, other):
+        '''
+        implement bitwise and operator
+        '''
+        return self.__class__(self._value.__and__(other._value))
+    
+    def __or__(self, other):
+        '''
+        implement bitwise and operator
+        '''
+        return self.__class__(self._value.__or__(other._value))
+
         
 class CompositeType(Type):
     '''
@@ -107,7 +165,7 @@ class CompositeType(Type):
         '''
         magic function to update type list
         '''
-        if name[0] != '_' and (isinstance(value, Type) or isinstance(value, tuple)):
+        if name[0] != '_' and (isinstance(value, Type) or isinstance(value, tuple)) and not self.__dict__.has_key(name):
             self._type.append(value)
         self.__dict__[name] = value
             
@@ -142,14 +200,17 @@ class UInt8(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, "B", 1, value)
-        
-    @staticmethod
-    def isInRange(value):
+        SimpleType.__init__(self, "B", 1, False, value)
+
+class SInt8(SimpleType):
+    '''
+    unsigned byte
+    '''    
+    def __init__(self, value = 0):
         '''
-        return true if value is in UInt8 range
+        constructor check value range
         '''
-        return not (value < 0 or value > 0xff)
+        SimpleType.__init__(self, "b", 1, True, value)
         
         
 class UInt16Be(SimpleType):
@@ -160,14 +221,7 @@ class UInt16Be(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, ">H", 2, value)
-        
-    @staticmethod
-    def isInRange(value):
-        '''
-        return true if value is in UInt8 range
-        '''
-        return not (value < 0 or value > 0xffff)
+        SimpleType.__init__(self, ">H", 2, False, value)
         
 class UInt16Le(SimpleType):
     '''
@@ -177,14 +231,7 @@ class UInt16Le(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, "<H", 2, value)
-        
-    @staticmethod
-    def isInRange(value):
-        '''
-        return true if value is in UInt8 range
-        '''
-        return not (value < 0 or value > 0xffff)
+        SimpleType.__init__(self, "<H", 2, False, value)
         
 class UInt32Be(SimpleType):
     '''
@@ -194,14 +241,7 @@ class UInt32Be(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, ">I", 4, value)
-        
-    @staticmethod
-    def isInRange(value):
-        '''
-        return true if value is in UInt8 range
-        '''
-        return not (value < 0 or value > 0xffffffff)
+        SimpleType.__init__(self, ">I", 4, False, value)
         
 class UInt32Le(SimpleType):
     '''
@@ -211,15 +251,8 @@ class UInt32Le(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, "<I", 4, value)
+        SimpleType.__init__(self, "<I", 4, False, value)
     
-    @staticmethod
-    def isInRange(value):
-        '''
-        return true if value is in UInt8 range
-        '''
-        return not (value < 0 or value > 0xffffffff)
-        
 class SInt32Le(SimpleType):
     '''
     unsigned int with little endian representation
@@ -228,14 +261,7 @@ class SInt32Le(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, "<I", 4, value)
-        
-    @staticmethod
-    def isInRange(value):
-        '''
-        return true if value is in UInt8 range
-        '''
-        return not (value < ~0x7fffffff or value > 0x7fffffff)
+        SimpleType.__init__(self, "<I", 4, True, value)
         
 class SInt32Be(SimpleType):
     '''
@@ -245,15 +271,8 @@ class SInt32Be(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, ">I", 4, value)
+        SimpleType.__init__(self, ">I", 4, True, value)
         
-    @staticmethod
-    def isInRange(value):
-        '''
-        return true if value is in UInt8 range
-        '''
-        return not (value < ~0x7fffffff or value > 0x7fffffff)
-
 class UInt24Be(SimpleType):
     '''
     unsigned int with big endian representation
@@ -262,14 +281,7 @@ class UInt24Be(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, ">I", 3, value)
-        
-    @staticmethod
-    def isInRange(value):
-        '''
-        return true if value is in UInt8 range
-        '''
-        return not (value < 0 or value > 0xffffff)
+        SimpleType.__init__(self, ">I", 3, False, value)
         
     def write(self, s):
         '''
@@ -291,14 +303,7 @@ class UInt24Le(SimpleType):
         '''
         constructor check value range
         '''
-        SimpleType.__init__(self, "<I", 3, value)
-    
-    @staticmethod
-    def isInRange(value):
-        '''
-        return true if value is in UInt8 range
-        '''
-        return not (value < 0 or value > 0xffffff)    
+        SimpleType.__init__(self, "<I", 3, False, value)   
             
     def write(self, s):
         '''
