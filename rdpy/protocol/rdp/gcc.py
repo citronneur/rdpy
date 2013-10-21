@@ -68,12 +68,12 @@ class ClientCoreSettings(CompositeType):
         self.keyboardType = UInt32Le(4)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
-        self.padding3 = String(" "*64)
+        self.padding3 = String("\x00"*64)
         self.postBeta2ColorDepth = ColorDepth.RNS_UD_COLOR_24BPP
         self.padding4 = (UInt16Le(), UInt32Le())
         self.highColorDepth = UInt16Le(24)
         self.padding5 = (UInt16Le(), UInt16Le())
-        self.padding3 = String(" "*64)
+        self.padding3 = String("\x00"*64)
     
 class ServerCoreSettings(CompositeType):
     '''

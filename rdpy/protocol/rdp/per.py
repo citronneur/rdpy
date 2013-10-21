@@ -2,7 +2,7 @@
 @author: sylvain
 '''
 
-from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be
+from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be, String, Stream
 from rdpy.protocol.network.error import InvalidValue, InvalidExpectedDataException
 
 def readLength(s):
@@ -185,4 +185,94 @@ def readObjectIdentifier(s, oid):
     
     if oid != a_oid:
         raise InvalidExpectedDataException("invalid object identifier")
+
+def writeObjectIdentifier(oid):
+    '''
+    create tuble of 6 UInt8 with oid values
+    @param oid: tuple of 6 int
+    @return: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+    '''
+    return (UInt8(oid[0] << 4 | oid[1] & 0x0f), UInt8(oid[2]), UInt8(oid[3]), UInt8(oid[4]), UInt8(oid[5]))
+
+def writeNumericString(nStr, minValue):
+    '''
+    write string in per format
+    @param str: python string to write
+    @param min: min value
+    @return: String type that contain str encoded in per format
+    '''
+    length = len(nStr)
+    mlength = minValue
+    if length - minValue >= 0:
+        mlength = length - minValue
+    
+    result = []
+    
+    for i in range(0, length, 2):
+        c1 = ord(str[i])
+        if i + 1 < length:
+            c2 = ord(str[i + 1])
+        else:
+            c2 = 0x30
+        c1 = (c1 - 0x30) % 10
+        c2 = (c2 - 0x30) % 10
         
+        result.append(UInt8((c1 << 4) | c2))
+        
+    s = Stream()
+    s.writeType((writeLength(mlength), tuple(result)))
+    return String(s.getvalue())
+
+def readPadding(s, length):
+    '''
+    read length byte in stream
+    @param s: Stream
+    @param length: length of passing in bytes
+    '''
+    s.read(length)
+
+def writePadding(length):
+    '''
+    create string with null char * length
+    @param length: length of padding
+    @return: String with \x00 * length
+    '''
+    return String("\x00"*length)
+
+def readOctetStream(s, octetStream, minValue):
+    '''
+    read string as octet stream and compare with octetStream
+    @param octetStream: compare stream
+    @param s: Stream
+    @param minValue: min value
+    @return: if stream read from s is equal to octetStream
+    '''
+    size = readLength(s) + minValue
+    if size != len(octetStream):
+        raise InvalidValue("incompatible size %d != %d"(len(octetStream), size))
+    for i in range(0, size):
+        c = UInt8()
+        s.readType(c)
+        if ord(octetStream[i]) != c.value:
+            return False
+        
+    return True
+
+def writeOctetStream(oStr, minValue):
+    '''
+    write string as octet stream with per header
+    @param oStr: octet stream to convert
+    @param minValue: min length value
+    @return: per header follow by tuple of UInt8
+    '''
+    length = len(oStr)
+    mlength = minValue
+    
+    if length - minValue >= 0:
+        mlength = length - minValue
+    
+    result = []
+    for i in range(0, length):
+        result.append(UInt8(ord(oStr[i])))
+    
+    return (writeLength(mlength), tuple(result))
