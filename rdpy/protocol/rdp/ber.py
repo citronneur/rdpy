@@ -48,7 +48,7 @@ def readLength(s):
     read length of ber structure
     length be on 1 2 or 3 bytes
     @param s: stream
-    @return: Uint8 or UInt16Be length
+    @return: int or python long
     '''
     size = None
     byte = UInt8()
@@ -64,18 +64,18 @@ def readLength(s):
         s.readType(size)
     else:
         size = byte
-    return size
+    return size.value
 
 def writeLength(size):
     '''
     return strcture length as expected in Ber specification
-    @param size: UInt8 or UInt16Be size to write
+    @param size: int or python long
     @return: UInt8 or (UInt8(0x82), UInt16Be)
     '''
-    if size > UInt16Be(0x7f):
-        return (UInt8(0x82), UInt16Be(size.value))
+    if size > 0x7f:
+        return (UInt8(0x82), UInt16Be(size))
     else:
-        return UInt8(size.value)
+        return UInt8(size)
     
 def readUniversalTag(s, tag, pc):
     '''
@@ -102,7 +102,7 @@ def readApplicationTag(s, tag):
     read application tag
     @param s: stream
     @param tag: tag class attributes
-    @return: true if tag is read with success
+    @return: length of application packet
     '''
     byte = UInt8()
     s.readType(byte)
@@ -138,7 +138,7 @@ def readBoolean(s):
     if not readUniversalTag(s, Tag.BER_TAG_BOOLEAN, False):
         raise InvalidExpectedDataException("bad boolean tag")
     size = readLength(s)
-    if size != UInt8(1):
+    if size != 1:
         raise InvalidExpectedDataException("bad boolean size")
     b = UInt8()
     s.readType(b)
@@ -150,37 +150,37 @@ def writeBoolean(b):
     @param b: boolean
     @return: ber boolean structure
     '''
-    return (writeUniversalTag(Tag.BER_TAG_BOOLEAN, False), writeLength(UInt8(1)), UInt8(int(b)))
+    return (writeUniversalTag(Tag.BER_TAG_BOOLEAN, False), writeLength(1), UInt8(int(b)))
 
 def readInteger(s):
     '''
     read integer structure from stream
     @param s: stream
-    @return: UInt8, UInt16Be, UInt32Be
+    @return: int or long python
     '''
     if not readUniversalTag(s, Tag.BER_TAG_INTEGER, False):
         raise InvalidExpectedDataException("bad integer tag")
     
     size = readLength(s)
     
-    if size == UInt16Be(1):
+    if size == 1:
         integer = UInt8()
         s.readType(integer)
-        return integer
-    elif size == UInt16Be(2):
+        return integer.value
+    elif size == 2:
         integer = UInt16Be()
         s.readType(integer)
-        return integer
-    elif size == UInt16Be(3):
+        return integer.value
+    elif size == 3:
         integer1 = UInt8()
         integer2 = UInt16Be()
         s.readType(integer1)
         s.readType(integer2)
-        return UInt32Be(integer2.value + (integer1.value << 16))
-    elif size == UInt16Be(4):
+        return integer2.value + (integer1.value << 16)
+    elif size == 4:
         integer = UInt32Be()
         s.readType(integer)
-        return integer
+        return integer.value
     else:
         raise InvalidExpectedDataException("wrong integer size")
     
@@ -191,11 +191,11 @@ def writeInteger(value):
     @return ber interger structure 
     '''
     if value < UInt32Be(0xff):
-        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(UInt8(1)), UInt8(value.value))
+        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(1), UInt8(value.value))
     elif value < UInt32Be(0xff80):
-        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(UInt8(2)), UInt16Be(value.value))
+        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(2), UInt16Be(value.value))
     else:
-        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(UInt8(4)), UInt32Be(value.value))
+        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(4), UInt32Be(value.value))
 
 def readOctetString(s):
     '''
@@ -214,13 +214,13 @@ def writeOctetstring(value):
     @param value: String
     @return: string ber structure 
     '''
-    return (writeUniversalTag(Tag.BER_TAG_OCTET_STRING, False), writeLength(UInt32Be(len(value.value))), value)
+    return (writeUniversalTag(Tag.BER_TAG_OCTET_STRING, False), writeLength(len(value.value)), value)
 
 def readEnumerated(s):
     '''
     read enumerated structure
     @param s: Stream
-    @return: UInt8 that represent ber enumerate 
+    @return: int or long
     '''
     if not readUniversalTag(s, Tag.BER_TAG_ENUMERATED, False):
         raise InvalidExpectedDataException("invalid ber tag")
@@ -229,4 +229,4 @@ def readEnumerated(s):
         raise InvalidExpectedDataException("enumerate size is wrong")
     enumer = UInt8()
     s.readType(enumer)
-    return enumer
+    return enumer.value

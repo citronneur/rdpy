@@ -122,8 +122,8 @@ class RawLayer(protocol.Protocol, LayerAutomata):
             
     def expect(self, expectedLen, callback = None):
         '''
-        configura layer to change nextsatte with callback only
-        when expectLen byte is received from transport layer
+        configure layer to change next state with callback only
+        when expectLen bytes is received from transport layer
         @param expectedLen: in bytes len use to call nextstate
         @param callback: callback call when expectedlen bytes is received
         '''

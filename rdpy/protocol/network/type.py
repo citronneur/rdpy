@@ -73,7 +73,10 @@ class SimpleType(Type):
         shortcut to access inner value
         @return: inner value(python type value)
         '''
-        return self._value
+        if self._signed:
+            return self._value
+        else:
+            return self._value & self.mask()
     
     @value.setter
     def value(self, value):
@@ -93,7 +96,7 @@ class SimpleType(Type):
         @param other: Type value which will be compared with self value
         @return: python value compare
         '''
-        return self._value.__cmp__(other.value)
+        return self.value.__cmp__(other.value)
         
     def write(self, s):
         '''
@@ -160,7 +163,7 @@ class SimpleType(Type):
         @return: self.__class__ object with add result
         @raise InvalidValue: if new value is out of bound
         '''
-        return self.__class__(self._value.__add__(other._value))
+        return self.__class__(self.value.__add__(other.value))
     
     def __sub__(self, other):
         '''
@@ -170,7 +173,7 @@ class SimpleType(Type):
         @return: self.__class__ object with sub result
         @raise InvalidValue: if new value is out of bound
         '''
-        return self.__class__(self._value.__sub__(other._value))
+        return self.__class__(self.value.__sub__(other.value))
     
     def __and__(self, other):
         '''
@@ -178,7 +181,7 @@ class SimpleType(Type):
         @param other: SimpleType value
         @return: self.__class__ object with and result
         '''
-        return self.__class__(self._value.__and__(other._value))
+        return self.__class__(self.value.__and__(other.value))
     
     def __or__(self, other):
         '''
@@ -186,7 +189,7 @@ class SimpleType(Type):
         @param other: SimpleType value
         @return: self.__class__ object with or result
         '''
-        return self.__class__(self._value.__or__(other._value))
+        return self.__class__(self.value.__or__(other.value))
 
         
 class CompositeType(Type):

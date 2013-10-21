@@ -216,7 +216,7 @@ class Rfb(RawLayer):
         read body of rect
         '''
         for observer in self._observer:
-            observer.notifyFramebufferUpdate(self._currentRect.width, self._currentRect.height, self._currentRect.x, self._currentRect.y, self._pixelFormat, self._currentRect.encoding, data.getvalue())
+            observer.notifyFramebufferUpdate(self._currentRect.width.value, self._currentRect.height.value, self._currentRect.x.value, self._currentRect.y.value, self._pixelFormat, self._currentRect.encoding, data.getvalue())
         self._nbRect = self._nbRect - 1
         #if there is another rect to read
         if self._nbRect == 0:
