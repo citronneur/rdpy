@@ -9,6 +9,7 @@ class InvalidValue(Exception):
     def __init__(self, message = ""):
         '''
         constructor with message
+        @param message: message show when exception is raised
         '''
         Exception.__init__(self, message)
 
@@ -19,6 +20,7 @@ class InvalidExpectedDataException(Exception):
     def __init__(self, message = ""):
         '''
         constructor with message
+        @param message: message show when exception is raised
         '''
         Exception.__init__(self, message)
         
@@ -29,6 +31,7 @@ class NegotiationFailure(Exception):
     def __init__(self, message = ""):
         '''
         constructor with message
+        @param message: message show when exception is raised
         '''
         Exception.__init__(self, message)
         
@@ -39,6 +42,7 @@ class InvalidType(Exception):
     def __init__(self, message = ""):
         '''
         constructor with message
+        @param message: message show when exception is raised
         '''
         Exception.__init__(self, message)
         

@@ -9,7 +9,7 @@ from message import ProtocolVersion, SecurityType, Encoding, ClientToServerMessa
 
 class Rfb(RawLayer):
     '''
-    implements rfb protocol message
+    implements rfb protocol
     '''
     CLIENT = 0
     SERVER = 1
@@ -18,7 +18,8 @@ class Rfb(RawLayer):
         '''
         constructor
         mode can be only client or server mode
-        in this version of RDPY only support client mode
+        in this RDPY version only client mode is supported
+        @param mode: Rfb.CLIENT | Rfb.SERVER
         '''
         RawLayer.__init__(self)
         #usefull for rfb protocol
@@ -48,6 +49,7 @@ class Rfb(RawLayer):
     def addObserver(self, observer):
         '''
         add observer for input/ouput events
+        @param observer: RfbObserver interface implementation
         '''
         self._observer.append(observer)
     
@@ -55,13 +57,16 @@ class Rfb(RawLayer):
         '''
         2nd level of waiting event
         read expectedHeaderLen that contain body size
+        @param expectedHeaderLen: bytes read and use to compute bodylen
+        @param callbackBody: next state use when value read from header 
+        are received
         '''
         self._callbackBody = callbackBody
         self.expect(expectedHeaderLen, self.expectedBody)
     
     def expectedBody(self, data):
         '''
-        read header and expect body
+        read header and wait header value to call next state
         '''
         bodyLen = None
         if data.len == 1:

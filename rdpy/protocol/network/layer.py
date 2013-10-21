@@ -11,6 +11,7 @@ class Layer(object):
     def __init__(self, presentation = None):
         '''
         Constructor
+        @param presentation: Layer which handled connect and recv messages
         '''
         #presentation layer higher layer in model
         self._presentation = presentation
@@ -28,20 +29,22 @@ class Layer(object):
         if not self._presentation is None:
             self._presentation.connect()
     
-    def recv(self, data):
+    def recv(self, s):
         '''
         signal that data is available for this layer
         call by transport layer
         default is to pass data to presentation layer
+        @param s: raw Stream receive from transport layer
         '''
         if not self._presentation is None:
-            self._presentation.recv(data)
+            self._presentation.recv(s)
       
     def send(self, data):
         '''
         classical use by presentation layer
         write data for this layer
         default pass data to transport layer
+        @param data: Type or tuple element handle by transport layer
         '''
         if not self._transport is None:
             self._transport.send(data)
@@ -54,6 +57,7 @@ class LayerAutomata(Layer):
     def __init__(self, presentation = None):
         '''
         Constructor
+        @param presentation: presentation Layer
         '''
         #call parent constructor
         Layer.__init__(self, presentation)
@@ -61,6 +65,9 @@ class LayerAutomata(Layer):
     def setNextState(self, callback = None):
         '''
         set recv function to next callback or
+        current self.recv function if it's None
+        @param callback: a callable object that can 
+        receive Layer, Stream parameters
         '''
         if callback is None:
             callback = self.__class__.recv
@@ -93,6 +100,7 @@ class RawLayer(protocol.Protocol, LayerAutomata):
         '''
         inherit from protocol class
         main event of received data
+        @param data: string data receive from twisted
         '''
         #add in buffer
         self._buffer += data
@@ -114,7 +122,10 @@ class RawLayer(protocol.Protocol, LayerAutomata):
             
     def expect(self, expectedLen, callback = None):
         '''
-        new expected len
+        configura layer to change nextsatte with callback only
+        when expectLen byte is received from transport layer
+        @param expectedLen: in bytes len use to call nextstate
+        @param callback: callback call when expectedlen bytes is received
         '''
         self._expectedLen = expectedLen
         #default callback is recv from LayerAutomata
@@ -123,6 +134,8 @@ class RawLayer(protocol.Protocol, LayerAutomata):
     def send(self, message):
         '''
         send stream on tcp layer
+        format message into raw stream understood by transport layer
+        @param message: (tuple | Type)
         '''
         s = Stream()
         s.writeType(message)
