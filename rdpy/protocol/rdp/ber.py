@@ -121,7 +121,7 @@ def readApplicationTag(s, tag):
 def writeApplicationTag(tag, size):
     '''
     return struct that represent ber application tag
-    @param tag: tag class attribute
+    @param tag: UINt8
     @param size: size to rest of packet  
     '''
     if tag > UInt8(30):
@@ -187,15 +187,15 @@ def readInteger(s):
 def writeInteger(value):
     '''
     write integer value
-    @param param: UInt32Be
+    @param param: int or python long
     @return ber interger structure 
     '''
-    if value < UInt32Be(0xff):
-        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(1), UInt8(value.value))
-    elif value < UInt32Be(0xff80):
-        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(2), UInt16Be(value.value))
+    if value < 0xff:
+        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(1), UInt8(value))
+    elif value < 0xff80:
+        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(2), UInt16Be(value))
     else:
-        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(4), UInt32Be(value.value))
+        return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(4), UInt32Be(value))
 
 def readOctetString(s):
     '''
@@ -211,10 +211,10 @@ def readOctetString(s):
 def writeOctetstring(value):
     '''
     write string in ber representation
-    @param value: String
+    @param value: string
     @return: string ber structure 
     '''
-    return (writeUniversalTag(Tag.BER_TAG_OCTET_STRING, False), writeLength(len(value.value)), value)
+    return (writeUniversalTag(Tag.BER_TAG_OCTET_STRING, False), writeLength(len(value)), String(value))
 
 def readEnumerated(s):
     '''

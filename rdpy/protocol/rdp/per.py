@@ -209,9 +209,9 @@ def writeNumericString(nStr, minValue):
     result = []
     
     for i in range(0, length, 2):
-        c1 = ord(str[i])
+        c1 = ord(nStr[i])
         if i + 1 < length:
-            c2 = ord(str[i + 1])
+            c2 = ord(nStr[i + 1])
         else:
             c2 = 0x30
         c1 = (c1 - 0x30) % 10
@@ -258,7 +258,7 @@ def readOctetStream(s, octetStream, minValue):
         
     return True
 
-def writeOctetStream(oStr, minValue):
+def writeOctetStream(oStr, minValue = 0):
     '''
     write string as octet stream with per header
     @param oStr: octet stream to convert

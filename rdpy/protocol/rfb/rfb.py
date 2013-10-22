@@ -4,8 +4,7 @@
 
 from rdpy.protocol.network.type import String, UInt8, UInt16Be, UInt32Be
 from rdpy.protocol.network.layer import RawLayer
-from message import ServerInit, PixelFormat, FrameBufferUpdateRequest, Rectangle, KeyEvent, PointerEvent, ClientCutText
-from message import ProtocolVersion, SecurityType, Encoding, ClientToServerMessages
+from message import *
 
 class Rfb(RawLayer):
     '''

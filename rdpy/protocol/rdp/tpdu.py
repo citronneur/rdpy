@@ -60,12 +60,13 @@ class Negotiation(CompositeType):
 
 class TPDU(LayerAutomata):
     '''
-    classdocs
+    TPDU layer management
+    there is an connection automata
     '''
-
     def __init__(self, presentation = None):
         '''
         Constructor
+        @param presentation: MCS layer
         '''
         LayerAutomata.__init__(self, presentation)
         
@@ -83,6 +84,9 @@ class TPDU(LayerAutomata):
     def recvConnectionConfirm(self, data):
         '''
         recv connection confirm message
+        next state is recvData 
+        call connect on presentation layer if all is good
+        @param data: Stream that contain connection confirm
         '''
         header = TPDUConnectHeader()
         data.readType(header)
@@ -91,13 +95,23 @@ class TPDU(LayerAutomata):
         #check presence of negotiation response
         if data.dataLen() == 8:
             self.readNeg(data)
+        else:
+            raise NegotiationFailure("server doesn't support SSL negotiation on RDP")
+        
+        self.setNextState(self.recvData)
+        #connection is done send to presentation
+        LayerAutomata.connect(self)
+    
+    def recvData(self, data):
+        print "TPDU data"
         
     def sendConnectionRequest(self):
         '''
         write connection request message
+        next state is recvConnectionConfirm
         '''
-        neqReq = Negotiation(self._protocol)
-        self._transport.send((TPDUConnectHeader(MessageType.X224_TPDU_CONNECTION_REQUEST, sizeof(neqReq)), NegociationType.TYPE_RDP_NEG_REQ, neqReq))
+        neqReq = (NegociationType.TYPE_RDP_NEG_REQ, Negotiation(self._protocol))
+        self._transport.send((TPDUConnectHeader(MessageType.X224_TPDU_CONNECTION_REQUEST, sizeof(neqReq)), neqReq))
         self.setNextState(self.recvConnectionConfirm)
         
     def send(self, message):
@@ -109,7 +123,7 @@ class TPDU(LayerAutomata):
         
     def readNeg(self, data):
         '''
-        read neagotiation response
+        read negotiation response
         '''
         code = UInt8()
         data.readType(code)

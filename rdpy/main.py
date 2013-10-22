@@ -7,7 +7,7 @@ import sys
 from PyQt4 import QtGui
 from rdpy.display.qt import adaptor, widget
 from rdpy.protocol.rfb import rfb, factory
-from rdpy.protocol.rdp import tpkt, tpdu
+from rdpy.protocol.rdp import tpkt, tpdu, mcs
 from twisted.internet import ssl
 from OpenSSL import SSL
 
@@ -32,6 +32,6 @@ if __name__ == '__main__':
     from twisted.internet import reactor
     #reactor.connectTCP("127.0.0.1", 5901, factory.RfbFactory(protocol))
     #reactor.connectTCP("192.168.135.160", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU())))
-    reactor.connectTCP("192.168.122.184", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU())))
+    reactor.connectTCP("192.168.56.1", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU(mcs.MCS()))))
     reactor.run()
     sys.exit(app.exec_())
