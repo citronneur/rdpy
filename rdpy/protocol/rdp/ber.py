@@ -150,7 +150,10 @@ def writeBoolean(b):
     @param b: boolean
     @return: ber boolean structure
     '''
-    return (writeUniversalTag(Tag.BER_TAG_BOOLEAN, False), writeLength(1), UInt8(int(b)))
+    boolean = UInt8(0)
+    if b:
+        boolean = UInt8(0xff)
+    return (writeUniversalTag(Tag.BER_TAG_BOOLEAN, False), writeLength(1), boolean)
 
 def readInteger(s):
     '''
@@ -190,9 +193,9 @@ def writeInteger(value):
     @param param: int or python long
     @return ber interger structure 
     '''
-    if value < 0xff:
+    if value <= 0xff:
         return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(1), UInt8(value))
-    elif value < 0xff80:
+    elif value <= 0xffff:
         return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(2), UInt16Be(value))
     else:
         return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(4), UInt32Be(value))

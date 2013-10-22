@@ -61,7 +61,7 @@ class MCS(LayerAutomata):
         ccReqStream.writeType(ccReq)
         
         tmp = (ber.writeOctetstring("\x01"), ber.writeOctetstring("\x01"), ber.writeBoolean(True),
-               self.writeDomainParams(34, 2, 0, 0xffff),
+               self.writeDomainParams(34, 2, 0, 0xffff),self.writeDomainParams(1, 1, 1, 0x420),
                self.writeDomainParams(0xffff, 0xfc17, 0xffff, 0xffff),
                ber.writeOctetstring(ccReqStream.getvalue()))
         self._transport.send((ber.writeApplicationTag(Message.MCS_TYPE_CONNECT_INITIAL, sizeof(tmp)), tmp))
