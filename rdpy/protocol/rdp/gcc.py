@@ -4,9 +4,12 @@
 @contact: http://msdn.microsoft.com/en-us/library/cc240510.aspx
 '''
 from rdpy.utils.const import ConstAttributes
-from rdpy.protocol.network.type import UInt8, UInt32Le, UInt16Le, String, Stream, CompositeType, sizeof
+from rdpy.protocol.network.type import *
 import per
 
+t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
+h221_cs_key = "Duca";
+h221_sc_key = "McDn";
 
 @ConstAttributes
 class ServerToClientMessage(object):
@@ -97,6 +100,21 @@ class Version(object):
     RDP_VERSION_4 = UInt32Le(0x00080001)
     RDP_VERSION_5_PLUS = UInt32Le(0x00080004)
 
+@ConstAttributes
+class Sequence(object):
+    RNS_UD_SAS_DEL = UInt16Le(0xAA03)
+    
+@ConstAttributes   
+class Encryption(object):
+    '''
+    encryption method supported
+    @deprecated: because rdpy use ssl but need to send to server...
+    '''
+    ENCRYPTION_FLAG_40BIT = UInt32Le(0x00000001)
+    ENCRYPTION_FLAG_128BIT = UInt32Le(0x00000002)
+    ENCRYPTION_FLAG_56BIT = UInt32Le(0x00000008)
+    FIPS_ENCRYPTION_FLAG = UInt32Le(0x00000010)
+
 
 class ClientCoreSettings(CompositeType):
     '''
@@ -107,21 +125,21 @@ class ClientCoreSettings(CompositeType):
         self.rdpVersion = Version.RDP_VERSION_5_PLUS
         self.desktopWidth = UInt16Le(800)
         self.desktopHeight = UInt16Le(600)
-        self.padding1 = (UInt16Le(), UInt16Le())
+        self.colorDepth = ColorDepth.RNS_UD_COLOR_8BPP
+        self.sasSequence = Sequence.RNS_UD_SAS_DEL
         self.kbdLayout = UInt32Le(0x409)
         self.clientBuild = UInt32Le(2100)
-        self.clientName = String("\x00"*64)
-        self.padding2 = UInt16Le()
+        self.clientName = UniString("rdpy" + "\x00"*11)
         self.keyboardType = UInt32Le(4)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
         self.padding3 = String("\x00"*64)
-        self.postBeta2ColorDepth = ColorDepth.RNS_UD_COLOR_24BPP
-        self.clientProductId = UInt16Le()
+        self.postBeta2ColorDepth = ColorDepth.RNS_UD_COLOR_8BPP
+        self.clientProductId = UInt16Le(1)
         self.serialNumber = UInt32Le()
         self.highColorDepth = HighColor.HIGH_COLOR_24BPP
-        self.supportedColorDepths = Support.RNS_UD_32BPP_SUPPORT
-        self.earlyCapabilityFlags = UInt16Le()
+        self.supportedColorDepths = Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_15BPP_SUPPORT
+        self.earlyCapabilityFlags = CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU
         self.clientDigProductId = String("\x00"*64)
         self.connectionType = UInt8()
         self.pad1octet = UInt8()
@@ -134,6 +152,16 @@ class ServerCoreSettings(CompositeType):
     def __init__(self):
         CompositeType.__init__(self)
         self.rdpVersion = Version.RDP_VERSION_5_PLUS
+        
+class ClientSecuritySettings(CompositeType):
+    '''
+    client security setting
+    @deprecated: because we use ssl
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.encryptionMethods = Encryption.ENCRYPTION_FLAG_128BIT | Encryption.ENCRYPTION_FLAG_40BIT | Encryption.ENCRYPTION_FLAG_56BIT | Encryption.FIPS_ENCRYPTION_FLAG
+        self.extEncryptionMethods = UInt32Le()
 
 class Channel(object):
     '''
@@ -158,10 +186,7 @@ class ClientSettings(object):
         self.core = ClientCoreSettings()
         #list of Channel read network gcc packet
         self.networkChannels = []
-    
-t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
-h221_cs_key = "Duca";
-h221_sc_key = "McDn";
+        self.security = ClientSecuritySettings()
         
 def writeConferenceCreateRequest(settings):
     '''
@@ -186,7 +211,9 @@ def writeClientDataBlocks(settings):
     and return gcc valid structure
     @param settings: ClientSettings
     '''
-    return (writeClientCoreData(settings.core), writeClientNetworkData(settings.networkChannels))
+    return (writeClientCoreData(settings.core), 
+            writeClientNetworkData(settings.networkChannels),
+            writeClientSecurityData(settings.security))
 
 def writeClientCoreData(core):
     '''
@@ -195,6 +222,14 @@ def writeClientCoreData(core):
     @return: structure that represent client data blocks
     '''
     return (ClientToServerMessage.CS_CORE, UInt16Le(sizeof(core) + 4), core)
+
+def writeClientSecurityData(security):
+    '''
+    write security header block and security structure
+    @param security: ClientSecuritySettings
+    @return: gcc client security data
+    '''
+    return (ClientToServerMessage.CS_SECURITY, UInt16Le(sizeof(security) + 4), security)
 
 def writeClientNetworkData(channels):
     '''
@@ -207,7 +242,7 @@ def writeClientNetworkData(channels):
     result = []
     result.append(UInt32Le(len(channels)))
     for channel in channels:
-        result.append((String(channel.name[0:8]), UInt32Le(channel.options)))
+        result.append((String(channel.name[0:8] + "\x00" * (8 - len(channel.name))), UInt32Le(channel.options)))
     
     resultPacket = tuple(result)
     return (ClientToServerMessage.CS_NET, UInt16Le(sizeof(resultPacket) + 4), resultPacket)

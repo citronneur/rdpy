@@ -53,7 +53,7 @@ class Negotiation(CompositeType):
     '''
     def __init__(self, protocol = Protocols.PROTOCOL_SSL):
         CompositeType.__init__(self)
-        self.padding = UInt8()
+        self.flag = UInt8(0)
         #always 8
         self.len = UInt16Le(0x0008)
         self.protocol = protocol
@@ -96,7 +96,7 @@ class TPDU(LayerAutomata):
         if data.dataLen() == 8:
             self.readNeg(data)
         else:
-            raise NegotiationFailure("server doesn't support SSL negotiation on RDP")
+            raise NegotiationFailure("server doesn't support SSL")
         
         self.setNextState(self.recvData)
         #connection is done send to presentation
@@ -104,6 +104,8 @@ class TPDU(LayerAutomata):
     
     def recvData(self, data):
         print "TPDU data"
+        from rdpy.protocol.network.type import hexDump
+        hexDump(data.getvalue())
         
     def sendConnectionRequest(self):
         '''
@@ -138,7 +140,7 @@ class TPDU(LayerAutomata):
         '''
         read negotiation failure packet
         '''
-        pass
+        print "Negotiation failure"
     
     def readNegResp(self, data):
         '''

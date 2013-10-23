@@ -392,6 +392,28 @@ class String(Type):
         '''
         return len(self._value)
     
+class UniString(String):
+    '''
+    string with unicode representation
+    '''
+    def write(self, s):
+        '''
+        separate each char with null char 
+        and end with double null char
+        @param s: Stream
+        '''
+        for c in self._value:
+            s.writeType(UInt8(ord(c)))
+            s.writeType(UInt8(0))
+        s.writeType(UInt16Le(0))
+        
+    def __sizeof__(self):
+        '''
+        return len of uni string
+        @return: 2*len + 2
+        '''
+        return len(self._value) * 2 + 2
+    
 
 class Stream(StringIO):
     '''

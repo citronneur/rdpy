@@ -139,7 +139,7 @@ def writeInteger(value):
     else:
         return (writeLength(4), UInt32Be(value))
     
-def readInteger16(s, minimum):
+def readInteger16(s, minimum = 0):
     '''
     read UInt16Be from stream s and add minimum
     @param s: Stream
@@ -150,7 +150,7 @@ def readInteger16(s, minimum):
     s.readType(result)
     return result.value + minimum
 
-def writeInteger16(value, minimum):
+def writeInteger16(value, minimum = 0):
     '''
     write UInt16Be minus minimum
     @param value: value to write
@@ -190,9 +190,9 @@ def writeObjectIdentifier(oid):
     '''
     create tuble of 6 UInt8 with oid values
     @param oid: tuple of 6 int
-    @return: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+    @return: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
     '''
-    return (UInt8(oid[0] << 4 | oid[1] & 0x0f), UInt8(oid[2]), UInt8(oid[3]), UInt8(oid[4]), UInt8(oid[5]))
+    return (UInt8(5), UInt8(oid[0] << 4 | oid[1] & 0x0f), UInt8(oid[2]), UInt8(oid[3]), UInt8(oid[4]), UInt8(oid[5]))
 
 def writeNumericString(nStr, minValue):
     '''
@@ -239,7 +239,7 @@ def writePadding(length):
     '''
     return String("\x00"*length)
 
-def readOctetStream(s, octetStream, minValue):
+def readOctetStream(s, octetStream, minValue = 0):
     '''
     read string as octet stream and compare with octetStream
     @param octetStream: compare stream
