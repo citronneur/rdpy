@@ -122,7 +122,7 @@ class TPDU(LayerAutomata):
         add TPDU header
         '''
         self._transport.send((UInt8(2), MessageType.X224_TPDU_DATA, UInt8(0x80), message))
-        
+
     def readNeg(self, data):
         '''
         read negotiation response

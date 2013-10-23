@@ -51,19 +51,20 @@ def readLength(s):
     @return: int or python long
     '''
     size = None
-    byte = UInt8()
-    s.readType(byte)
-    if (byte & UInt8(0x80)) == UInt8(0x80):
-        byte &= ~UInt8(0x80)
-        if byte == UInt8(1):
+    length = UInt8()
+    s.readType(length)
+    byte = length.value
+    if (byte & 0x80):
+        byte &= 0x80
+        if byte == 1:
             size = UInt8()
-        elif byte == UInt8(2):
+        elif byte == 2:
             size = UInt16Be()
         else:
             raise InvalidExpectedDataException("ber length may be 1 or 2")
         s.readType(size)
     else:
-        size = byte
+        size = length
     return size.value
 
 def writeLength(size):
@@ -86,7 +87,7 @@ def readUniversalTag(s, tag, pc):
     '''
     byte = UInt8()
     s.readType(byte)
-    return byte == (Class.BER_CLASS_UNIV | berPC(pc) | (Tag.BER_TAG_MASK & tag))
+    return byte == ((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
 
 def writeUniversalTag(tag, pc):
     '''
@@ -95,7 +96,7 @@ def writeUniversalTag(tag, pc):
     @param pc: boolean
     @return: UInt8 
     '''
-    return (Class.BER_CLASS_UNIV | berPC(pc) | (Tag.BER_TAG_MASK & tag))
+    return ((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
 
 def readApplicationTag(s, tag):
     '''
@@ -220,7 +221,7 @@ def writeOctetstring(value):
     return (writeUniversalTag(Tag.BER_TAG_OCTET_STRING, False), writeLength(len(value)), String(value))
 
 def readEnumerated(s):
-    '''
+    '''rt-successful
     read enumerated structure
     @param s: Stream
     @return: int or long

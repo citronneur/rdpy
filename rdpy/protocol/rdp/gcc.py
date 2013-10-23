@@ -123,22 +123,22 @@ class ClientCoreSettings(CompositeType):
     def __init__(self):
         CompositeType.__init__(self)
         self.rdpVersion = Version.RDP_VERSION_5_PLUS
-        self.desktopWidth = UInt16Le(800)
-        self.desktopHeight = UInt16Le(600)
+        self.desktopWidth = UInt16Le(1280)
+        self.desktopHeight = UInt16Le(1024)
         self.colorDepth = ColorDepth.RNS_UD_COLOR_8BPP
         self.sasSequence = Sequence.RNS_UD_SAS_DEL
         self.kbdLayout = UInt32Le(0x409)
-        self.clientBuild = UInt32Le(2100)
+        self.clientBuild = UInt32Le(3790)
         self.clientName = UniString("rdpy" + "\x00"*11)
         self.keyboardType = UInt32Le(4)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
-        self.padding3 = String("\x00"*64)
+        self.imeFileName = String("\x00"*64)
         self.postBeta2ColorDepth = ColorDepth.RNS_UD_COLOR_8BPP
         self.clientProductId = UInt16Le(1)
-        self.serialNumber = UInt32Le()
+        self.serialNumber = UInt32Le(0)
         self.highColorDepth = HighColor.HIGH_COLOR_24BPP
-        self.supportedColorDepths = Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_15BPP_SUPPORT
+        self.supportedColorDepths = Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT | Support.RNS_UD_15BPP_SUPPORT
         self.earlyCapabilityFlags = CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU
         self.clientDigProductId = String("\x00"*64)
         self.connectionType = UInt8()
@@ -160,7 +160,7 @@ class ClientSecuritySettings(CompositeType):
     '''
     def __init__(self):
         CompositeType.__init__(self)
-        self.encryptionMethods = Encryption.ENCRYPTION_FLAG_128BIT | Encryption.ENCRYPTION_FLAG_40BIT | Encryption.ENCRYPTION_FLAG_56BIT | Encryption.FIPS_ENCRYPTION_FLAG
+        self.encryptionMethods = UInt32Le()
         self.extEncryptionMethods = UInt32Le()
 
 class Channel(object):

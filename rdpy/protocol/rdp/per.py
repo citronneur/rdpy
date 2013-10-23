@@ -132,7 +132,7 @@ def writeInteger(value):
     @param value: int or long python value
     @return: UInt8, UInt16Be or UInt32Be
     '''
-    if value < 0xff:
+    if value <= 0xff:
         return (writeLength(1), UInt8(value))
     elif value < 0xffff:
         return (writeLength(2), UInt16Be(value))
@@ -192,7 +192,7 @@ def writeObjectIdentifier(oid):
     @param oid: tuple of 6 int
     @return: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
     '''
-    return (UInt8(5), UInt8(oid[0] << 4 | oid[1] & 0x0f), UInt8(oid[2]), UInt8(oid[3]), UInt8(oid[4]), UInt8(oid[5]))
+    return (UInt8(5), UInt8((oid[0] << 4) & (oid[1] & 0x0f)), UInt8(oid[2]), UInt8(oid[3]), UInt8(oid[4]), UInt8(oid[5]))
 
 def writeNumericString(nStr, minValue):
     '''
@@ -218,10 +218,8 @@ def writeNumericString(nStr, minValue):
         c2 = (c2 - 0x30) % 10
         
         result.append(UInt8((c1 << 4) | c2))
-        
-    s = Stream()
-    s.writeType((writeLength(mlength), tuple(result)))
-    return String(s.getvalue())
+    
+    return (writeLength(mlength), tuple(result))
 
 def readPadding(s, length):
     '''

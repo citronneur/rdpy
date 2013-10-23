@@ -11,14 +11,6 @@ from rdpy.protocol.rdp import tpkt, tpdu, mcs
 from twisted.internet import ssl
 from OpenSSL import SSL
 
-class ClientTLSContext(ssl.ClientContextFactory):
-    isClient = 1
-    def getContext(self):
-        context = SSL.Context(SSL.TLSv1_METHOD)
-        context.set_options(SSL.OP_DONT_INSERT_EMPTY_FRAGMENTS)
-        context.set_options(SSL.OP_TLS_BLOCK_PADDING_BUG)
-        return context
-
 if __name__ == '__main__':
     #app = QtGui.QApplication(sys.argv)
     #import qt4reactor
@@ -31,7 +23,7 @@ if __name__ == '__main__':
     #w.show()
     from twisted.internet import reactor
     #reactor.connectTCP("127.0.0.1", 5901, factory.RfbFactory(protocol))
-    #reactor.connectTCP("192.168.1.90", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU(mcs.MCS()))))
-    reactor.connectTCP("192.168.135.73", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU(mcs.MCS()))))
+    reactor.connectTCP("192.168.1.90", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU(mcs.MCS()))))
+    #reactor.connectTCP("192.168.135.73", 3389, factory.RfbFactory(tpkt.TPKT(tpdu.TPDU(mcs.MCS()))))
     reactor.run()
     #sys.exit(app.exec_())
