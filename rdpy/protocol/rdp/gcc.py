@@ -160,7 +160,7 @@ class ClientSecuritySettings(CompositeType):
     '''
     def __init__(self):
         CompositeType.__init__(self)
-        self.encryptionMethods = UInt32Le()
+        self.encryptionMethods = UInt32Le()#Encryption.ENCRYPTION_FLAG_128BIT | Encryption.ENCRYPTION_FLAG_40BIT | Encryption.ENCRYPTION_FLAG_56BIT | Encryption.FIPS_ENCRYPTION_FLAG
         self.extEncryptionMethods = UInt32Le()
 
 class Channel(object):
@@ -212,7 +212,7 @@ def writeClientDataBlocks(settings):
     @param settings: ClientSettings
     '''
     return (writeClientCoreData(settings.core), 
-            writeClientNetworkData(settings.networkChannels),
+            #writeClientNetworkData(settings.networkChannels),
             writeClientSecurityData(settings.security))
 
 def writeClientCoreData(core):

@@ -202,7 +202,7 @@ class CompositeType(Type):
         init list of simple value
         '''
         #list of ordoned type
-        self._type = []
+        self._typeName = []
     
     def __setattr__(self, name, value):
         '''
@@ -210,8 +210,8 @@ class CompositeType(Type):
         @param name: name of new attribute
         @param value: value of new attribute
         '''
-        if name[0] != '_' and (isinstance(value, Type) or isinstance(value, tuple)) and not self.__dict__.has_key(name):
-            self._type.append(value)
+        if name[0] != '_' and (isinstance(value, Type) or isinstance(value, tuple)) and not name in self._typeName:
+            self._typeName.append(name)
         self.__dict__[name] = value
             
     def read(self, s):
@@ -219,16 +219,16 @@ class CompositeType(Type):
         call read on each ordered subtype 
         @param s: Stream
         '''
-        for i in self._type:
-            s.readType(i)
+        for name in self._typeName:
+            s.readType(self.__dict__[name])
             
     def write(self, s):
         '''
         call write on each ordered subtype
         @param s: Stream
         '''
-        for i in self._type:
-            s.writeType(i)
+        for name in self._typeName:
+            s.writeType(self.__dict__[name])
             
     def __sizeof__(self):
         '''
@@ -236,8 +236,8 @@ class CompositeType(Type):
         @return: sum of sizeof of each public type attributes
         '''
         size = 0
-        for i in self._type:
-            size += sizeof(i)
+        for name in self._typeName:
+            size += sizeof(self.__dict__[name])
         return size
 
 class UInt8(SimpleType):

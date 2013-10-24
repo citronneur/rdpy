@@ -169,9 +169,9 @@ class ClientTLSContext(ssl.ClientContextFactory):
     '''
     client context factory for open ssl
     '''
-    isClient = 1
     def getContext(self):
         context = SSL.Context(SSL.TLSv1_METHOD)
+        context.set_options(0x00020000)#SSL_OP_NO_COMPRESSION
         context.set_options(SSL.OP_DONT_INSERT_EMPTY_FRAGMENTS)
         context.set_options(SSL.OP_TLS_BLOCK_PADDING_BUG)
         return context
