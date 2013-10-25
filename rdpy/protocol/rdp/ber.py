@@ -3,7 +3,8 @@
 '''
 from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be, String
 from rdpy.utils.const import ConstAttributes
-from rdpy.protocol.network.error import InvalidExpectedDataException
+from rdpy.protocol.network.error import InvalidExpectedDataException,\
+    InvalidSize
 
 @ConstAttributes
 class BerPc(object):
@@ -228,9 +229,8 @@ def readEnumerated(s):
     '''
     if not readUniversalTag(s, Tag.BER_TAG_ENUMERATED, False):
         raise InvalidExpectedDataException("invalid ber tag")
-    size = readLength(s)
-    if size != UInt32Be(1):
-        raise InvalidExpectedDataException("enumerate size is wrong")
+    if readLength(s) != 1:
+        raise InvalidSize("enumerate size is wrong")
     enumer = UInt8()
     s.readType(enumer)
     return enumer.value

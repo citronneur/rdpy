@@ -4,37 +4,40 @@
 from rdpy.protocol.network.layer import LayerAutomata
 from rdpy.protocol.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
 from rdpy.protocol.network.error import InvalidExpectedDataException, NegotiationFailure
-from rdpy.utils.const import ConstAttributes
+from rdpy.utils.const import ConstAttributes, TypeAttributes
 
 @ConstAttributes
+@TypeAttributes(UInt8)
 class MessageType(object):
     '''
     message type
     '''
-    X224_TPDU_CONNECTION_REQUEST = UInt8(0xE0)
-    X224_TPDU_CONNECTION_CONFIRM = UInt8(0xD0)
-    X224_TPDU_DISCONNECT_REQUEST = UInt8(0x80)
-    X224_TPDU_DATA = UInt8(0xF0)
-    X224_TPDU_ERROR = UInt8(0x70)
+    X224_TPDU_CONNECTION_REQUEST = 0xE0
+    X224_TPDU_CONNECTION_CONFIRM = 0xD0
+    X224_TPDU_DISCONNECT_REQUEST = 0x80
+    X224_TPDU_DATA = 0xF0
+    X224_TPDU_ERROR = 0x70
 
 @ConstAttributes
+@TypeAttributes(UInt8)
 class NegociationType(object):
     '''
     negotiation header
     '''
-    TYPE_RDP_NEG_REQ = UInt8(0x01)
-    TYPE_RDP_NEG_RSP = UInt8(0x02)
-    TYPE_RDP_NEG_FAILURE = UInt8(0x03)
+    TYPE_RDP_NEG_REQ = 0x01
+    TYPE_RDP_NEG_RSP = 0x02
+    TYPE_RDP_NEG_FAILURE = 0x03
 
 @ConstAttributes
+@TypeAttributes(UInt32Le)
 class Protocols(object):
     '''
     protocols available for TPDU layer
     '''
-    PROTOCOL_RDP = UInt32Le(0x00000000)
-    PROTOCOL_SSL = UInt32Le(0x00000001)
-    PROTOCOL_HYBRID = UInt32Le(0x00000002)
-    PROTOCOL_HYBRID_EX = UInt32Le(0x00000008)
+    PROTOCOL_RDP = 0x00000000
+    PROTOCOL_SSL = 0x00000001
+    PROTOCOL_HYBRID = 0x00000002
+    PROTOCOL_HYBRID_EX = 0x00000008
     
 class TPDUConnectHeader(CompositeType):
     '''
@@ -46,6 +49,15 @@ class TPDUConnectHeader(CompositeType):
         self.code = code
         self.padding = (UInt16Be(), UInt16Be(), UInt8())
         
+class TPDUDataHeader(CompositeType):
+    '''
+    header send when tpdu exchange application data
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.header = UInt8(2)
+        self.messageType = MessageType.X224_TPDU_DATA
+        self.separator = UInt8(0x80)
     
 class Negotiation(CompositeType):
     '''
@@ -69,7 +81,6 @@ class TPDU(LayerAutomata):
         @param presentation: MCS layer
         '''
         LayerAutomata.__init__(self, presentation)
-        
         #default protocol is SSl because is the only supported
         #in this version of RDPY
         self._protocol = Protocols.PROTOCOL_SSL
@@ -103,9 +114,19 @@ class TPDU(LayerAutomata):
         LayerAutomata.connect(self)
     
     def recvData(self, data):
-        print "TPDU data"
-        from rdpy.protocol.network.type import hexDump
-        hexDump(data.getvalue())
+        '''
+        read data header from packet
+        and pass to presentation layer
+        @param data: stream
+        '''
+        header = TPDUDataHeader()
+        data.readType(header)
+        if header.messageType == MessageType.X224_TPDU_DATA:
+            LayerAutomata.recv(self, data)
+        elif header.messageType == MessageType.X224_TPDU_ERROR:
+            raise Exception("receive error from tpdu layer")
+        else:
+            raise InvalidExpectedDataException("unknow tpdu code %s"%header.messageType)
         
     def sendConnectionRequest(self):
         '''
@@ -121,7 +142,7 @@ class TPDU(LayerAutomata):
         write message packet for TPDU layer
         add TPDU header
         '''
-        self._transport.send((UInt8(2), MessageType.X224_TPDU_DATA, UInt8(0x80), message))
+        self._transport.send((TPDUDataHeader(), message))
 
     def readNeg(self, data):
         '''

@@ -3,6 +3,7 @@
 '''
 
 import struct
+from copy import deepcopy
 from StringIO import StringIO
 from error import InvalidValue, InvalidType
 
@@ -240,6 +241,28 @@ class CompositeType(Type):
             size += sizeof(self.__dict__[name])
         return size
 
+    def __eq__(self, other):
+        '''
+        compare each properties which are Type inheritance
+        if one is different then not equal
+        @param other: CompositeType
+        @return: True if each subtype are equals
+        '''
+        if self._typeName != other._typeName:
+            return False
+        for name in self._typeName:
+            if self.__dict__[name] != other.__dict__[name]:
+                return False
+        return True
+    
+    def __ne__(self, other):
+        '''
+        return not equal result operator
+        @param other: CompositeType
+        @return: False if each subtype are equals
+        '''
+        return not self.__eq__(other)
+
 class UInt8(SimpleType):
     '''
     unsigned byte
@@ -460,15 +483,29 @@ class Stream(StringIO):
                 self.writeType(element)
             return
         value.write(self)
-        
-    def write_unistr(self, value):
-        for c in value:
-            self.write_uint8(ord(c))
-            self.write_uint8(0)
-        self.write_uint8(0)
-        self.write_uint8(0)
+
+def CheckValueOnRead(cls):
+    '''
+    wrap read method of class
+    to check value on read
+    if new value is different from old value
+    raise InvalidValue
+    @param cls: class that inherit from Type
+    '''
+    oldRead = cls.read
+    def read(self, s):
+        old = deepcopy(self)
+        oldRead(self, s)
+        if self != old:
+            raise InvalidValue("CheckValueOnRead %s != %s"%(self, old))
+    cls.read = read
+    return cls
 
 def hexDump(src, length=16):
+    '''
+    print hex representation of sr
+    @param src: string
+    '''
     FILTER = ''.join([(len(repr(chr(x))) == 3) and chr(x) or '.' for x in range(256)])
     for c in xrange(0, len(src), length):
         chars = src[c:c+length]

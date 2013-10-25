@@ -3,58 +3,63 @@
 '''
 
 from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
-from rdpy.utils.const import ConstAttributes
+from rdpy.utils.const import ConstAttributes, TypeAttributes
 
 @ConstAttributes
+@TypeAttributes(String)
 class ProtocolVersion(object):
     '''
     different ptotocol version
     '''
-    UNKNOWN = String()
-    RFB003003 = String("RFB 003.003\n")
-    RFB003007 = String("RFB 003.007\n")
-    RFB003008 = String("RFB 003.008\n")
+    UNKNOWN = ""
+    RFB003003 = "RFB 003.003\n"
+    RFB003007 = "RFB 003.007\n"
+    RFB003008 = "RFB 003.008\n"
 
 @ConstAttributes 
+@TypeAttributes(UInt8)
 class SecurityType(object):
     '''
     security type supported 
     (or will be supported)
     by rdpy
     '''
-    INVALID = UInt8(0)
-    NONE = UInt8(1)
-    VNC = UInt8(2)
+    INVALID = 0
+    NONE = 1
+    VNC = 2
 
 @ConstAttributes
+@TypeAttributes(UInt32Be)
 class Pointer(object):
     '''
     mouse event code (which button)
     actually in RFB specification only$
     three buttons are supported
     '''
-    BUTTON1 = UInt32Be(0x1)
-    BUTTON2 = UInt32Be(0x2)
-    BUTTON3 = UInt32Be(0x4)
+    BUTTON1 = 0x1
+    BUTTON2 = 0x2
+    BUTTON3 = 0x4
 
-@ConstAttributes  
+@ConstAttributes
+@TypeAttributes(SInt32Be)  
 class Encoding(object):
     '''
     encoding types
     '''
-    RAW = SInt32Be(0)
+    RAW = 0
 
 @ConstAttributes
+@TypeAttributes(UInt8)
 class ClientToServerMessages(object):
     '''
     messages types
     '''
-    PIXEL_FORMAT = UInt8(0)
-    ENCODING = UInt8(2)
-    FRAME_BUFFER_UPDATE_REQUEST = UInt8(3)
-    KEY_EVENT = UInt8(4)
-    POINTER_EVENT = UInt8(5)
-    CUT_TEXT = UInt8(6)
+    PIXEL_FORMAT = 0
+    ENCODING = 2
+    FRAME_BUFFER_UPDATE_REQUEST = 3
+    KEY_EVENT = 4
+    POINTER_EVENT = 5
+    CUT_TEXT = 6
     
 class PixelFormat(CompositeType):
     '''

@@ -2,28 +2,30 @@
 @author: sylvain
 '''
 
-from rdpy.utils.const import ConstAttributes
+from rdpy.utils.const import ConstAttributes, TypeAttributes
 from rdpy.protocol.network.layer import LayerAutomata
 from rdpy.protocol.network.type import sizeof, Stream, UInt8
 from rdpy.protocol.rdp.ber import writeLength
+from rdpy.protocol.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 
 import ber, gcc
 
 @ConstAttributes
+@TypeAttributes(UInt8)
 class Message(object):
     '''
     message type
     '''
-    MCS_TYPE_CONNECT_INITIAL = UInt8(0x65)
-    MCS_TYPE_CONNECT_RESPONSE = UInt8(0x66)
-    MCS_EDRQ =  UInt8(1)
-    MCS_DPUM = UInt8(8)
-    MCS_AURQ = UInt8(10)
-    MCS_AUCF = UInt8(11)
-    MCS_CJRQ = UInt8(14)
-    MCS_CJCF = UInt8(15)
-    MCS_SDRQ = UInt8(25)
-    MCS_SDIN = UInt8(26)
+    MCS_TYPE_CONNECT_INITIAL = 0x65
+    MCS_TYPE_CONNECT_RESPONSE = 0x66
+    MCS_EDRQ = 1
+    MCS_DPUM = 8
+    MCS_AURQ = 10
+    MCS_AUCF = 11
+    MCS_CJRQ = 14
+    MCS_CJCF = 15
+    MCS_SDRQ = 25
+    MCS_SDIN = 26
     
 class Channel:
     MCS_GLOBAL_CHANNEL = 1003
@@ -66,6 +68,8 @@ class MCS(LayerAutomata):
                self.writeDomainParams(0xffff, 0xfc17, 0xffff, 0xffff),
                ber.writeOctetstring(ccReqStream.getvalue()))
         self._transport.send((ber.writeApplicationTag(Message.MCS_TYPE_CONNECT_INITIAL, sizeof(tmp)), tmp))
+        #we must receive a connect response
+        self.setNextState(self.recvConnectResponse)
     
     def writeDomainParams(self, maxChannels, maxUsers, maxTokens, maxPduSize):
         '''
@@ -81,5 +85,34 @@ class MCS(LayerAutomata):
                        ber.writeInteger(1), ber.writeInteger(0), ber.writeInteger(1),
                        ber.writeInteger(maxPduSize), ber.writeInteger(2))
         return (ber.writeUniversalTag(ber.Tag.BER_TAG_SEQUENCE, True), writeLength(sizeof(domainParam)), domainParam)
+    
+    def readDomainParams(self, s):
+        '''
+        read domain params structure
+        '''
+        if not ber.readUniversalTag(s, ber.Tag.BER_TAG_SEQUENCE, True):
+            raise InvalidValue("bad BER tags")
+        length = ber.readLength(s)
+        max_channels = ber.readInteger(s)
+        max_users = ber.readInteger(s)
+        max_tokens = ber.readInteger(s)
+        ber.readInteger(s)
+        ber.readInteger(s)
+        ber.readInteger(s)
+        max_pdu_size = ber.readInteger(s)
+        ber.readInteger(s)
+        
+    def recvConnectResponse(self, data):
+        ber.readApplicationTag(data, Message.MCS_TYPE_CONNECT_RESPONSE)
+        ber.readEnumerated(data)
+        ber.readInteger(data)
+        self.readDomainParams(data)
+        if not ber.readUniversalTag(data, ber.Tag.BER_TAG_OCTET_STRING, False):
+            raise InvalidExpectedDataException("invalid expected tag")
+        gccRequestLength = ber.readLength(data)
+        if data.dataLen() != gccRequestLength:
+            raise InvalidSize("gcc request have ")
+        from rdpy.protocol.network.type import hexDump
+        hexDump(data.getvalue())
         
         

@@ -2,7 +2,7 @@
 @author: sylvain
 '''
 
-from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be, String, Stream
+from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be, String
 from rdpy.protocol.network.error import InvalidValue, InvalidExpectedDataException
 
 def readLength(s):
