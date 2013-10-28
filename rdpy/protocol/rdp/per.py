@@ -169,21 +169,21 @@ def readObjectIdentifier(s, oid):
     size = readLength(s)
     if size != 5:
         raise InvalidValue("size of stream oid is wrong %d != 5"%size)
-    a_oid = (0, 0, 0, 0, 0, 0)
+    a_oid = [0, 0, 0, 0, 0, 0]
     t12 = UInt8()
     s.readType(t12)
     a_oid[0] = t12.value >> 4
     a_oid[1] = t12.value & 0x0f
+    s.readType(t12)
+    a_oid[2] = t12.value
     s.readType(t12)
     a_oid[3] = t12.value
     s.readType(t12)
     a_oid[4] = t12.value
     s.readType(t12)
     a_oid[5] = t12.value
-    s.readType(t12)
-    a_oid[6] = t12.value
     
-    if oid != a_oid:
+    if list(oid) != a_oid:
         raise InvalidExpectedDataException("invalid object identifier")
 
 def writeObjectIdentifier(oid):

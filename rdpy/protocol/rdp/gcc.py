@@ -3,117 +3,133 @@
 @summary gcc language
 @contact: http://msdn.microsoft.com/en-us/library/cc240510.aspx
 '''
-from rdpy.utils.const import ConstAttributes
-from rdpy.protocol.network.type import *
+from rdpy.utils.const import ConstAttributes, TypeAttributes
+from rdpy.protocol.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, UniString, Stream, sizeof
 import per
+from rdpy.protocol.network.error import InvalidExpectedDataException
 
 t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
 h221_cs_key = "Duca";
 h221_sc_key = "McDn";
 
 @ConstAttributes
+@TypeAttributes(UInt16Le)
 class ServerToClientMessage(object):
-    SC_CORE = UInt16Le(0x0C01)
-    SC_SECURITY = UInt16Le(0x0C02)
-    SC_NET = UInt16Le(0x0C03)
+    '''
+    Server to Client block 
+    gcc conference messages
+    '''
+    SC_CORE = 0x0C01
+    SC_SECURITY = 0x0C02
+    SC_NET = 0x0C03
 
 @ConstAttributes
+@TypeAttributes(UInt16Le)
 class ClientToServerMessage(object):
     '''
-    Client to Server message
+    Client to Server block 
+    gcc conference messages
     '''
-    CS_CORE = UInt16Le(0xC001)
-    CS_SECURITY = UInt16Le(0xC002)
-    CS_NET = UInt16Le(0xC003)
-    CS_CLUSTER = UInt16Le(0xC004)
-    CS_MONITOR = UInt16Le(0xC005)
+    CS_CORE = 0xC001
+    CS_SECURITY = 0xC002
+    CS_NET = 0xC003
+    CS_CLUSTER = 0xC004
+    CS_MONITOR = 0xC005
 
 @ConstAttributes
+@TypeAttributes(UInt16Le)
 class ColorDepth(object):
     '''
     depth color
     '''
-    RNS_UD_COLOR_8BPP = UInt16Le(0xCA01)
-    RNS_UD_COLOR_16BPP_555 = UInt16Le(0xCA02)
-    RNS_UD_COLOR_16BPP_565 = UInt16Le(0xCA03)
-    RNS_UD_COLOR_24BPP = UInt16Le(0xCA04)
+    RNS_UD_COLOR_8BPP = 0xCA01
+    RNS_UD_COLOR_16BPP_555 = 0xCA02
+    RNS_UD_COLOR_16BPP_565 = 0xCA03
+    RNS_UD_COLOR_24BPP = 0xCA04
     
 @ConstAttributes
+@TypeAttributes(UInt16Le)
 class HighColor(object):
     '''
     high color of client
     '''
-    HIGH_COLOR_4BPP = UInt16Le(0x0004)
-    HIGH_COLOR_8BPP = UInt16Le(0x0008)
-    HIGH_COLOR_15BPP = UInt16Le(0x000f)
-    HIGH_COLOR_16BPP = UInt16Le(0x0010)
-    HIGH_COLOR_24BPP = UInt16Le(0x0018)
+    HIGH_COLOR_4BPP = 0x0004
+    HIGH_COLOR_8BPP = 0x0008
+    HIGH_COLOR_15BPP = 0x000f
+    HIGH_COLOR_16BPP = 0x0010
+    HIGH_COLOR_24BPP = 0x0018
 
 @ConstAttributes
+@TypeAttributes(UInt16Le)
 class Support(object):
     '''
     support depth flag
     '''
-    RNS_UD_24BPP_SUPPORT = UInt16Le(0x0001)
-    RNS_UD_16BPP_SUPPORT = UInt16Le(0x0002)
-    RNS_UD_15BPP_SUPPORT = UInt16Le(0x0004)
-    RNS_UD_32BPP_SUPPORT = UInt16Le(0x0008)
+    RNS_UD_24BPP_SUPPORT = 0x0001
+    RNS_UD_16BPP_SUPPORT = 0x0002
+    RNS_UD_15BPP_SUPPORT = 0x0004
+    RNS_UD_32BPP_SUPPORT = 0x0008
 
 @ConstAttributes
+@TypeAttributes(UInt16Le)
 class CapabilityFlags(object):
     '''
     @contact: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     for more details on each flags click above
     '''
-    RNS_UD_CS_SUPPORT_ERRINFO_PDU = UInt16Le(0x0001)
-    RNS_UD_CS_WANT_32BPP_SESSION = UInt16Le(0x0002)
-    RNS_UD_CS_SUPPORT_STATUSINFO_PDU = UInt16Le(0x0004)
-    RNS_UD_CS_STRONG_ASYMMETRIC_KEYS = UInt16Le(0x0008)
-    RN_UD_CS_UNUSED = UInt16Le(0x0010)
-    RNS_UD_CS_VALID_CONNECTION_TYPE = UInt16Le(0x0020)
-    RNS_UD_CS_SUPPORT_MONITOR_LAYOUT_PDU = UInt16Le(0x0040)
-    RNS_UD_CS_SUPPORT_NETCHAR_AUTODETECT = UInt16Le(0x0080)
-    RNS_UD_CS_SUPPORT_DYNVC_GFX_PROTOCOL = UInt16Le(0x0100)
-    RNS_UD_CS_SUPPORT_DYNAMIC_TIME_ZONE = UInt16Le(0x0200)
-    RNS_UD_CS_SUPPORT_HEARTBEAT_PDU = UInt16Le(0x0400)
+    RNS_UD_CS_SUPPORT_ERRINFO_PDU = 0x0001
+    RNS_UD_CS_WANT_32BPP_SESSION = 0x0002
+    RNS_UD_CS_SUPPORT_STATUSINFO_PDU = 0x0004
+    RNS_UD_CS_STRONG_ASYMMETRIC_KEYS = 0x0008
+    RN_UD_CS_UNUSED = 0x0010
+    RNS_UD_CS_VALID_CONNECTION_TYPE = 0x0020
+    RNS_UD_CS_SUPPORT_MONITOR_LAYOUT_PDU = 0x0040
+    RNS_UD_CS_SUPPORT_NETCHAR_AUTODETECT = 0x0080
+    RNS_UD_CS_SUPPORT_DYNVC_GFX_PROTOCOL = 0x0100
+    RNS_UD_CS_SUPPORT_DYNAMIC_TIME_ZONE = 0x0200
+    RNS_UD_CS_SUPPORT_HEARTBEAT_PDU = 0x0400
 
 @ConstAttributes 
+@TypeAttributes(UInt8)
 class ConnectionType(object):
     '''
     this information is correct if 
     RNS_UD_CS_VALID_CONNECTION_TYPE flag is set on capabilityFlag
     @contact: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     '''
-    CONNECTION_TYPE_MODEM = UInt8(0x01)
-    CONNECTION_TYPE_BROADBAND_LOW = UInt8(0x02)
-    CONNECTION_TYPE_SATELLITE = UInt8(0x03)
-    CONNECTION_TYPE_BROADBAND_HIGH = UInt8(0x04)
-    CONNECTION_TYPE_WAN = UInt8(0x05)
-    CONNECTION_TYPE_LAN = UInt8(0x06)
-    CONNECTION_TYPE_AUTODETECT = UInt8(0x07)
+    CONNECTION_TYPE_MODEM = 0x01
+    CONNECTION_TYPE_BROADBAND_LOW = 0x02
+    CONNECTION_TYPE_SATELLITE = 0x03
+    CONNECTION_TYPE_BROADBAND_HIGH = 0x04
+    CONNECTION_TYPE_WAN = 0x05
+    CONNECTION_TYPE_LAN = 0x06
+    CONNECTION_TYPE_AUTODETECT = 0x07
 
 @ConstAttributes
+@TypeAttributes(UInt32Le)
 class Version(object):
     '''
     supported version of RDP
     '''
-    RDP_VERSION_4 = UInt32Le(0x00080001)
-    RDP_VERSION_5_PLUS = UInt32Le(0x00080004)
+    RDP_VERSION_4 = 0x00080001
+    RDP_VERSION_5_PLUS = 0x00080004
 
 @ConstAttributes
+@TypeAttributes(UInt16Le)
 class Sequence(object):
-    RNS_UD_SAS_DEL = UInt16Le(0xAA03)
+    RNS_UD_SAS_DEL = 0xAA03
     
-@ConstAttributes   
+@ConstAttributes
+@TypeAttributes(UInt32Le) 
 class Encryption(object):
     '''
     encryption method supported
     @deprecated: because rdpy use ssl but need to send to server...
     '''
-    ENCRYPTION_FLAG_40BIT = UInt32Le(0x00000001)
-    ENCRYPTION_FLAG_128BIT = UInt32Le(0x00000002)
-    ENCRYPTION_FLAG_56BIT = UInt32Le(0x00000008)
-    FIPS_ENCRYPTION_FLAG = UInt32Le(0x00000010)
+    ENCRYPTION_FLAG_40BIT = 0x00000001
+    ENCRYPTION_FLAG_128BIT = 0x00000002
+    ENCRYPTION_FLAG_56BIT = 0x00000008
+    FIPS_ENCRYPTION_FLAG = 0x00000010
 
 
 class ClientCoreSettings(CompositeType):
@@ -152,6 +168,7 @@ class ServerCoreSettings(CompositeType):
     def __init__(self):
         CompositeType.__init__(self)
         self.rdpVersion = Version.RDP_VERSION_5_PLUS
+        self.clientRequestedProtocol = UInt32Le()
         
 class ClientSecuritySettings(CompositeType):
     '''
@@ -160,7 +177,7 @@ class ClientSecuritySettings(CompositeType):
     '''
     def __init__(self):
         CompositeType.__init__(self)
-        self.encryptionMethods = UInt32Le()#Encryption.ENCRYPTION_FLAG_128BIT | Encryption.ENCRYPTION_FLAG_40BIT | Encryption.ENCRYPTION_FLAG_56BIT | Encryption.FIPS_ENCRYPTION_FLAG
+        self.encryptionMethods = UInt32Le()
         self.extEncryptionMethods = UInt32Le()
 
 class Channel(object):
@@ -188,6 +205,14 @@ class ClientSettings(object):
         self.networkChannels = []
         self.security = ClientSecuritySettings()
         
+class ServerSettings(object):
+    '''
+    server settings
+    '''
+    def __init__(self):
+        #core settings of server
+        self.core = ServerCoreSettings()
+        
 def writeConferenceCreateRequest(settings):
     '''
     write conference create request structure
@@ -204,6 +229,26 @@ def writeConferenceCreateRequest(settings):
             per.writeNumberOfSet(1), per.writeChoice(0xc0),
             per.writeOctetStream(h221_cs_key, 4), per.writeOctetStream(userDataStream.getvalue()))
     
+def readConferenceCreateResponse(s):
+    '''
+    read response from server
+    and return server settings read from this response
+    @param s: Stream
+    @return: ServerSettings 
+    '''
+    per.readChoice(s)
+    per.readObjectIdentifier(s, t124_02_98_oid)
+    per.readLength(s)
+    per.readChoice(s)
+    per.readInteger16(s, 1001)
+    per.readInteger(s)
+    per.readEnumerates(s)
+    per.readNumberOfSet(s)
+    per.readChoice(s)
+    if not per.readOctetStream(s, h221_sc_key, 4):
+        raise InvalidExpectedDataException("cannot read h221_sc_key")
+    return readServerDataBlocks(s)
+    
     
 def writeClientDataBlocks(settings):
     '''
@@ -212,8 +257,34 @@ def writeClientDataBlocks(settings):
     @param settings: ClientSettings
     '''
     return (writeClientCoreData(settings.core), 
-            #writeClientNetworkData(settings.networkChannels),
+            writeClientNetworkData(settings.networkChannels),
             writeClientSecurityData(settings.security))
+    
+def readServerDataBlocks(s):
+    '''
+    read gcc server data blocks
+    and return result in Server Settings object
+    @param s: Stream
+    @return: ServerSettings
+    '''
+    settings = ServerSettings()
+    length = per.readLength(s)
+    while length > 0:
+        marker = s.readLen()
+        blockType = UInt16Le()
+        blockLength = UInt16Le()
+        s.readType((blockType, blockLength))
+        if blockType == ServerToClientMessage.SC_CORE:
+            s.readType(settings.core)
+        elif blockType == ServerToClientMessage.SC_NET:
+            pass
+        elif blockType == ServerToClientMessage.SC_SECURITY:
+            pass
+        else:
+            print "Unknow server block %s"%hex(type)
+        length -= blockLength.value
+        s.seek(marker + blockLength.value)
+        
 
 def writeClientCoreData(core):
     '''

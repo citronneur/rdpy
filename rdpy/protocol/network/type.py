@@ -450,6 +450,13 @@ class Stream(StringIO):
         '''
         return self.len - self.pos
     
+    def readLen(self):
+        '''
+        compute already read size
+        @return: read size of stream
+        '''
+        return self.pos
+    
     def readType(self, value):
         '''
         call specific read on type object

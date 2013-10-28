@@ -2,35 +2,37 @@
 @author: sylvain
 '''
 from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be, String
-from rdpy.utils.const import ConstAttributes
-from rdpy.protocol.network.error import InvalidExpectedDataException,\
-    InvalidSize
+from rdpy.utils.const import ConstAttributes, TypeAttributes
+from rdpy.protocol.network.error import InvalidExpectedDataException, InvalidSize
 
 @ConstAttributes
+@TypeAttributes(UInt8)
 class BerPc(object):
-    BER_PC_MASK = UInt8(0x20)
-    BER_PRIMITIVE = UInt8(0x00)
-    BER_CONSTRUCT = UInt8(0x20)
+    BER_PC_MASK = 0x20
+    BER_PRIMITIVE = 0x00
+    BER_CONSTRUCT = 0x20
 
-@ConstAttributes  
+@ConstAttributes
+@TypeAttributes(UInt8)
 class Class(object):
-    BER_CLASS_MASK = UInt8(0xC0)
-    BER_CLASS_UNIV = UInt8(0x00)
-    BER_CLASS_APPL = UInt8(0x40)
-    BER_CLASS_CTXT = UInt8(0x80)
-    BER_CLASS_PRIV = UInt8(0xC0)
+    BER_CLASS_MASK = 0xC0
+    BER_CLASS_UNIV = 0x00
+    BER_CLASS_APPL = 0x40
+    BER_CLASS_CTXT = 0x80
+    BER_CLASS_PRIV = 0xC0
     
-@ConstAttributes     
+@ConstAttributes
+@TypeAttributes(UInt8)     
 class Tag(object):
-    BER_TAG_MASK = UInt8(0x1F)
-    BER_TAG_BOOLEAN = UInt8(0x01)
-    BER_TAG_INTEGER = UInt8(0x02)
-    BER_TAG_BIT_STRING = UInt8(0x03)
-    BER_TAG_OCTET_STRING = UInt8(0x04)
-    BER_TAG_OBJECT_IDENFIER = UInt8(0x06)
-    BER_TAG_ENUMERATED = UInt8(0x0A)
-    BER_TAG_SEQUENCE = UInt8(0x10)
-    BER_TAG_SEQUENCE_OF = UInt8(0x10)
+    BER_TAG_MASK = 0x1F
+    BER_TAG_BOOLEAN = 0x01
+    BER_TAG_INTEGER = 0x02
+    BER_TAG_BIT_STRING = 0x03
+    BER_TAG_OCTET_STRING = 0x04
+    BER_TAG_OBJECT_IDENFIER = 0x06
+    BER_TAG_ENUMERATED = 0x0A
+    BER_TAG_SEQUENCE = 0x10
+    BER_TAG_SEQUENCE_OF = 0x10
 
 def berPC(pc):
     '''
@@ -222,7 +224,7 @@ def writeOctetstring(value):
     return (writeUniversalTag(Tag.BER_TAG_OCTET_STRING, False), writeLength(len(value)), String(value))
 
 def readEnumerated(s):
-    '''rt-successful
+    '''
     read enumerated structure
     @param s: Stream
     @return: int or long

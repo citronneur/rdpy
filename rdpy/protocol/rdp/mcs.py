@@ -70,6 +70,22 @@ class MCS(LayerAutomata):
         self._transport.send((ber.writeApplicationTag(Message.MCS_TYPE_CONNECT_INITIAL, sizeof(tmp)), tmp))
         #we must receive a connect response
         self.setNextState(self.recvConnectResponse)
+        
+    def recvConnectResponse(self, data):
+        '''
+        receive mcs connect response from server
+        @param data: Stream
+        '''
+        ber.readApplicationTag(data, Message.MCS_TYPE_CONNECT_RESPONSE)
+        ber.readEnumerated(data)
+        ber.readInteger(data)
+        self.readDomainParams(data)
+        if not ber.readUniversalTag(data, ber.Tag.BER_TAG_OCTET_STRING, False):
+            raise InvalidExpectedDataException("invalid expected tag")
+        gccRequestLength = ber.readLength(data)
+        if data.dataLen() != gccRequestLength:
+            raise InvalidSize("bad size of gcc request")
+        gcc.readConferenceCreateResponse(data)
     
     def writeDomainParams(self, maxChannels, maxUsers, maxTokens, maxPduSize):
         '''
@@ -89,10 +105,11 @@ class MCS(LayerAutomata):
     def readDomainParams(self, s):
         '''
         read domain params structure
+        @return: (max_channels, max_users, max_tokens, max_pdu_size)
         '''
         if not ber.readUniversalTag(s, ber.Tag.BER_TAG_SEQUENCE, True):
             raise InvalidValue("bad BER tags")
-        length = ber.readLength(s)
+        ber.readLength(s)#length
         max_channels = ber.readInteger(s)
         max_users = ber.readInteger(s)
         max_tokens = ber.readInteger(s)
@@ -101,18 +118,6 @@ class MCS(LayerAutomata):
         ber.readInteger(s)
         max_pdu_size = ber.readInteger(s)
         ber.readInteger(s)
-        
-    def recvConnectResponse(self, data):
-        ber.readApplicationTag(data, Message.MCS_TYPE_CONNECT_RESPONSE)
-        ber.readEnumerated(data)
-        ber.readInteger(data)
-        self.readDomainParams(data)
-        if not ber.readUniversalTag(data, ber.Tag.BER_TAG_OCTET_STRING, False):
-            raise InvalidExpectedDataException("invalid expected tag")
-        gccRequestLength = ber.readLength(data)
-        if data.dataLen() != gccRequestLength:
-            raise InvalidSize("gcc request have ")
-        from rdpy.protocol.network.type import hexDump
-        hexDump(data.getvalue())
+        return (max_channels, max_users, max_tokens, max_pdu_size)
         
         
