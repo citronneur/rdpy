@@ -179,21 +179,31 @@ class ClientSecuritySettings(CompositeType):
         CompositeType.__init__(self)
         self.encryptionMethods = UInt32Le()
         self.extEncryptionMethods = UInt32Le()
+        
+class ServerSecuritySettings(CompositeType):
+    '''
+    server security settings
+    may be ignore because rdpy don't use 
+    RDP security level
+    @deprecated: because we use ssl
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.encryptionMethod = UInt32Le()
+        self.encryptionLevel = UInt32Le()
+        
 
-class Channel(object):
+class ClientRequestedChannel(CompositeType):
     '''
     channels structure share between
     client and server
     '''
-    def __init__(self):
+    def __init__(self, name = "", options = UInt32Le()):
+        CompositeType.__init__(self)
         #name of channel
-        self.name = ""
+        self.name = String(name[0:8] + "\x00" * (8 - len(name)))
         #unknown
-        self.options = 0
-        #id of channel
-        self.channelId = 0
-        #True if channel is connect
-        self.connect = False
+        self.options = options
         
 class ClientSettings(object):
     '''
@@ -201,7 +211,7 @@ class ClientSettings(object):
     '''
     def __init__(self):
         self.core = ClientCoreSettings()
-        #list of Channel read network gcc packet
+        #list of ClientRequestedChannel read network gcc packet
         self.networkChannels = []
         self.security = ClientSecuritySettings()
         
@@ -212,6 +222,10 @@ class ServerSettings(object):
     def __init__(self):
         #core settings of server
         self.core = ServerCoreSettings()
+        #unuse security informations
+        self.security = ServerSecuritySettings()
+        #channel id accepted by server
+        self.channelsId = []
         
 def writeConferenceCreateRequest(settings):
     '''
@@ -274,12 +288,15 @@ def readServerDataBlocks(s):
         blockType = UInt16Le()
         blockLength = UInt16Le()
         s.readType((blockType, blockLength))
+        #read core block
         if blockType == ServerToClientMessage.SC_CORE:
             s.readType(settings.core)
+        #read network block
         elif blockType == ServerToClientMessage.SC_NET:
-            pass
+            settings.channelsId = readServerSecurityData(s)
+        #read security block
         elif blockType == ServerToClientMessage.SC_SECURITY:
-            pass
+            s.readType(settings.security)
         else:
             print "Unknow server block %s"%hex(type)
         length -= blockLength.value
@@ -305,16 +322,27 @@ def writeClientSecurityData(security):
 def writeClientNetworkData(channels):
     '''
     write network packet whith channels infos
-    @param channels: list of Channel
+    @param channels: list of ClientRequestedChannel
     @return: gcc network packet
     '''
     if len(channels) == 0:
         return ()
-    result = []
-    result.append(UInt32Le(len(channels)))
-    for channel in channels:
-        result.append((String(channel.name[0:8] + "\x00" * (8 - len(channel.name))), UInt32Le(channel.options)))
-    
-    resultPacket = tuple(result)
-    return (ClientToServerMessage.CS_NET, UInt16Le(sizeof(resultPacket) + 4), resultPacket)
+    return (ClientToServerMessage.CS_NET, UInt16Le(len(channels) * sizeof(ClientRequestedChannel()) + 4), UInt32Le(len(channels)), tuple(channels))
+
+def readServerSecurityData(s):
+    '''
+    read server security and fill it in settings
+    read all channels accepted by server by server
+    @param s: Stream
+    @return: list of chaeel id selected by server
+    '''
+    channelsId = []
+    channelId = UInt16Le()
+    numberOfChannels = UInt16Le()
+    s.readType((channelId, numberOfChannels))
+    for i in range(0, numberOfChannels.value):
+        channelId = UInt16Le()
+        s.readType(channelId)
+        channelsId.append(channelId)
+    return channelsId
     

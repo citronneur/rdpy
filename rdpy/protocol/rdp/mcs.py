@@ -51,7 +51,7 @@ class MCS(LayerAutomata):
         connection send for client mode
         a write connect initial packet
         '''
-        self._clientSettings.core.serverSelectedProtocol = self._transport._protocol
+        self._clientSettings.core.serverSelectedProtocol = self._transport._selectedProtocol
         self.sendConnectInitial()
     
     def sendConnectInitial(self):

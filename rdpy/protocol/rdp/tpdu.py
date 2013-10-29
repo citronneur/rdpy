@@ -83,7 +83,10 @@ class TPDU(LayerAutomata):
         LayerAutomata.__init__(self, presentation)
         #default protocol is SSl because is the only supported
         #in this version of RDPY
-        self._protocol = Protocols.PROTOCOL_SSL
+        #client requested protocol
+        self._requestedProtocol = Protocols.PROTOCOL_SSL
+        #server selected protocol
+        self._selectedProtocol = Protocols.PROTOCOL_SSL
     
     def connect(self):
         '''
@@ -133,7 +136,7 @@ class TPDU(LayerAutomata):
         write connection request message
         next state is recvConnectionConfirm
         '''
-        neqReq = (NegociationType.TYPE_RDP_NEG_REQ, Negotiation(self._protocol))
+        neqReq = (NegociationType.TYPE_RDP_NEG_REQ, Negotiation(self._requestedProtocol))
         self._transport.send((TPDUConnectHeader(MessageType.X224_TPDU_CONNECTION_REQUEST, sizeof(neqReq)), neqReq))
         self.setNextState(self.recvConnectionConfirm)
         
@@ -173,9 +176,9 @@ class TPDU(LayerAutomata):
         if negResp.len != UInt16Le(0x0008):
             raise InvalidExpectedDataException("invalid size of negotiation response")
         
-        self._protocol = negResp.protocol
+        self._selectedProtocol = negResp.protocol
         
-        if self._protocol == Protocols.PROTOCOL_SSL:
+        if self._selectedProtocol == self._requestedProtocol and self._selectedProtocol == Protocols.PROTOCOL_SSL:
             #_transport is TPKT and transport is TCP layer of twisted
             self._transport.transport.startTLS(ClientTLSContext())
         else:
