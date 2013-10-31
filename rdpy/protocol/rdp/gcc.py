@@ -1,7 +1,7 @@
 '''
 @author sylvain
 @summary gcc language
-@contact: http://msdn.microsoft.com/en-us/library/cc240510.aspx
+@see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
 '''
 from rdpy.utils.const import ConstAttributes, TypeAttributes
 from rdpy.protocol.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, UniString, Stream, sizeof
@@ -74,7 +74,7 @@ class Support(object):
 @TypeAttributes(UInt16Le)
 class CapabilityFlags(object):
     '''
-    @contact: http://msdn.microsoft.com/en-us/library/cc240510.aspx
+    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     for more details on each flags click above
     '''
     RNS_UD_CS_SUPPORT_ERRINFO_PDU = 0x0001
@@ -95,7 +95,7 @@ class ConnectionType(object):
     '''
     this information is correct if 
     RNS_UD_CS_VALID_CONNECTION_TYPE flag is set on capabilityFlag
-    @contact: http://msdn.microsoft.com/en-us/library/cc240510.aspx
+    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     '''
     CONNECTION_TYPE_MODEM = 0x01
     CONNECTION_TYPE_BROADBAND_LOW = 0x02
@@ -130,7 +130,25 @@ class Encryption(object):
     ENCRYPTION_FLAG_128BIT = 0x00000002
     ENCRYPTION_FLAG_56BIT = 0x00000008
     FIPS_ENCRYPTION_FLAG = 0x00000010
-
+    
+@ConstAttributes
+@TypeAttributes(UInt32Le)    
+class ChannelOptions(object):
+    '''
+    channel options
+    @see: http://msdn.microsoft.com/en-us/library/cc240513.aspx
+    '''
+    CHANNEL_OPTION_INITIALIZED = 0x80000000
+    CHANNEL_OPTION_ENCRYPT_RDP = 0x40000000
+    CHANNEL_OPTION_ENCRYPT_SC = 0x20000000
+    CHANNEL_OPTION_ENCRYPT_CS = 0x10000000
+    CHANNEL_OPTION_PRI_HIGH = 0x08000000
+    CHANNEL_OPTION_PRI_MED = 0x04000000
+    CHANNEL_OPTION_PRI_LOW = 0x02000000
+    CHANNEL_OPTION_COMPRESS_RDP = 0x00800000
+    CHANNEL_OPTION_COMPRESS = 0x00400000
+    CHANNEL_OPTION_SHOW_PROTOCOL = 0x00200000
+    REMOTE_CONTROL_PERSISTENT = 0x00100000
 
 class ClientCoreSettings(CompositeType):
     '''
@@ -212,7 +230,7 @@ class ClientSettings(object):
     def __init__(self):
         self.core = ClientCoreSettings()
         #list of ClientRequestedChannel read network gcc packet
-        self.networkChannels = []
+        self.networkChannels = [ClientRequestedChannel("rdpdr", ChannelOptions.CHANNEL_OPTION_INITIALIZED)]
         self.security = ClientSecuritySettings()
         
 class ServerSettings(object):
@@ -271,8 +289,8 @@ def writeClientDataBlocks(settings):
     @param settings: ClientSettings
     '''
     return (writeClientCoreData(settings.core), 
-            writeClientNetworkData(settings.networkChannels),
-            writeClientSecurityData(settings.security))
+            writeClientSecurityData(settings.security),
+            writeClientNetworkData(settings.networkChannels))
     
 def readServerDataBlocks(s):
     '''
@@ -295,6 +313,7 @@ def readServerDataBlocks(s):
         elif blockType == ServerToClientMessage.SC_NET:
             settings.channelsId = readServerSecurityData(s)
         #read security block
+        #unused in rdpy because use SSL layer
         elif blockType == ServerToClientMessage.SC_SECURITY:
             s.readType(settings.security)
         else:
@@ -327,7 +346,7 @@ def writeClientNetworkData(channels):
     '''
     if len(channels) == 0:
         return ()
-    return (ClientToServerMessage.CS_NET, UInt16Le(len(channels) * sizeof(ClientRequestedChannel()) + 4), UInt32Le(len(channels)), tuple(channels))
+    return (ClientToServerMessage.CS_NET, UInt16Le(len(channels) * sizeof(ClientRequestedChannel()) + 8), UInt32Le(len(channels)), tuple(channels))
 
 def readServerSecurityData(s):
     '''

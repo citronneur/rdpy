@@ -4,11 +4,11 @@
 
 from rdpy.utils.const import ConstAttributes, TypeAttributes
 from rdpy.protocol.network.layer import LayerAutomata
-from rdpy.protocol.network.type import sizeof, Stream, UInt8
+from rdpy.protocol.network.type import sizeof, Stream, UInt8, UInt16Be
 from rdpy.protocol.rdp.ber import writeLength
 from rdpy.protocol.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 
-import ber, gcc
+import ber, gcc, per
 
 @ConstAttributes
 @TypeAttributes(UInt8)
@@ -18,14 +18,16 @@ class Message(object):
     '''
     MCS_TYPE_CONNECT_INITIAL = 0x65
     MCS_TYPE_CONNECT_RESPONSE = 0x66
-    MCS_EDRQ = 1
-    MCS_DPUM = 8
-    MCS_AURQ = 10
-    MCS_AUCF = 11
-    MCS_CJRQ = 14
-    MCS_CJCF = 15
-    MCS_SDRQ = 25
-    MCS_SDIN = 26
+
+@ConstAttributes
+@TypeAttributes(UInt8)
+class DomainMCSPDU:
+    '''
+    domain mcs pdu header
+    '''
+    ERECT_DOMAIN_REQUEST = 1
+    ATTACH_USER_REQUEST = 10
+    ATTACH_USER_CONFIRM = 11
     
 class Channel:
     MCS_GLOBAL_CHANNEL = 1003
@@ -37,7 +39,6 @@ class MCS(LayerAutomata):
     the main layer of RDP protocol
     is why he can do everything and more!
     '''
-    
     def __init__(self, presentation = None):
         '''
         ctor call base class ctor
@@ -45,6 +46,8 @@ class MCS(LayerAutomata):
         '''
         LayerAutomata.__init__(self, presentation)
         self._clientSettings = gcc.ClientSettings()
+        #default user Id
+        self._userId = UInt16Be(1)
     
     def connect(self):
         '''
@@ -71,6 +74,18 @@ class MCS(LayerAutomata):
         #we must receive a connect response
         self.setNextState(self.recvConnectResponse)
         
+    def sendErectDomainRequest(self):
+        '''
+        send a formated erect domain request for RDP connection
+        '''
+        self._transport.send((self.writeMCSPDUHeader(DomainMCSPDU.ERECT_DOMAIN_REQUEST), per.writeInteger(0), per.writeInteger(0)))
+        
+    def sendAttachUserRequest(self):
+        '''
+        send a formated attach user request for RDP connection
+        '''
+        self._transport.send(self.writeMCSPDUHeader(DomainMCSPDU.ATTACH_USER_REQUEST))
+        
     def recvConnectResponse(self, data):
         '''
         receive mcs connect response from server
@@ -81,11 +96,32 @@ class MCS(LayerAutomata):
         ber.readInteger(data)
         self.readDomainParams(data)
         if not ber.readUniversalTag(data, ber.Tag.BER_TAG_OCTET_STRING, False):
-            raise InvalidExpectedDataException("invalid expected tag")
+            raise InvalidExpectedDataException("invalid expected ber tag")
         gccRequestLength = ber.readLength(data)
         if data.dataLen() != gccRequestLength:
             raise InvalidSize("bad size of gcc request")
         gcc.readConferenceCreateResponse(data)
+        #send domain request
+        self.sendErectDomainRequest()
+        #send attach user request
+        self.sendAttachUserRequest()
+        #now wait user confirm from server
+        self.setNextState(self.recvAttachUserConfirm)
+        
+    def recvAttachUserConfirm(self, data):
+        '''
+        recaive a attach user confirm
+        @param data: Stream
+        '''
+        opcode = UInt8()
+        confirm = UInt8()
+        data.readType((opcode, confirm))
+        if not self.readMCSPDUHeader(opcode, DomainMCSPDU.ATTACH_USER_CONFIRM):
+            raise InvalidExpectedDataException("invalid MCS PDU")
+        if confirm != 0:
+            raise Exception("server reject user")
+        if opcode & UInt8(2) == UInt8(2):
+            data.readType(self._userId)
     
     def writeDomainParams(self, maxChannels, maxUsers, maxTokens, maxPduSize):
         '''
@@ -101,6 +137,24 @@ class MCS(LayerAutomata):
                        ber.writeInteger(1), ber.writeInteger(0), ber.writeInteger(1),
                        ber.writeInteger(maxPduSize), ber.writeInteger(2))
         return (ber.writeUniversalTag(ber.Tag.BER_TAG_SEQUENCE, True), writeLength(sizeof(domainParam)), domainParam)
+    
+    def writeMCSPDUHeader(self, mcsPdu, options = 0):
+        '''
+        write mcs pdu header
+        @param mcsPdu: pdu code
+        @param options: option contains in header
+        @return: UInt8
+        '''
+        return (mcsPdu << 2) | options
+    
+    def readMCSPDUHeader(self, opcode, mcsPdu):
+        '''
+        read mcsPdu header and return options parameter
+        @param opcode: UInt8 opcode
+        @param mcsPdu: mcsPdu will be checked
+        @return: true if opcode is correct
+        '''
+        return (opcode >> 2) == mcsPdu
     
     def readDomainParams(self, s):
         '''

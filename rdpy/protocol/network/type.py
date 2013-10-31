@@ -94,9 +94,12 @@ class SimpleType(Type):
         '''
         compare inner value
         magic function of python use for any compare operators
-        @param other: Type value which will be compared with self value
+        @param other: SimpleType value which will be compared with self value
+        or try to construct same type as self around other value
         @return: python value compare
         '''
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
         return self.value.__cmp__(other.value)
         
     def write(self, s):
@@ -159,38 +162,68 @@ class SimpleType(Type):
     def __add__(self, other):
         '''
         implement addition operator
-        @attention: type overflow are not handle
-        @param other: SimpleType value
+        @param other: SimpleType value or try to construct same type as self
+        around other value
         @return: self.__class__ object with add result
         @raise InvalidValue: if new value is out of bound
         '''
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
         return self.__class__(self.value.__add__(other.value))
     
     def __sub__(self, other):
         '''
         implement sub operator
-        @attention: type overflow are not handle
-        @param other: SimpleType value
+        @param other: SimpleType value or try to construct same type as self
+        around other value
         @return: self.__class__ object with sub result
         @raise InvalidValue: if new value is out of bound
         '''
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
         return self.__class__(self.value.__sub__(other.value))
     
     def __and__(self, other):
         '''
         implement bitwise and operator
-        @param other: SimpleType value
+        @param other: SimpleType value or try to construct same type as self
+        around other value
         @return: self.__class__ object with and result
         '''
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
         return self.__class__(self.value.__and__(other.value))
     
     def __or__(self, other):
         '''
         implement bitwise and operator
-        @param other: SimpleType value
+        @param other: SimpleType value or try to construct same type as self
+        around other value
         @return: self.__class__ object with or result
         '''
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
         return self.__class__(self.value.__or__(other.value))
+    
+    def __lshift__(self, other):
+        '''
+        left shift operator
+        @param other: python int
+        @return: self.__class__ object with or result
+        '''
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
+        return self.__class__(self.value.__lshift__(other.value))
+    
+    def __rshift__(self, other):
+        '''
+        left shift operator
+        @param other: python int
+        @return: self.__class__ object with or result
+        '''
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
+        return self.__class__(self.value.__rshift__(other.value))
 
         
 class CompositeType(Type):
