@@ -1,16 +1,14 @@
 '''
-Created on 22 aout 2013
-
 @author: sylvain
 '''
 from twisted.internet import protocol
-
-class RfbFactory(protocol.Factory):
+import tpkt, tpdu, mcs
+class Factory(protocol.Factory):
     '''
-    classdocs
+    Factory of RFB protocol
     '''
-    def __init__(self, protocol):
-        self._protocol = protocol
+    def __init__(self):
+        self._protocol = tpkt.TPKT(tpdu.TPDU(mcs.MCS()))
     
     def buildProtocol(self, addr):
         return self._protocol;

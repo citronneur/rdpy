@@ -1,24 +1,26 @@
 '''
 @author: sylvain
 '''
-
+from twisted.internet import protocol
 from rdpy.protocol.network.type import String, UInt8, UInt16Be, UInt32Be
 from rdpy.protocol.network.layer import RawLayer
 from message import *
+
+class ProtocolMode(object):
+    CLIENT = 0
+    SERVER = 1
 
 class Rfb(RawLayer):
     '''
     implements rfb protocol
     '''
-    CLIENT = 0
-    SERVER = 1
 
     def __init__(self, mode):
         '''
         constructor
         mode can be only client or server mode
         in this RDPY version only client mode is supported
-        @param mode: Rfb.CLIENT | Rfb.SERVER
+        @param mode: ProtocolMode.CLIENT | ProtocolMode.SERVER
         '''
         RawLayer.__init__(self)
         #usefull for rfb protocol
@@ -85,7 +87,7 @@ class Rfb(RawLayer):
         call when transport layer connection
         is made
         '''
-        if self._mode == Rfb.CLIENT:
+        if self._mode == ProtocolMode.CLIENT:
             self.expect(12, self.readProtocolVersion)
         else:
             self.send(self._version)
@@ -268,3 +270,39 @@ class Rfb(RawLayer):
         write client cut text event packet
         '''
         self.send((ClientToServerMessages.CUT_TEXT, ClientCutText(text)))
+
+class Factory(protocol.Factory):
+    '''
+    Factory of RFB protocol
+    '''
+    def __init__(self, mode):
+        self._protocol = Rfb(mode)
+    
+    def buildProtocol(self, addr):
+        return self._protocol;
+    
+    def startedConnecting(self, connector):
+        print 'Started to connect.'
+        
+    def clientConnectionLost(self, connector, reason):
+        print 'Lost connection.  Reason:', reason
+
+    def clientConnectionFailed(self, connector, reason):
+        print 'Connection failed. Reason:', reason
+        
+class RfbObserver(object):
+    '''
+    Rfb protocol obserser
+    '''
+    def notifyFramebufferUpdate(self, width, height, x, y, pixelFormat, encoding, data):
+        '''
+        recv framebuffer update
+        width : width of image
+        height : height of image
+        x : x position
+        y : y position
+        pixelFormat : pixel format struct from rfb.types
+        encoding : encoding struct from rfb.types
+        data : in respect of dataFormat and pixelFormat
+        '''
+        pass
