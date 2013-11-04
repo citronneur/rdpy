@@ -1,7 +1,7 @@
 '''
 @author: sylvain
 '''
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RfbObserver
 
 class QAdaptor(object):
@@ -73,39 +73,74 @@ class RfbAdaptor(RfbObserver, QAdaptor):
         '''
         convert qt mouse event to rfb mouse event
         send mouse event to rfb protocol stack
-        @param e: qEvent
+        @param e: qMouseEvent
         '''
-        self._rfb.sendPointerEvent(0, e.pos().x(), e.pos().y())
+        button = e.button()
+        mask = 0
+        if button == QtCore.Qt.LeftButton:
+            mask = 1
+        elif button == QtCore.Qt.MidButton:
+            mask = 1 << 1
+        elif button == QtCore.Qt.RightButton:
+            mask = 1 << 2   
+        self._rfb.sendPointerEvent(mask, e.pos().x(), e.pos().y())
         
     def sendKeyEvent(self, e):
         '''
         convert qt key press event to rfb press event
         send key event to protocol stack
-        @param e: qevent
+        @param e: qKeyEvent
         '''
         self._rfb.sendKeyEvent(True, e.nativeVirtualKey())
 
         
 class QRemoteDesktop(QtGui.QWidget):
     '''
-    Class that represent the main
-    widget
+    qt display widget
     '''
     def __init__(self, adaptor):
+        '''
+        constructor
+        @param adaptor: any object which inherit 
+        from QAdaptor (RfbAdaptor | RdpAdaptor)
+        '''
         super(QRemoteDesktop, self).__init__()
+        #set adaptor
         self._adaptor = adaptor
+        #set widget attribute of adaptor
         self._adaptor._qRemoteDesktop = self
+        #refresh stack of image
+        #because we can update image only in paint
+        #event function. When protocol receive image
+        #we will stock into refresh list
+        #and in paiont event paint list of all refresh iomages
         self._refresh = []
+        #bind mouse event
         self.setMouseTracking(True)
     
     def notifyImage(self, x, y, qimage):
+        '''
+        function call from Qadaptor
+        @param x: x position of new image
+        @param y: y position of new image
+        @param qimage: new qimage
+        '''
+        #save in refresh list (order is important)
         self._refresh.append({"x" : x, "y" : y, "image" : qimage})
+        #force update
         self.update()
         
     def paintEvent(self, e):
+        '''
+        call when QT renderer engine estimate that is needed
+        @param e: qevent
+        '''
+        #if there is no refresh -> done
         if self._refresh == []:
             return
+        #create painter to update background
         qp = QtGui.QPainter()
+        #draw image
         qp.begin(self)
         for image in self._refresh:
             qp.drawImage(image["x"], image["y"], image["image"])
@@ -114,7 +149,22 @@ class QRemoteDesktop(QtGui.QWidget):
         self._lastReceive = []
         
     def mouseMoveEvent(self, event):
+        '''
+        call when mouse move
+        @param event: qMouseEvent
+        '''
         self._adaptor.sendMouseEvent(event)
-
+        
+    def mousePressEvent(self, event):
+        '''
+        call when button mouse is pressed
+        @param event: qMouseEvent
+        '''
+        self._adaptor.sendMouseEvent(event)
+        
     def keyPressEvent(self, event):
+        '''
+        call when button key is pressed
+        @param event: qKeyEvent
+        '''
         self._adaptor.sendKeyEvent(event)
