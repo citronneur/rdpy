@@ -5,7 +5,7 @@ from twisted.internet import protocol
 import tpkt, tpdu, mcs
 class Factory(protocol.Factory):
     '''
-    Factory of RFB protocol
+    Factory of RDP protocol
     '''
     def __init__(self):
         self._protocol = tpkt.TPKT(tpdu.TPDU(mcs.MCS()))

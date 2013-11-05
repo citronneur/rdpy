@@ -5,6 +5,8 @@ Created on 4 sept. 2013
 '''
 from rdpy.protocol.rdp import rdp
 
+
+
 if __name__ == '__main__':
     from twisted.internet import reactor
     #reactor.connectTCP("127.0.0.1", 5901, factory.RfbFactory(protocol))

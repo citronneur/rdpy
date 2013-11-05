@@ -68,6 +68,9 @@ class Rfb(RawLayer):
     def expectedBody(self, data):
         '''
         read header and wait header value to call next state
+        @param data: Stream that length are to header length (1|2|4 bytes)
+        set next state to callBack body when length read from header
+        are received
         '''
         bodyLen = None
         if data.len == 1:
@@ -84,28 +87,34 @@ class Rfb(RawLayer):
         
     def connect(self):
         '''
-        call when transport layer connection
-        is made
+        call when transport layer connection is made
+        in Client mode -> wait protocol version
+        in Server mode -> send protocol version
         '''
         if self._mode == ProtocolMode.CLIENT:
-            self.expect(12, self.readProtocolVersion)
+            self.expect(12, self.recvProtocolVersion)
         else:
             self.send(self._version)
         
-    def readProtocolVersionFormat(self, data):
+    def readProtocolVersion(self, data):
         '''
-        read protocol version
+        read protocol version and set
+        self._version var member
+        @param data: Stream may contain protocol version string (ProtocolVersion)
         '''
         data.readType(self._version)
         if not self._version in [ProtocolVersion.RFB003003, ProtocolVersion.RFB003007, ProtocolVersion.RFB003008]:
             self._version = ProtocolVersion.UNKNOWN
     
-    def readProtocolVersion(self, data):
+    def recvProtocolVersion(self, data):
         '''
         read handshake packet 
         protocol version nego
+        if protocol receive from client is unknow
+        try best version of protocol version (ProtocolVersion.RFB003008)
+        @param data: Stream
         '''
-        self.readProtocolVersionFormat(data)
+        self.readProtocolVersion(data)
         if self._version == ProtocolVersion.UNKNOWN:
             print "Unknown protocol version %s send 003.008"%data.getvalue()
             #protocol version is unknow try best version we can handle
@@ -115,11 +124,11 @@ class Rfb(RawLayer):
         
         #next state read security
         if self._version == ProtocolVersion.RFB003003:
-            self.expect(4, self.readSecurityServer)
+            self.expect(4, self.recvSecurityServer)
         else:
-            self.expectWithHeader(1, self.readSecurityList)
+            self.expectWithHeader(1, self.recvSecurityList)
     
-    def readSecurityServer(self, data):
+    def recvSecurityServer(self, data):
         '''
         security handshake for 33 rfb version
         server imposed security level
@@ -128,7 +137,7 @@ class Rfb(RawLayer):
         self._version = data.read_beuint32()
         
         
-    def readSecurityList(self, data):
+    def recvSecurityList(self, data):
         '''
         read all security list
         '''
@@ -144,9 +153,9 @@ class Rfb(RawLayer):
                 break
         #send back security level choosen
         self.send(self._securityLevel)
-        self.expect(4, self.readSecurityResult)
+        self.expect(4, self.recvSecurityResult)
         
-    def readSecurityResult(self, data):
+    def recvSecurityResult(self, data):
         '''
         Read security result packet
         '''
@@ -155,22 +164,22 @@ class Rfb(RawLayer):
         if result == UInt32Be(1):
             print "Authentification failed"
             if self._version == ProtocolVersion.RFB003008:
-                self.expectWithHeader(4, self.readSecurityFailed)
+                self.expectWithHeader(4, self.recvSecurityFailed)
         else:
             print "Authentification OK"
             self.sendClientInit()
         
-    def readSecurityFailed(self, data):
+    def recvSecurityFailed(self, data):
         print "Security failed cause to %s"%data.getvalue()
         
-    def readServerInit(self, data):
+    def recvServerInit(self, data):
         '''
         read server init packet
         '''
         data.readType(self._serverInit)
-        self.expectWithHeader(4, self.readServerName)
+        self.expectWithHeader(4, self.recvServerName)
     
-    def readServerName(self, data):
+    def recvServerName(self, data):
         '''
         read server name from server init packet
         '''
@@ -183,18 +192,18 @@ class Rfb(RawLayer):
         self.sendSetEncoding()
         #request entire zone
         self.sendFramebufferUpdateRequest(False, 0, 0, self._serverInit.width.value, self._serverInit.height.value)
-        self.expect(1, self.readServerOrder)
+        self.expect(1, self.recvServerOrder)
         
-    def readServerOrder(self, data):
+    def recvServerOrder(self, data):
         '''
         read order receive from server
         '''
         packet_type = UInt8()
         data.readType(packet_type)
         if packet_type == UInt8(0):
-            self.expect(3, self.readFrameBufferUpdateHeader)
+            self.expect(3, self.recvFrameBufferUpdateHeader)
         
-    def readFrameBufferUpdateHeader(self, data):
+    def recvFrameBufferUpdateHeader(self, data):
         '''
         read frame buffer update packet header
         '''
@@ -202,17 +211,17 @@ class Rfb(RawLayer):
         nbRect = UInt16Be()
         self._nbRect = data.readType((UInt8(), nbRect))
         self._nbRect = nbRect.value
-        self.expect(12, self.readRectHeader)
+        self.expect(12, self.recvRectHeader)
         
-    def readRectHeader(self, data):
+    def recvRectHeader(self, data):
         '''
         read rectangle header
         '''
         data.readType(self._currentRect)
         if self._currentRect.encoding == Encoding.RAW:
-            self.expect(self._currentRect.width.value * self._currentRect.height.value * (self._pixelFormat.BitsPerPixel.value / 8), self.readRectBody)
+            self.expect(self._currentRect.width.value * self._currentRect.height.value * (self._pixelFormat.BitsPerPixel.value / 8), self.recvRectBody)
     
-    def readRectBody(self, data):
+    def recvRectBody(self, data):
         '''
         read body of rect
         '''
@@ -223,16 +232,16 @@ class Rfb(RawLayer):
         if self._nbRect == 0:
             #job is finish send a request
             self.sendFramebufferUpdateRequest(True, 0, 0, self._serverInit.width.value, self._serverInit.height.value)
-            self.expect(1, self.readServerOrder)
+            self.expect(1, self.recvServerOrder)
         else:
-            self.expect(12, self.readRectHeader)
+            self.expect(12, self.recvRectHeader)
         
     def sendClientInit(self):
         '''
         write client init packet
         '''
         self.send(self._sharedFlag)
-        self.expect(20, self.readServerInit)
+        self.expect(20, self.recvServerInit)
         
     def sendPixelFormat(self, pixelFormat):
         '''
@@ -297,12 +306,12 @@ class RfbObserver(object):
     def notifyFramebufferUpdate(self, width, height, x, y, pixelFormat, encoding, data):
         '''
         recv framebuffer update
-        width : width of image
-        height : height of image
-        x : x position
-        y : y position
-        pixelFormat : pixel format struct from rfb.types
-        encoding : encoding struct from rfb.types
-        data : in respect of dataFormat and pixelFormat
+        @param width : width of image
+        @param height : height of image
+        @param x : x position
+        @param y : y position
+        @param pixelFormat : pixel format struct from rfb.types
+        @param encoding : encoding struct from rfb.types
+        @param data : in respect of dataFormat and pixelFormat
         '''
         pass

@@ -53,10 +53,10 @@ class RfbAdaptor(RfbObserver, QAdaptor):
         implement RfbAdaptor interface
         @param width: width of new image
         @param height: height of new image
-        @param x: xpositionof new image
+        @param x: x position of new image
         @param y: y position of new image
         @param pixelFormat: pixefFormat structure in rfb.message.PixelFormat
-        @param encoding: encoding typpe rfb.message.Encoding
+        @param encoding: encoding type rfb.message.Encoding
         @param data: image data in accordance with pixelformat and encoding
         '''
         imageFormat = None

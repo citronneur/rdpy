@@ -3,6 +3,10 @@
 '''
 
 import sys
+import os
+# Change path so we find rdpy
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+
 from PyQt4 import QtGui
 from rdpy.display.qt import RfbAdaptor, QRemoteDesktop
 from rdpy.protocol.rfb import rfb

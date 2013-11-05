@@ -353,7 +353,7 @@ def readServerSecurityData(s):
     read server security and fill it in settings
     read all channels accepted by server by server
     @param s: Stream
-    @return: list of chaeel id selected by server
+    @return: list of channel id selected by server
     '''
     channelsId = []
     channelId = UInt16Le()
