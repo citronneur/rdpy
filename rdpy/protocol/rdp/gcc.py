@@ -321,6 +321,7 @@ def readServerDataBlocks(s):
         length -= blockLength.value
         s.seek(marker + blockLength.value)
         
+    return settings
 
 def writeClientCoreData(core):
     '''

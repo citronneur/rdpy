@@ -48,6 +48,14 @@ class Layer(object):
         '''
         if not self._transport is None:
             self._transport.send(data)
+    
+    def close(self):
+        '''
+        close layer and send close signal 
+        to transport layer
+        '''
+        if not self._transport is None:
+            self._transport.close()
             
 class LayerAutomata(Layer):
     '''

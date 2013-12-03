@@ -224,6 +224,13 @@ class SimpleType(Type):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__rshift__(other.value))
+    
+    def __hash__(self):
+        '''
+        hash function to treat simple type in hash collection
+        @return: hash of inner value
+        '''
+        return hash(self._value)
 
         
 class CompositeType(Type):
@@ -415,6 +422,13 @@ class String(Type):
         @return: if two inner value are equals
         '''
         return self._value == other._value
+    
+    def __hash__(self):
+        '''
+        hash function to treat simple type in hash collection
+        @return: hash of inner value
+        '''
+        return hash(self._value)
     
     def __str__(self):
         '''
