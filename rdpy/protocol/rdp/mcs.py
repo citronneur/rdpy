@@ -46,18 +46,18 @@ class MCS(LayerAutomata):
     the main layer of RDP protocol
     is why he can do everything and more!
     '''
-    def __init__(self):
+    def __init__(self, presentation):
         '''
         ctor call base class ctor
         @param presentation: presentation layer
         '''
-        LayerAutomata.__init__(self, None)
+        LayerAutomata.__init__(self, presentation)
         self._clientSettings = gcc.ClientSettings()
         self._serverSettings = gcc.ServerSettings()
         #default user Id
         self._userId = UInt16Be(1)
         #list of channel use in this layer and connection state
-        self._channelIds = {Channel.MCS_GLOBAL_CHANNEL: None}
+        self._channelIds = {Channel.MCS_GLOBAL_CHANNEL: presentation}
         #use to record already requested channel
         self._channelIdsRequest = {}
     
@@ -86,6 +86,7 @@ class MCS(LayerAutomata):
         for (channelId, layer) in self._channelIds.iteritems():
             if self._channelIdsRequest[channelId] and not layer is None:
                 layer._transport = self
+                layer._channelId = channelId
                 layer.connect()
                 
     def sendConnectInitial(self):
@@ -195,8 +196,7 @@ class MCS(LayerAutomata):
         @param data: Stream 
         '''
         opcode = UInt8()
-        confirm = UInt8()
-        data.readType((opcode, confirm))
+        data.readType(opcode)
         
         if self.readMCSPDUHeader(opcode, DomainMCSPDU.DISCONNECT_PROVIDER_ULTIMATUM):
             print "receive DISCONNECT_PROVIDER_ULTIMATUM"
@@ -215,7 +215,7 @@ class MCS(LayerAutomata):
         if length & UInt8(0x80) == UInt8(0x80):
             lengthP2 = UInt8()
             data.readType(lengthP2)
-            length = (UInt16Be(length.value) << 8) | lengthP2
+            length = UInt16Be(length.value & 0x7f << 8 | lengthP2.value)
         
         #channel id doesn't match a requested layer
         if not self._channelIdsRequest.has_key(channelId):
@@ -229,13 +229,11 @@ class MCS(LayerAutomata):
         
         self._channelIds[channelId].recv(data)
         
-    def send(self, fromLayer, data):
-        #retrieve channel id
-        channelId = None
-        for (channelIdTmp, layer) in self._channelIds.iteritems():
-            if layer == fromLayer:
-                channelId = channelIdTmp
-                break
+    def send(self, channelId, data):
+        '''
+        specific send function for channelId
+        @param data: message to send
+        '''
         self._transport.send((self.writeMCSPDUHeader(DomainMCSPDU.SEND_DATA_REQUEST), self._userId, channelId, UInt8(0x70), UInt16Be(sizeof(data)) | UInt16Be(0x8000), data))
         
     

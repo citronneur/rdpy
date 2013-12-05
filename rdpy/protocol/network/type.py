@@ -29,12 +29,18 @@ class Type(object):
     '''
     root type
     '''
+    def __init__(self, write_if = lambda:True, read_if = lambda:True):
+        self._write_if = write_if
+        self._read_if = read_if
+        
     def write(self, s):
         '''
         interface definition of write function
         @param s: Stream which will be written
         '''
-        pass
+        if not self._write_if():
+            return
+        self.__write__(s)
     
     def read(self, s):
         '''
@@ -42,7 +48,9 @@ class Type(object):
         @param s: Stream
         @return: Type read from Stream s
         '''
-        pass
+        if not self._read_if():
+            return
+        self.__read__(s)
     
     def __sizeof__(self):
         '''
@@ -50,34 +58,45 @@ class Type(object):
         @return: size in byte of type
         '''
         pass
-
-class SimpleType(Type):
+    
+class ValueType(Type):
     '''
-    simple type
+    type that wrap an inner type
+    acces with value getter and setter
+    value can be a callable which is call
+    at each access of value
     '''
-    def __init__(self, structFormat, typeSize, signed, value):
-        '''
-        constructor of simple type
-        @param structFormat: letter that represent type in struct package
-        @param typeSize: size in byte of type
-        @param signed: true if type represent a signed type
-        @param value: value record in this object
-        '''
-        self._typeSize = typeSize
-        self._structFormat = structFormat
-        self._signed = signed
+    def __init__(self, value, write_if = lambda:True, read_if = lambda:True):
+        Type.__init__(self, write_if = write_if, read_if = read_if)
+        self._value = None
         self.value = value
-        
+    
+    def __getValue__(self):
+        '''
+        shortcut to access inner value
+        call lambda value
+        @return: inner value(python type value)
+        '''
+        return self._value()
+    
+    def __setValue__(self, value):
+        '''
+        setter of value wrap in lambda value
+        @param value: new value encompass in valuetype object
+        '''
+        value_callable = lambda:value
+        if callable(value):
+            value_callable = value
+            
+        self._value = value_callable
+    
     @property
     def value(self):
         '''
         shortcut to access inner value
         @return: inner value(python type value)
         '''
-        if self._signed:
-            return self._value
-        else:
-            return self._value & self.mask()
+        return self.__getValue__()
     
     @value.setter
     def value(self, value):
@@ -86,9 +105,52 @@ class SimpleType(Type):
         @param value: new value encompass in simpletype object
         @raise InvalidValue: if value doesn't respect type range
         '''
+        self.__setValue__(value)
+
+class SimpleType(ValueType):
+    '''
+    simple type
+    '''
+    def __init__(self, structFormat, typeSize, signed, value, write_if = lambda:True, read_if = lambda:True):
+        '''
+        constructor of simple type
+        @param structFormat: letter that represent type in struct package
+        @param typeSize: size in byte of type
+        @param signed: true if type represent a signed type
+        @param value: value recorded in this object
+        '''
+        self._signed = signed
+        self._typeSize = typeSize
+        self._structFormat = structFormat
+        ValueType.__init__(self, value, write_if = write_if, read_if = read_if)
+        
+    def __getValue__(self):
+        '''
+        shortcut to access inner value
+        @return: inner value(python type value)
+        @raise InvalidValue: if value doesn't respect type range
+        '''
+        value = ValueType.__getValue__(self)
         if not self.isInRange(value):
             raise InvalidValue("value is out of range for %s"%self.__class__)
-        self._value = value    
+        
+        if self._signed:
+            return value
+        else:
+            return value & self.mask()
+
+    def __setValue__(self, value):
+        '''
+        setter of value after check it
+        @param value: new value encompass in simpletype object
+        @raise InvalidValue: if value doesn't respect type range
+        '''
+        #check static value range
+        if not callable(value) and not self.isInRange(value):
+            raise InvalidValue("value is out of range for %s"%self.__class__)
+        
+        ValueType.__setValue__(self, value)
+            
     
     def __cmp__(self, other):
         '''
@@ -102,22 +164,21 @@ class SimpleType(Type):
             other = self.__class__(other)
         return self.value.__cmp__(other.value)
         
-    def write(self, s):
+    def __write__(self, s):
         '''
         write value in stream s
         use struct package to pack value
         @param s: Stream which will be written
         '''
-        s.write(struct.pack(self._structFormat, self._value))
+        s.write(struct.pack(self._structFormat, self.value))
         
-    def read(self, s):
+    def __read__(self, s):
         '''
         read inner value from stream
         use struct package
         @param s: Stream
         '''
-        self._value = struct.unpack(self._structFormat,s.read(self._typeSize))[0]
-    
+        self.value = struct.unpack(self._structFormat,s.read(self._typeSize))[0]
       
     def mask(self):
         '''
@@ -154,7 +215,7 @@ class SimpleType(Type):
         implement not operator
         @return: __class__ value
         '''
-        invert = ~self._value
+        invert = ~self.value
         if not self._signed:
             invert &= self.mask()
         return self.__class__(invert)
@@ -230,7 +291,7 @@ class SimpleType(Type):
         hash function to treat simple type in hash collection
         @return: hash of inner value
         '''
-        return hash(self._value)
+        return hash(self.value)
 
         
 class CompositeType(Type):
@@ -238,10 +299,11 @@ class CompositeType(Type):
     keep ordering declaration of simple type
     in list and transparent for other type
     '''
-    def __init__(self):
+    def __init__(self, write_if = lambda:True, read_if = lambda:True):
         '''
         init list of simple value
         '''
+        Type.__init__(self, write_if = write_if, read_if = read_if)
         #list of ordoned type
         self._typeName = []
     
@@ -255,7 +317,7 @@ class CompositeType(Type):
             self._typeName.append(name)
         self.__dict__[name] = value
             
-    def read(self, s):
+    def __read__(self, s):
         '''
         call read on each ordered subtype 
         @param s: Stream
@@ -263,7 +325,7 @@ class CompositeType(Type):
         for name in self._typeName:
             s.readType(self.__dict__[name])
             
-    def write(self, s):
+    def __write__(self, s):
         '''
         call write on each ordered subtype
         @param s: Stream
@@ -307,15 +369,15 @@ class UInt8(SimpleType):
     '''
     unsigned byte
     '''    
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, "B", 1, False, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, "B", 1, False, value, write_if = write_if, read_if = read_if)
 
 class SInt8(SimpleType):
     '''
     signed byte
     '''    
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, "b", 1, True, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, "b", 1, True, value, write_if = write_if, read_if = read_if)
         
         
 class UInt16Be(SimpleType):
@@ -324,8 +386,8 @@ class UInt16Be(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, ">H", 2, False, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, ">H", 2, False, value, write_if = write_if, read_if = read_if)
         
 class UInt16Le(SimpleType):
     '''
@@ -333,8 +395,8 @@ class UInt16Le(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, "<H", 2, False, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, "<H", 2, False, value, write_if = write_if, read_if = read_if)
         
 class UInt32Be(SimpleType):
     '''
@@ -342,8 +404,8 @@ class UInt32Be(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, ">I", 4, False, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, ">I", 4, False, value, write_if = write_if, read_if = read_if)
         
 class UInt32Le(SimpleType):
     '''
@@ -351,8 +413,8 @@ class UInt32Le(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, "<I", 4, False, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, "<I", 4, False, value, write_if = write_if, read_if = read_if)
     
 class SInt32Le(SimpleType):
     '''
@@ -360,8 +422,8 @@ class SInt32Le(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, "<I", 4, True, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, "<I", 4, True, value, write_if = write_if, read_if = read_if)
         
 class SInt32Be(SimpleType):
     '''
@@ -369,8 +431,8 @@ class SInt32Be(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, ">I", 4, True, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, ">I", 4, True, value, write_if = write_if, read_if = read_if)
         
 class UInt24Be(SimpleType):
     '''
@@ -378,14 +440,14 @@ class UInt24Be(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, ">I", 3, False, value)
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, ">I", 3, False, value, write_if = write_if, read_if = read_if)
         
-    def write(self, s):
+    def __write__(self, s):
         '''
         special write for a special type
         '''
-        s.write(struct.pack(">I", self._value)[1:])
+        s.write(struct.pack(">I", self.value)[1:])
         
 class UInt24Le(SimpleType):
     '''
@@ -393,27 +455,27 @@ class UInt24Le(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0):
-        SimpleType.__init__(self, "<I", 3, False, value)   
+    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
+        SimpleType.__init__(self, "<I", 3, False, value, write_if = write_if, read_if = read_if)   
             
-    def write(self, s):
+    def __write__(self, s):
         '''
         special write for a special type
         @param s: Stream
         '''
         #don't write first byte
-        s.write(struct.pack("<I", self._value)[1:])
+        s.write(struct.pack("<I", self.value)[1:])
         
-class String(Type):
+class String(ValueType):
     '''
     String network type
     '''
-    def __init__(self, value = ""):
+    def __init__(self, value = "", write_if = lambda:True, read_if = lambda:True):
         '''
         constructor with new string
         @param value: python string use for inner value
         '''
-        self._value = value
+        ValueType.__init__(self, value, write_if = write_if, read_if = read_if)
         
     def __eq__(self, other):
         '''
@@ -421,46 +483,46 @@ class String(Type):
         @param other: other String parameter
         @return: if two inner value are equals
         '''
-        return self._value == other._value
+        return self.value == other.value
     
     def __hash__(self):
         '''
         hash function to treat simple type in hash collection
         @return: hash of inner value
         '''
-        return hash(self._value)
+        return hash(self.value)
     
     def __str__(self):
         '''
         call when str function is call
         @return: inner python string
         '''
-        return self._value
+        return self.value
     
-    def write(self, s):
+    def __write__(self, s):
         '''
         write the entire raw value
         @param s: Stream
         '''
-        s.write(self._value)
+        s.write(self.value)
     
-    def read(self, s):
+    def __read__(self, s):
         '''
         read all stream if len of inner value is zero
         else read the len of inner string
         @param s: Stream
         '''
-        if len(self._value) == 0:
-            self._value = s.getvalue()
+        if len(self.value) == 0:
+            self.value = s.getvalue()
         else:
-            self._value = s.read(len(self._value))
+            self.value = s.read(len(self.value))
         
     def __sizeof__(self):
         '''
         return len of string
         @return: len of inner string
         '''
-        return len(self._value)
+        return len(self.value)
     
 class UniString(String):
     '''
@@ -472,7 +534,7 @@ class UniString(String):
         and end with double null char
         @param s: Stream
         '''
-        for c in self._value:
+        for c in self.value:
             s.writeType(UInt8(ord(c)))
             s.writeType(UInt8(0))
         s.writeType(UInt16Le(0))
@@ -482,7 +544,7 @@ class UniString(String):
         return len of uni string
         @return: 2*len + 2
         '''
-        return len(self._value) * 2 + 2
+        return len(self.value) * 2 + 2
     
 
 class Stream(StringIO):

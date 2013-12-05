@@ -230,7 +230,7 @@ class ClientSettings(object):
     def __init__(self):
         self.core = ClientCoreSettings()
         #list of ClientRequestedChannel read network gcc packet
-        self.networkChannels = [ClientRequestedChannel("rdpdr", ChannelOptions.CHANNEL_OPTION_INITIALIZED)]
+        self.networkChannels = []
         self.security = ClientSecuritySettings()
         
 class ServerSettings(object):
