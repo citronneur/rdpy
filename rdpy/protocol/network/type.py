@@ -5,40 +5,43 @@
 import struct
 from copy import deepcopy
 from StringIO import StringIO
-from error import InvalidValue, InvalidType
+from error import InvalidValue, InvalidSize
+from rdpy.protocol.network.error import InvalidExpectedDataException
 
 def sizeof(element):
     '''
     byte size of type
     @param element: Type or Tuple(Type | Tuple,)
     @return: size of element in byte
-    @raise InvalidType: if type is different than tuple of Type inheritance
     '''
     if isinstance(element, tuple):
         size = 0
         for i in element:
             size += sizeof(i)
         return size
-    elif isinstance(element, Type):
+    elif isinstance(element, Type) and element._conditional():
         return element.__sizeof__()
-    
-    raise InvalidType("invalid type for sizeof")
+    return 0
             
 
 class Type(object):
     '''
     root type
     '''
-    def __init__(self, write_if = lambda:True, read_if = lambda:True):
-        self._write_if = write_if
-        self._read_if = read_if
+    def __init__(self, conditional = lambda:True, optional = False, constant = False):
+        self._conditional = conditional
+        self._optional = optional
+        self._constant = constant
+        self._is_writed = False
+        self._is_readed = False
         
     def write(self, s):
         '''
         interface definition of write function
         @param s: Stream which will be written
         '''
-        if not self._write_if():
+        self._is_writed = self._conditional()
+        if not self._is_writed:
             return
         self.__write__(s)
     
@@ -46,11 +49,15 @@ class Type(object):
         '''
         interface definition of read value
         @param s: Stream
-        @return: Type read from Stream s
         '''
-        if not self._read_if():
+        self._is_readed = self._conditional()
+        if not self._is_readed:
             return
+        old = deepcopy(self)
         self.__read__(s)
+        #check constant value
+        if self._constant and old != self:
+            raise InvalidExpectedDataException("const value expected")
     
     def __sizeof__(self):
         '''
@@ -59,15 +66,14 @@ class Type(object):
         '''
         pass
     
-class ValueType(Type):
+class CallableValue(object):
     '''
     type that wrap an inner type
     acces with value getter and setter
     value can be a callable which is call
     at each access of value
     '''
-    def __init__(self, value, write_if = lambda:True, read_if = lambda:True):
-        Type.__init__(self, write_if = write_if, read_if = read_if)
+    def __init__(self, value):
         self._value = None
         self.value = value
     
@@ -102,16 +108,15 @@ class ValueType(Type):
     def value(self, value):
         '''
         setter of value after check it
-        @param value: new value encompass in simpletype object
-        @raise InvalidValue: if value doesn't respect type range
+        @param value: new value encompass in valuetype object
         '''
         self.__setValue__(value)
 
-class SimpleType(ValueType):
+class SimpleType(Type, CallableValue):
     '''
     simple type
     '''
-    def __init__(self, structFormat, typeSize, signed, value, write_if = lambda:True, read_if = lambda:True):
+    def __init__(self, structFormat, typeSize, signed, value, conditional = lambda:True, optional = False, constant = False):
         '''
         constructor of simple type
         @param structFormat: letter that represent type in struct package
@@ -122,7 +127,8 @@ class SimpleType(ValueType):
         self._signed = signed
         self._typeSize = typeSize
         self._structFormat = structFormat
-        ValueType.__init__(self, value, write_if = write_if, read_if = read_if)
+        Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
+        CallableValue.__init__(self, value)
         
     def __getValue__(self):
         '''
@@ -130,7 +136,7 @@ class SimpleType(ValueType):
         @return: inner value(python type value)
         @raise InvalidValue: if value doesn't respect type range
         '''
-        value = ValueType.__getValue__(self)
+        value = CallableValue.__getValue__(self)
         if not self.isInRange(value):
             raise InvalidValue("value is out of range for %s"%self.__class__)
         
@@ -149,7 +155,7 @@ class SimpleType(ValueType):
         if not callable(value) and not self.isInRange(value):
             raise InvalidValue("value is out of range for %s"%self.__class__)
         
-        ValueType.__setValue__(self, value)
+        CallableValue.__setValue__(self, value)
             
     
     def __cmp__(self, other):
@@ -299,11 +305,11 @@ class CompositeType(Type):
     keep ordering declaration of simple type
     in list and transparent for other type
     '''
-    def __init__(self, write_if = lambda:True, read_if = lambda:True):
+    def __init__(self, conditional = lambda:True, optional = False, constant = False):
         '''
         init list of simple value
         '''
-        Type.__init__(self, write_if = write_if, read_if = read_if)
+        Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
         #list of ordoned type
         self._typeName = []
     
@@ -369,15 +375,15 @@ class UInt8(SimpleType):
     '''
     unsigned byte
     '''    
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, "B", 1, False, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, "B", 1, False, value, conditional = conditional, optional = optional, constant = constant)
 
 class SInt8(SimpleType):
     '''
     signed byte
     '''    
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, "b", 1, True, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, "b", 1, True, value, conditional = conditional, optional = optional, constant = constant)
         
         
 class UInt16Be(SimpleType):
@@ -386,8 +392,8 @@ class UInt16Be(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, ">H", 2, False, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, ">H", 2, False, value, conditional = conditional, optional = optional, constant = constant)
         
 class UInt16Le(SimpleType):
     '''
@@ -395,8 +401,8 @@ class UInt16Le(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, "<H", 2, False, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, "<H", 2, False, value, conditional = conditional, optional = optional, constant = constant)
         
 class UInt32Be(SimpleType):
     '''
@@ -404,8 +410,8 @@ class UInt32Be(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, ">I", 4, False, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, ">I", 4, False, value, conditional = conditional, optional = optional, constant = constant)
         
 class UInt32Le(SimpleType):
     '''
@@ -413,8 +419,8 @@ class UInt32Le(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, "<I", 4, False, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, "<I", 4, False, value, conditional = conditional, optional = optional, constant = constant)
     
 class SInt32Le(SimpleType):
     '''
@@ -422,8 +428,8 @@ class SInt32Le(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, "<I", 4, True, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, "<I", 4, True, value, conditional = conditional, optional = optional, constant = constant)
         
 class SInt32Be(SimpleType):
     '''
@@ -431,8 +437,8 @@ class SInt32Be(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, ">I", 4, True, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, ">I", 4, True, value, conditional = conditional, optional = optional, constant = constant)
         
 class UInt24Be(SimpleType):
     '''
@@ -440,8 +446,8 @@ class UInt24Be(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, ">I", 3, False, value, write_if = write_if, read_if = read_if)
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, ">I", 3, False, value, conditional = conditional, optional = optional, constant = constant)
         
     def __write__(self, s):
         '''
@@ -455,8 +461,8 @@ class UInt24Le(SimpleType):
     @attention: inner value is in machine representation
     Big endian is just for read or write in stream
     '''
-    def __init__(self, value = 0, write_if = lambda:True, read_if = lambda:True):
-        SimpleType.__init__(self, "<I", 3, False, value, write_if = write_if, read_if = read_if)   
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        SimpleType.__init__(self, "<I", 3, False, value, conditional = conditional, optional = optional, constant = constant)   
             
     def __write__(self, s):
         '''
@@ -466,16 +472,17 @@ class UInt24Le(SimpleType):
         #don't write first byte
         s.write(struct.pack("<I", self.value)[1:])
         
-class String(ValueType):
+class String(Type, CallableValue):
     '''
     String network type
     '''
-    def __init__(self, value = "", write_if = lambda:True, read_if = lambda:True):
+    def __init__(self, value = "", conditional = lambda:True, optional = False, constant = False):
         '''
         constructor with new string
         @param value: python string use for inner value
         '''
-        ValueType.__init__(self, value, write_if = write_if, read_if = read_if)
+        Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
+        CallableValue.__init__(self, value)
         
     def __eq__(self, other):
         '''
@@ -572,6 +579,8 @@ class Stream(StringIO):
         or iterate over tuple elements
         @param value: (tuple | Type) object
         '''
+        if sizeof(value) > self.dataLen() and not value._optional:
+            raise InvalidSize("stream is too short to read non optional value")
         #read each tuple
         if isinstance(value, tuple):
             for element in value:

@@ -3,7 +3,7 @@
 '''
 from rdpy.protocol.network.layer import LayerAutomata
 from rdpy.protocol.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
-from rdpy.protocol.network.error import InvalidExpectedDataException, NegotiationFailure
+from rdpy.protocol.network.error import InvalidExpectedDataException
 from rdpy.utils.const import ConstAttributes, TypeAttributes
 
 @ConstAttributes
@@ -39,15 +39,30 @@ class Protocols(object):
     PROTOCOL_HYBRID = 0x00000002
     PROTOCOL_HYBRID_EX = 0x00000008
     
-class TPDUConnectHeader(CompositeType):
+@ConstAttributes
+@TypeAttributes(UInt32Le)    
+class NegotiationFailureCode(object):
+    '''
+    protocol negotiation failure code
+    '''
+    SSL_REQUIRED_BY_SERVER = 0x00000001
+    SSL_NOT_ALLOWED_BY_SERVER = 0x00000002
+    SSL_CERT_NOT_ON_SERVER = 0x00000003
+    INCONSISTENT_FLAGS = 0x00000004
+    HYBRID_REQUIRED_BY_SERVER = 0x00000005
+    SSL_WITH_USER_AUTH_REQUIRED_BY_SERVER = 0x00000006
+    
+class TPDUConnectMessage(CompositeType):
     '''
     header of TPDU connection messages 
     '''
-    def __init__(self, code = MessageType.X224_TPDU_CONNECTION_REQUEST, messageSize = 0):
+    def __init__(self):
         CompositeType.__init__(self)
-        self.len = UInt8(messageSize + 6)
-        self.code = code
+        self.len = UInt8(lambda:sizeof(self) - 1)
+        self.code = UInt8()
         self.padding = (UInt16Be(), UInt16Be(), UInt8())
+        #read if there is enought data
+        self.protocolNeg = Negotiation(optional = True)
         
 class TPDUDataHeader(CompositeType):
     '''
@@ -55,20 +70,22 @@ class TPDUDataHeader(CompositeType):
     '''
     def __init__(self):
         CompositeType.__init__(self)
-        self.header = UInt8(2)
+        self.header = UInt8(2, constant = True)
         self.messageType = MessageType.X224_TPDU_DATA
-        self.separator = UInt8(0x80)
+        self.separator = UInt8(0x80, constant = True)
     
 class Negotiation(CompositeType):
     '''
     negociation request message
     '''
-    def __init__(self, protocol = Protocols.PROTOCOL_SSL):
-        CompositeType.__init__(self)
+    def __init__(self, optional = False):
+        CompositeType.__init__(self, optional = optional)
+        self.code = UInt8()
         self.flag = UInt8(0)
         #always 8
-        self.len = UInt16Le(0x0008)
-        self.protocol = protocol
+        self.len = UInt16Le(0x0008, constant = True)
+        self.selectedProtocol = UInt32Le(conditional = lambda: self.code == NegociationType.TYPE_RDP_NEG_RSP)
+        self.failureCode = UInt32Le(conditional = lambda: self.code == NegociationType.TYPE_RDP_NEG_FAILURE)
 
 class TPDU(LayerAutomata):
     '''
@@ -81,11 +98,11 @@ class TPDU(LayerAutomata):
         @param presentation: MCS layer
         '''
         LayerAutomata.__init__(self, presentation)
-        #default protocol is SSl because is the only supported
+        #default selectedProtocol is SSl because is the only supported
         #in this version of RDPY
-        #client requested protocol
+        #client requested selectedProtocol
         self._requestedProtocol = Protocols.PROTOCOL_SSL
-        #server selected protocol
+        #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     
     def connect(self):
@@ -102,15 +119,24 @@ class TPDU(LayerAutomata):
         call connect on presentation layer if all is good
         @param data: Stream that contain connection confirm
         '''
-        header = TPDUConnectHeader()
-        data.readType(header)
-        if header.code != MessageType.X224_TPDU_CONNECTION_CONFIRM:
-            raise InvalidExpectedDataException("invalid TPDU header code X224_TPDU_CONNECTION_CONFIRM != %d"%header.code)
+        message = TPDUConnectMessage()
+        data.readType(message)
+        if message.code != MessageType.X224_TPDU_CONNECTION_CONFIRM:
+            raise InvalidExpectedDataException("invalid TPDU header code X224_TPDU_CONNECTION_CONFIRM != %d"%message.code)
         #check presence of negotiation response
-        if data.dataLen() == 8:
-            self.readNeg(data)
-        else:
-            raise NegotiationFailure("server doesn't support SSL")
+        if not message.protocolNeg._is_readed:
+            raise InvalidExpectedDataException("server must support negotiation protocol to use SSL")
+        
+        if message.protocolNeg.failureCode._is_readed:
+            raise InvalidExpectedDataException("negotiation failure code %x"%message.protocolNeg.failureCode.value)
+        
+        self._selectedProtocol = message.protocolNeg.selectedProtocol
+        
+        if self._selectedProtocol != Protocols.PROTOCOL_SSL:
+            raise InvalidExpectedDataException("only ssl protocol is supported in RDPY version")
+        
+        #_transport is TPKT and transport is TCP layer of twisted
+        self._transport.transport.startTLS(ClientTLSContext())
         
         self.setNextState(self.recvData)
         #connection is done send to presentation
@@ -136,8 +162,11 @@ class TPDU(LayerAutomata):
         write connection request message
         next state is recvConnectionConfirm
         '''
-        neqReq = (NegociationType.TYPE_RDP_NEG_REQ, Negotiation(self._requestedProtocol))
-        self._transport.send((TPDUConnectHeader(MessageType.X224_TPDU_CONNECTION_REQUEST, sizeof(neqReq)), neqReq))
+        message = TPDUConnectMessage()
+        message.code = MessageType.X224_TPDU_CONNECTION_REQUEST
+        message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_REQ
+        message.protocolNeg.selectedProtocol = self._requestedProtocol
+        self._transport.send(message)
         self.setNextState(self.recvConnectionConfirm)
         
     def send(self, message):
@@ -146,43 +175,6 @@ class TPDU(LayerAutomata):
         add TPDU header
         '''
         self._transport.send((TPDUDataHeader(), message))
-
-    def readNeg(self, data):
-        '''
-        read negotiation response
-        '''
-        code = UInt8()
-        data.readType(code)
-        if code == NegociationType.TYPE_RDP_NEG_FAILURE:
-            self.readNegFailure(data)
-        elif code == NegociationType.TYPE_RDP_NEG_RSP:
-            self.readNegResp(data)
-        else:
-            raise InvalidExpectedDataException("bad protocol negotiation response code")
-    
-    def readNegFailure(self, data):
-        '''
-        read negotiation failure packet
-        '''
-        print "Negotiation failure"
-    
-    def readNegResp(self, data):
-        '''
-        read negotiation response packet
-        '''
-        negResp = Negotiation()
-        data.readType(negResp)
-        
-        if negResp.len != UInt16Le(0x0008):
-            raise InvalidExpectedDataException("invalid size of negotiation response")
-        
-        self._selectedProtocol = negResp.protocol
-        
-        if self._selectedProtocol == self._requestedProtocol and self._selectedProtocol == Protocols.PROTOCOL_SSL:
-            #_transport is TPKT and transport is TCP layer of twisted
-            self._transport.transport.startTLS(ClientTLSContext())
-        else:
-            raise NegotiationFailure("protocol negociation failure")
         
 
 #open ssl needed
