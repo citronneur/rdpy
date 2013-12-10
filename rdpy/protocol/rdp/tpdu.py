@@ -77,6 +77,9 @@ class TPDUDataHeader(CompositeType):
 class Negotiation(CompositeType):
     '''
     negociation request message
+    @see: request -> http://msdn.microsoft.com/en-us/library/cc240500.aspx
+    @see: response -> http://msdn.microsoft.com/en-us/library/cc240506.aspx
+    @see: failure ->http://msdn.microsoft.com/en-us/library/cc240507.aspx
     '''
     def __init__(self, optional = False):
         CompositeType.__init__(self, optional = optional)
@@ -118,6 +121,8 @@ class TPDU(LayerAutomata):
         next state is recvData 
         call connect on presentation layer if all is good
         @param data: Stream that contain connection confirm
+        @see: response -> http://msdn.microsoft.com/en-us/library/cc240506.aspx
+        @see: failure ->http://msdn.microsoft.com/en-us/library/cc240507.aspx
         '''
         message = TPDUConnectMessage()
         data.readType(message)
@@ -161,6 +166,7 @@ class TPDU(LayerAutomata):
         '''
         write connection request message
         next state is recvConnectionConfirm
+        @see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
         '''
         message = TPDUConnectMessage()
         message.code = MessageType.X224_TPDU_CONNECTION_REQUEST

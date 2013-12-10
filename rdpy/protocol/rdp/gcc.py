@@ -18,6 +18,7 @@ class ServerToClientMessage(object):
     '''
     Server to Client block 
     gcc conference messages
+    @see: http://msdn.microsoft.com/en-us/library/cc240509.aspx
     '''
     SC_CORE = 0x0C01
     SC_SECURITY = 0x0C02
@@ -29,6 +30,7 @@ class ClientToServerMessage(object):
     '''
     Client to Server block 
     gcc conference messages
+    @see: http://msdn.microsoft.com/en-us/library/cc240509.aspx
     '''
     CS_CORE = 0xC001
     CS_SECURITY = 0xC002
@@ -41,6 +43,7 @@ class ClientToServerMessage(object):
 class ColorDepth(object):
     '''
     depth color
+    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     '''
     RNS_UD_COLOR_8BPP = 0xCA01
     RNS_UD_COLOR_16BPP_555 = 0xCA02
@@ -52,6 +55,7 @@ class ColorDepth(object):
 class HighColor(object):
     '''
     high color of client
+    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     '''
     HIGH_COLOR_4BPP = 0x0004
     HIGH_COLOR_8BPP = 0x0008
@@ -64,6 +68,7 @@ class HighColor(object):
 class Support(object):
     '''
     support depth flag
+    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     '''
     RNS_UD_24BPP_SUPPORT = 0x0001
     RNS_UD_16BPP_SUPPORT = 0x0002
@@ -74,8 +79,8 @@ class Support(object):
 @TypeAttributes(UInt16Le)
 class CapabilityFlags(object):
     '''
-    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     for more details on each flags click above
+    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     '''
     RNS_UD_CS_SUPPORT_ERRINFO_PDU = 0x0001
     RNS_UD_CS_WANT_32BPP_SESSION = 0x0002
@@ -110,6 +115,7 @@ class ConnectionType(object):
 class Version(object):
     '''
     supported version of RDP
+    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     '''
     RDP_VERSION_4 = 0x00080001
     RDP_VERSION_5_PLUS = 0x00080004
@@ -125,6 +131,7 @@ class Encryption(object):
     '''
     encryption method supported
     @deprecated: because rdpy use ssl but need to send to server...
+    @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
     '''
     ENCRYPTION_FLAG_40BIT = 0x00000001
     ENCRYPTION_FLAG_128BIT = 0x00000002
@@ -153,6 +160,7 @@ class ChannelOptions(object):
 class ClientCoreSettings(CompositeType):
     '''
     class that represent core setting of client
+    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     '''
     def __init__(self):
         CompositeType.__init__(self)
@@ -163,18 +171,18 @@ class ClientCoreSettings(CompositeType):
         self.sasSequence = Sequence.RNS_UD_SAS_DEL
         self.kbdLayout = UInt32Le(0x409)
         self.clientBuild = UInt32Le(3790)
-        self.clientName = UniString("rdpy" + "\x00"*11)
+        self.clientName = UniString("rdpy" + "\x00"*11, readLen = UInt8(30))
         self.keyboardType = UInt32Le(4)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
-        self.imeFileName = String("\x00"*64)
+        self.imeFileName = String("\x00"*64, readLen = UInt8(64))
         self.postBeta2ColorDepth = ColorDepth.RNS_UD_COLOR_8BPP
         self.clientProductId = UInt16Le(1)
         self.serialNumber = UInt32Le(0)
         self.highColorDepth = HighColor.HIGH_COLOR_24BPP
         self.supportedColorDepths = Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT | Support.RNS_UD_15BPP_SUPPORT
         self.earlyCapabilityFlags = CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU
-        self.clientDigProductId = String("\x00"*64)
+        self.clientDigProductId = String("\x00"*64, readLen = UInt8(64))
         self.connectionType = UInt8()
         self.pad1octet = UInt8()
         self.serverSelectedProtocol = UInt32Le()
@@ -182,6 +190,7 @@ class ClientCoreSettings(CompositeType):
 class ServerCoreSettings(CompositeType):
     '''
     server side core settings structure
+    @see: http://msdn.microsoft.com/en-us/library/cc240517.aspx
     '''
     def __init__(self):
         CompositeType.__init__(self)
@@ -192,6 +201,7 @@ class ClientSecuritySettings(CompositeType):
     '''
     client security setting
     @deprecated: because we use ssl
+    @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
     '''
     def __init__(self):
         CompositeType.__init__(self)
@@ -204,6 +214,7 @@ class ServerSecuritySettings(CompositeType):
     may be ignore because rdpy don't use 
     RDP security level
     @deprecated: because we use ssl
+    @see: http://msdn.microsoft.com/en-us/library/cc240518.aspx
     '''
     def __init__(self):
         CompositeType.__init__(self)
@@ -215,11 +226,13 @@ class ClientRequestedChannel(CompositeType):
     '''
     channels structure share between
     client and server
+    @see: http://msdn.microsoft.com/en-us/library/cc240512.aspx
+    @see: http://msdn.microsoft.com/en-us/library/cc240513.aspx
     '''
     def __init__(self, name = "", options = UInt32Le()):
         CompositeType.__init__(self)
         #name of channel
-        self.name = String(name[0:8] + "\x00" * (8 - len(name)))
+        self.name = String(name[0:8] + "\x00" * (8 - len(name)), readLen = UInt8(8))
         #unknown
         self.options = options
         
@@ -355,6 +368,7 @@ def readServerSecurityData(s):
     read all channels accepted by server by server
     @param s: Stream
     @return: list of channel id selected by server
+    @see: http://msdn.microsoft.com/en-us/library/cc240522.aspx
     '''
     channelsId = []
     channelId = UInt16Le()

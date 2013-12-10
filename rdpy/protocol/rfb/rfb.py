@@ -134,8 +134,6 @@ class Rfb(RawLayer):
         server imposed security level
         '''
         #TODO!!!
-        self._version = data.read_beuint32()
-        
         
     def recvSecurityList(self, data):
         '''

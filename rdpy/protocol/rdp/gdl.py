@@ -8,6 +8,7 @@ from rdpy.utils.const import ConstAttributes, TypeAttributes
 from rdpy.protocol.network.error import InvalidExpectedDataException
 
 import gcc
+import lic
 
 @ConstAttributes
 @TypeAttributes(UInt16Le)
@@ -70,7 +71,7 @@ class RDPInfo(CompositeType):
     client informations
     contains credentials (very important packet)
     '''
-    def __init__(self, initForWrite, extendedInfoConditional):
+    def __init__(self, extendedInfoConditional):
         CompositeType.__init__(self)
         #code page
         self.codePage = UInt32Le()
@@ -86,37 +87,36 @@ class RDPInfo(CompositeType):
         self.cbAlternateShell = UInt16Le(lambda:sizeof(self.alternateShell) - 2)
         #length of working directory unistring less 2 byte null terminate
         self.cbWorkingDir = UInt16Le(lambda:sizeof(self.workingDir) - 2)
-        #to avoid recurcive loop init differ from reading and writing
         #microsoft domain
-        self.domain =       UniString("" if initForWrite else lambda:"\x00" * self.cbDomain.value)
+        self.domain =       UniString(readLen = self.cbDomain)
         #session username
-        self.userName =     UniString("" if initForWrite else lambda:"\x00" * self.cbUserName.value)
+        self.userName =     UniString(readLen = self.cbUserName)
         #associate password
-        self.password =     UniString("" if initForWrite else lambda:"\x00" * self.cbPassword.value)
+        self.password =     UniString(readLen = self.cbPassword)
         #shell execute at start of session
-        self.alternateShell = UniString("" if initForWrite else lambda:"\x00" * self.cbAlternateShell.value)
+        self.alternateShell = UniString(readLen = self.cbAlternateShell)
         #working directory for session
-        self.workingDir =   UniString("" if initForWrite else lambda:"\x00" * self.cbWorkingDir.value)
+        self.workingDir =   UniString(readLen = self.cbWorkingDir)
         #more client informations
-        self.extendedInfo = RDPExtendedInfo(initForWrite, conditional = extendedInfoConditional)
+        self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
         
 class RDPExtendedInfo(CompositeType):
     '''
     add more client informations
     use for performance flag!!!
     '''
-    def __init__(self, initForWrite, conditional):
+    def __init__(self, conditional):
         CompositeType.__init__(self, conditional = conditional)
         #is an ip v4 or v6 adresse
         self.clientAddressFamily = AfInet.AF_INET
         #len of adress field
         self.cbClientAddress = UInt16Le(lambda:sizeof(self.clientAddress))
         #adress of client
-        self.clientAddress = UniString("" if initForWrite else lambda:"\x00" * self.cbClientAddress.value)
+        self.clientAddress = UniString(readLen = self.cbClientAddress)
         #len of client directory
         self.cbClientDir = UInt16Le(lambda:sizeof(self.clientDir))
         #self client directory
-        self.clientDir = UniString("" if initForWrite else lambda:"\x00" * self.cbClientDir.value)
+        self.clientDir = UniString(readLen = self.cbClientDir)
         #TODO make tiomezone
         #self.performanceFlags = PerfFlag.PERF_DISABLE_WALLPAPER | PerfFlag.PERF_DISABLE_MENUANIMATIONS | PerfFlag.PERF_DISABLE_CURSOR_SHADOW
 
@@ -134,7 +134,7 @@ class GDL(LayerAutomata):
         #set by mcs layer channel init
         self._channelId = UInt16Be()
         #logon info send from client to server
-        self._info = RDPInfo(initForWrite = True, extendedInfoConditional = lambda:self._transport._serverSettings.core.rdpVersion == gcc.Version.RDP_VERSION_5_PLUS)
+        self._info = RDPInfo(extendedInfoConditional = lambda:self._transport._serverSettings.core.rdpVersion == gcc.Version.RDP_VERSION_5_PLUS)
         
     def connect(self):
         '''
@@ -147,7 +147,7 @@ class GDL(LayerAutomata):
         
     def sendInfoPkt(self):
         '''
-        send a logon info packet for RDP version 5 protocol
+        send a logon info packet
         '''
         #always send extended info because rdpy only accept rdp version 5 and more
         self._transport.send(self._channelId, (SecurityFlag.SEC_INFO_PKT, UInt16Le(), self._info))
@@ -159,3 +159,12 @@ class GDL(LayerAutomata):
         
         if securityFlag & SecurityFlag.SEC_LICENSE_PKT != SecurityFlag.SEC_LICENSE_PKT:
             raise InvalidExpectedDataException("waiting license packet")
+        
+        validClientPdu = lic.LicPacket()
+        data.readType(validClientPdu)
+        
+        if not validClientPdu.errorMessage._is_readed:
+            raise InvalidExpectedDataException("waiting valid client pdu : rdpy doesn't support licensing neg")
+        
+        if not (validClientPdu.errorMessage.dwErrorCode == lic.ErrorCode.STATUS_VALID_CLIENT and validClientPdu.errorMessage.dwStateTransition == lic.StateTransition.ST_NO_TRANSITION):
+            raise InvalidExpectedDataException("server refuse licensing negotiation")
