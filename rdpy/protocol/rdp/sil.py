@@ -111,6 +111,59 @@ class CapsType(object):
     CAPSETTYPE_BITMAP_CODECS = 0x001D
     CAPSSETTYPE_FRAME_ACKNOWLEDGE = 0x001E
     
+@ConstAttributes
+@TypeAttributes(UInt16Le)  
+class MajorType(object):
+    '''
+    use in general capability
+    @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
+    '''
+    OSMAJORTYPE_UNSPECIFIED = 0x0000
+    OSMAJORTYPE_WINDOWS = 0x0001
+    OSMAJORTYPE_OS2 = 0x0002
+    OSMAJORTYPE_MACINTOSH = 0x0003
+    OSMAJORTYPE_UNIX = 0x0004
+    OSMAJORTYPE_IOS = 0x0005
+    OSMAJORTYPE_OSX = 0x0006
+    OSMAJORTYPE_ANDROID = 0x0007
+    
+@ConstAttributes
+@TypeAttributes(UInt16Le)    
+class MinorType(object):
+    '''
+    use in general capability
+    @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
+    '''
+    OSMINORTYPE_UNSPECIFIED = 0x0000
+    OSMINORTYPE_WINDOWS_31X = 0x0001
+    OSMINORTYPE_WINDOWS_95 = 0x0002
+    OSMINORTYPE_WINDOWS_NT = 0x0003
+    OSMINORTYPE_OS2_V21 = 0x0004
+    OSMINORTYPE_POWER_PC = 0x0005
+    OSMINORTYPE_MACINTOSH = 0x0006
+    OSMINORTYPE_NATIVE_XSERVER = 0x0007
+    OSMINORTYPE_PSEUDO_XSERVER = 0x0008
+    OSMINORTYPE_WINDOWS_RT = 0x0009
+
+@ConstAttributes
+@TypeAttributes(UInt16Le)  
+class GeneralExtraFlag(object):
+    '''
+    use in general capability
+    @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
+    '''
+    FASTPATH_OUTPUT_SUPPORTED = 0x0001
+    NO_BITMAP_COMPRESSION_HDR = 0x0400
+    LONG_CREDENTIALS_SUPPORTED = 0x0004
+    AUTORECONNECT_SUPPORTED = 0x0008
+    ENC_SALTED_CHECKSUM = 0x0010
+    
+@ConstAttributes
+@TypeAttributes(UInt8)   
+class Boolean(object):
+    FALSE = 0x00
+    TRUE = 0x01
+    
 class RDPInfo(CompositeType):
     '''
     client informations
@@ -262,11 +315,11 @@ class ConfirmActivePDU(CompositeType):
         self.pad2Octets = UInt16Le()
         self.capabilitySets = ArrayType(Capability, readLen = self.numberCapabilities)
 
-class GDL(LayerAutomata):
+class SIL(LayerAutomata):
     '''
-    Global Display Layer
+    Session information layer
     Global channel for mcs that handle session
-    identification and user and graphic controls
+    identification user, licensing management, and capabilities exchange
     '''
     def __init__(self):
         '''
@@ -334,7 +387,18 @@ class GDL(LayerAutomata):
         for cap in demandActivePDU.capabilitySets._array:
             self._serverCapabilities[cap.capabilitySetType] = cap
         
+        self.sendConfirmActivePDU()
+        
+    def sendConfirmActivePDU(self):
+        #init general capability
+        capability = Capability()
+        capability.capabilitySetType = CapsType.CAPSTYPE_GENERAL
+        capability.generalCapability.osMajorType = MajorType.OSMAJORTYPE_UNIX
+        capability.generalCapability.osMinorType = MinorType.OSMINORTYPE_UNSPECIFIED
+        capability.generalCapability.extraFlags = GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED
+        self._clientCapabilities[capability.capabilitySetType] = capability
+        
+        #make active PDU packet
         confirmActivePDU = ConfirmActivePDU()
         confirmActivePDU.capabilitySets._array = self._clientCapabilities.values()
-        
         self._transport.send(self._channelId, confirmActivePDU)
