@@ -47,6 +47,9 @@ class StateTransition(object):
     ST_RESEND_LAST_MESSAGE = 0x00000004
     
 class LicenceBinaryBlob(CompositeType):
+    '''
+    blob use by license manager to echange security data
+    '''
     def __init__(self):
         CompositeType.__init__(self)
         self.wBlobType = UInt16Le()
@@ -54,6 +57,9 @@ class LicenceBinaryBlob(CompositeType):
         self.blobData = String(readLen = self.wBlobLen, conditional = lambda:self.wBlobLen.value > 0)
 
 class LicensingErrorMessage(CompositeType):
+    '''
+    license error message
+    '''
     def __init__(self, conditional = lambda:True):
         CompositeType.__init__(self, conditional = conditional)
         self.dwErrorCode = UInt32Le()
@@ -61,6 +67,9 @@ class LicensingErrorMessage(CompositeType):
         self.blob = LicenceBinaryBlob()
 
 class LicPacket(CompositeType):
+    '''
+    a license packet
+    '''
     def __init__(self):
         CompositeType.__init__(self)
         #preambule

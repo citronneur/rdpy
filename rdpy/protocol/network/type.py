@@ -17,7 +17,7 @@ def sizeof(element):
     @param element: Type or Tuple(Type | Tuple,)
     @return: size of element in byte
     '''
-    if isinstance(element, tuple):
+    if isinstance(element, tuple) or isinstance(element, list):
         size = 0
         for i in element:
             size += sizeof(i)
@@ -96,7 +96,7 @@ class Type(object):
         @return: size in byte of type
         '''
         pass
-    
+        
 class CallableValue(object):
     '''
     wrap access of callable value.
@@ -695,7 +695,7 @@ class Stream(StringIO):
         @param value: (tuple | Type) object
         '''
         #read each tuple
-        if isinstance(value, tuple):
+        if isinstance(value, tuple) or isinstance(value, list):
             for element in value:
                 self.readType(element)
             return
@@ -721,11 +721,54 @@ class Stream(StringIO):
         @param value: (tuple | Type)
         '''
         #write each element of tuple
-        if isinstance(value, tuple):
+        if isinstance(value, tuple) or isinstance(value, list):
             for element in value:
                 self.writeType(element)
             return
         value.write(self)
+        
+class ArrayType(Type):
+    '''
+    in write mode ArrayType is just list
+    but in read mode it can be dynamic
+    readLen may be dynamic
+    '''
+    def __init__(self, typeFactory, readLen = UInt8(), conditional = lambda:True, optional = False, constant = False):
+        '''
+        constructor
+        @param typeFactory: class use to init new element on read
+        @param readLen: number of element in sequence
+        @param conditional : function call before read or write type
+        @param optional: boolean check before read if there is still data in stream
+        @param constant: if true check any changement of object during reading
+        '''
+        Type.__init__(self, conditional, optional, constant)
+        self._typeFactory = typeFactory
+        self._readLen = readLen
+        self._array = []
+        
+    def __read__(self, s):
+        '''
+        create new object and read it
+        @param s: Stream
+        '''
+        for i in range(0, self._readLen.value):
+            element = self._typeFactory()
+            s.readType(element)
+            self._array.append(element)
+    
+    def __write__(self, s):
+        '''
+        just write array
+        @param s: Stream
+        '''
+        s.writeType(self._array)
+    
+    def __sizeof__(self):
+        '''
+        sizeof inner array
+        '''
+        return sizeof(self._array)
 
 def CheckValueOnRead(cls):
     '''
