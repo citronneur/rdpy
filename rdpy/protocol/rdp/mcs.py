@@ -2,11 +2,11 @@
 @author: sylvain
 '''
 
-from rdpy.utils.const import ConstAttributes, TypeAttributes
-from rdpy.protocol.network.layer import LayerAutomata
-from rdpy.protocol.network.type import sizeof, Stream, UInt8, UInt16Be
+from rdpy.network.const import ConstAttributes, TypeAttributes
+from rdpy.network.layer import LayerAutomata
+from rdpy.network.type import sizeof, Stream, UInt8, UInt16Be
+from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
-from rdpy.protocol.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 
 import ber, gcc, per
 

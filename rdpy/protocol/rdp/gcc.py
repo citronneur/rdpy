@@ -3,10 +3,10 @@
 @summary gcc language
 @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
 '''
-from rdpy.utils.const import ConstAttributes, TypeAttributes
-from rdpy.protocol.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, UniString, Stream, sizeof
+from rdpy.network.const import ConstAttributes, TypeAttributes
+from rdpy.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, UniString, Stream, sizeof
 import per
-from rdpy.protocol.network.error import InvalidExpectedDataException
+from rdpy.network.error import InvalidExpectedDataException
 
 t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
 h221_cs_key = "Duca";

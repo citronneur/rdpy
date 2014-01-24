@@ -2,8 +2,8 @@
 @author: sylvain
 '''
 from twisted.internet import protocol
-from rdpy.protocol.network.type import String, UInt8, UInt16Be, UInt32Be
-from rdpy.protocol.network.layer import RawLayer
+from rdpy.network.type import String, UInt8, UInt16Be, UInt32Be
+from rdpy.network.layer import RawLayer
 from message import *
 
 class ProtocolMode(object):

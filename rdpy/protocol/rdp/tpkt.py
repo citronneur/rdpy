@@ -1,8 +1,8 @@
 '''
 @author: sylvain
 '''
-from rdpy.protocol.network.layer import RawLayer
-from rdpy.protocol.network.type import UInt8, UInt16Be, sizeof
+from rdpy.network.layer import RawLayer
+from rdpy.network.type import UInt8, UInt16Be, sizeof
 
 class TPKT(RawLayer):
     '''

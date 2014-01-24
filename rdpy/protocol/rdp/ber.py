@@ -1,9 +1,9 @@
 '''
 @author: sylvain
 '''
-from rdpy.protocol.network.type import UInt8, UInt16Be, UInt32Be, String
-from rdpy.utils.const import ConstAttributes, TypeAttributes
-from rdpy.protocol.network.error import InvalidExpectedDataException, InvalidSize
+from rdpy.network.type import UInt8, UInt16Be, UInt32Be, String
+from rdpy.network.const import ConstAttributes, TypeAttributes
+from rdpy.network.error import InvalidExpectedDataException, InvalidSize
 
 @ConstAttributes
 @TypeAttributes(UInt8)

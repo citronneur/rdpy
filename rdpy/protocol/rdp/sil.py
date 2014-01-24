@@ -2,10 +2,10 @@
 @author: sylvain
 '''
 
-from rdpy.protocol.network.layer import LayerAutomata
-from rdpy.protocol.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt16Be, UInt32Le, sizeof, ArrayType
-from rdpy.utils.const import ConstAttributes, TypeAttributes
-from rdpy.protocol.network.error import InvalidExpectedDataException
+from rdpy.network.layer import LayerAutomata
+from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt16Be, UInt32Le, sizeof, ArrayType
+from rdpy.network.const import ConstAttributes, TypeAttributes
+from rdpy.network.error import InvalidExpectedDataException
 
 import gcc
 import lic

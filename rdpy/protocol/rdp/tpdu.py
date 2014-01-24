@@ -1,10 +1,10 @@
 '''
 @author: sylvain
 '''
-from rdpy.protocol.network.layer import LayerAutomata
-from rdpy.protocol.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
-from rdpy.protocol.network.error import InvalidExpectedDataException
-from rdpy.utils.const import ConstAttributes, TypeAttributes
+from rdpy.network.layer import LayerAutomata
+from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
+from rdpy.network.error import InvalidExpectedDataException
+from rdpy.network.const import ConstAttributes, TypeAttributes
 
 @ConstAttributes
 @TypeAttributes(UInt8)

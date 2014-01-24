@@ -6,7 +6,7 @@ import struct
 from copy import deepcopy
 from StringIO import StringIO
 from error import InvalidValue
-from rdpy.protocol.network.error import InvalidExpectedDataException
+from rdpy.network.error import InvalidExpectedDataException
 
 def sizeof(element):
     '''

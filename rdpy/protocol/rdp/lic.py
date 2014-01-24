@@ -1,8 +1,8 @@
 '''
 @author: sylvain
 '''
-from rdpy.protocol.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof
-from rdpy.utils.const import ConstAttributes, TypeAttributes
+from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof
+from rdpy.network.const import ConstAttributes, TypeAttributes
 
 @ConstAttributes
 @TypeAttributes(UInt8)
