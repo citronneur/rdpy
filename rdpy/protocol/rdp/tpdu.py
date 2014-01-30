@@ -146,6 +146,35 @@ class TPDU(LayerAutomata):
         self.setNextState(self.recvData)
         #connection is done send to presentation
         LayerAutomata.connect(self)
+        
+    def recvConnectionRequest(self, data):
+        '''
+        read connection confirm packet
+        next state is send connection confirm
+        @param data: stream
+        @see : http://msdn.microsoft.com/en-us/library/cc240470.aspx
+        '''
+        message = TPDUConnectMessage()
+        data.readType(message)
+        if message.code != MessageType.X224_TPDU_CONNECTION_REQUEST:
+            raise InvalidExpectedDataException("expect connection packet")
+        
+        if not message.protocolNeg._is_readed or message.protocolNeg.failureCode._is_readed:
+            raise InvalidExpectedDataException("too older rdp client")
+        
+        self._requestedProtocol = message.protocolNeg.selectedProtocol
+        
+        if not self._requestedProtocol | Protocols.PROTOCOL_SSL:
+            #send error message and quit
+            message = TPDUConnectMessage()
+            message.code = MessageType.X224_TPDU_CONNECTION_CONFIRM
+            message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_FAILURE
+            message.protocolNeg.failureCode = NegotiationFailureCode.SSL_REQUIRED_BY_SERVER
+            self._transport.send(message)
+            raise InvalidExpectedDataException("rdpy needs ssl client compliant")
+        
+        self._selectedProtocol = Protocols.PROTOCOL_SSL
+        self.sendConnectionConfirm()
     
     def recvData(self, data):
         '''
@@ -172,6 +201,19 @@ class TPDU(LayerAutomata):
         message.code = MessageType.X224_TPDU_CONNECTION_REQUEST
         message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_REQ
         message.protocolNeg.selectedProtocol = self._requestedProtocol
+        self._transport.send(message)
+        self.setNextState(self.recvConnectionConfirm)
+        
+    def sendConnectionConfirm(self):
+        '''
+        write connection confirm message
+        next state is recvData
+        @see : http://msdn.microsoft.com/en-us/library/cc240501.aspx
+        '''
+        message = TPDUConnectMessage()
+        message.code = MessageType.X224_TPDU_CONNECTION_CONFIRM
+        message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_REQ
+        message.protocolNeg.selectedProtocol = self._selectedProtocol
         self._transport.send(message)
         self.setNextState(self.recvConnectionConfirm)
         
