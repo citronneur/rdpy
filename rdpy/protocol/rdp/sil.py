@@ -163,6 +163,59 @@ class GeneralExtraFlag(object):
 class Boolean(object):
     FALSE = 0x00
     TRUE = 0x01
+
+@ConstAttributes
+@TypeAttributes(UInt16Le)  
+class OrderFlag(object):
+    '''
+    use in order capability
+    @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
+    '''
+    NEGOTIATEORDERSUPPORT = 0x0002
+    ZEROBOUNDSDELTASSUPPORT = 0x0008
+    COLORINDEXSUPPORT = 0x0020
+    SOLIDPATTERNBRUSHONLY = 0x0040
+    ORDERFLAGS_EXTRA_FLAGS = 0x0080
+    
+@ConstAttributes
+@TypeAttributes(UInt8) 
+class Order(object):
+    '''
+    drawing orders supported
+    use in order capability
+    @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
+    '''
+    TS_NEG_DSTBLT_INDEX = 0x00
+    TS_NEG_PATBLT_INDEX = 0x01
+    TS_NEG_SCRBLT_INDEX = 0x02
+    TS_NEG_MEMBLT_INDEX = 0x03
+    TS_NEG_MEM3BLT_INDEX = 0x04
+    TS_NEG_DRAWNINEGRID_INDEX = 0x07
+    TS_NEG_LINETO_INDEX = 0x08
+    TS_NEG_MULTI_DRAWNINEGRID_INDEX = 0x09
+    TS_NEG_SAVEBITMAP_INDEX = 0x0B
+    TS_NEG_MULTIDSTBLT_INDEX = 0x0F
+    TS_NEG_MULTIPATBLT_INDEX = 0x10
+    TS_NEG_MULTISCRBLT_INDEX = 0x11
+    TS_NEG_MULTIOPAQUERECT_INDEX = 0x12
+    TS_NEG_FAST_INDEX_INDEX = 0x13
+    TS_NEG_POLYGON_SC_INDEX = 0x14
+    TS_NEG_POLYGON_CB_INDEX = 0x15
+    TS_NEG_POLYLINE_INDEX = 0x16
+    TS_NEG_FAST_GLYPH_INDEX = 0x18
+    TS_NEG_ELLIPSE_SC_INDEX = 0x19
+    TS_NEG_ELLIPSE_CB_INDEX = 0x1A
+    TS_NEG_INDEX_INDEX = 0x1B
+    
+@ConstAttributes
+@TypeAttributes(UInt16Le)     
+class OrderEx(object):
+    '''
+    extension orders
+    use in order capability
+    '''
+    ORDERFLAGS_EX_CACHE_BITMAP_REV3_SUPPORT = 0x0002
+    ORDERFLAGS_EX_ALTSEC_FRAME_MARKER_SUPPORT = 0x0004
     
 class RDPInfo(CompositeType):
     '''
@@ -174,28 +227,20 @@ class RDPInfo(CompositeType):
         #code page
         self.codePage = UInt32Le()
         #support flag
-        self.flag =         InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_LOGONERRORS | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_ENABLEWINDOWSKEY | InfoFlag.INFO_DISABLECTRLALTDEL
-        #length of domain unistring less 2 byte null terminate
-        self.cbDomain =     UInt16Le(lambda:sizeof(self.domain) - 2)
-        #length of username unistring less 2 byte null terminate
-        self.cbUserName =   UInt16Le(lambda:sizeof(self.userName) - 2)
-        #length of password unistring less 2 byte null terminate
-        self.cbPassword =   UInt16Le(lambda:sizeof(self.password) - 2)
-        #length of alternateshell unistring less 2 byte null terminate
+        self.flag = InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_LOGONERRORS | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_ENABLEWINDOWSKEY | InfoFlag.INFO_DISABLECTRLALTDEL
+        self.cbDomain = UInt16Le(lambda:sizeof(self.domain) - 2)
+        self.cbUserName = UInt16Le(lambda:sizeof(self.userName) - 2)
+        self.cbPassword = UInt16Le(lambda:sizeof(self.password) - 2)
         self.cbAlternateShell = UInt16Le(lambda:sizeof(self.alternateShell) - 2)
-        #length of working directory unistring less 2 byte null terminate
         self.cbWorkingDir = UInt16Le(lambda:sizeof(self.workingDir) - 2)
         #microsoft domain
-        self.domain =       UniString(readLen = UInt16Le(lambda:self.cbDomain.value - 2))
-        #session username
-        self.userName =     UniString(readLen = UInt16Le(lambda:self.cbUserName.value - 2))
-        #associate password
-        self.password =     UniString(readLen = UInt16Le(lambda:self.cbPassword.value - 2))
+        self.domain = UniString(readLen = UInt16Le(lambda:self.cbDomain.value - 2))
+        self.userName = UniString(readLen = UInt16Le(lambda:self.cbUserName.value - 2))
+        self.password = UniString(readLen = UInt16Le(lambda:self.cbPassword.value - 2))
         #shell execute at start of session
         self.alternateShell = UniString(readLen = UInt16Le(lambda:self.cbAlternateShell.value - 2))
         #working directory for session
-        self.workingDir =   UniString(readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2))
-        #more client informations
+        self.workingDir = UniString(readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2))
         self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
         
 class RDPExtendedInfo(CompositeType):
@@ -205,21 +250,17 @@ class RDPExtendedInfo(CompositeType):
     '''
     def __init__(self, conditional):
         CompositeType.__init__(self, conditional = conditional)
-        #is an ip v4 or v6 adresse
         self.clientAddressFamily = AfInet.AF_INET
-        #len of adress field
         self.cbClientAddress = UInt16Le(lambda:sizeof(self.clientAddress))
-        #adress of client
         self.clientAddress = UniString(readLen = self.cbClientAddress)
-        #len of client directory
         self.cbClientDir = UInt16Le(lambda:sizeof(self.clientDir))
-        #self client directory
         self.clientDir = UniString(readLen = self.cbClientDir)
         #TODO make tiomezone
         #self.performanceFlags = PerfFlag.PERF_DISABLE_WALLPAPER | PerfFlag.PERF_DISABLE_MENUANIMATIONS | PerfFlag.PERF_DISABLE_CURSOR_SHADOW
 
 class ShareControlHeader(CompositeType):
     '''
+    PDU share control header
     @see: http://msdn.microsoft.com/en-us/library/cc240576.aspx
     '''
     def __init__(self, totalLength):
@@ -235,6 +276,7 @@ class ShareControlHeader(CompositeType):
     
 class Capability(CompositeType):
     '''
+    A capability
     @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
     '''
     def __init__(self):
@@ -243,10 +285,12 @@ class Capability(CompositeType):
         self.lengthCapability = UInt16Le(lambda:sizeof(self))
         self.generalCapability = GeneralCapability(conditional = lambda:self.capabilitySetType == CapsType.CAPSTYPE_GENERAL)
         self.bitmapCapability = BitmapCapability(conditional = lambda:self.capabilitySetType == CapsType.CAPSTYPE_BITMAP)
-        self.capabilityData = String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4), conditional = lambda:not self.capabilitySetType in [CapsType.CAPSTYPE_GENERAL, CapsType.CAPSTYPE_BITMAP])
+        self.orderCapability = OrderCapability(conditional = lambda:self.capabilitySetType == CapsType.CAPSTYPE_ORDER)
+        self.capabilityData = String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4), conditional = lambda:not self.capabilitySetType in [CapsType.CAPSTYPE_GENERAL, CapsType.CAPSTYPE_BITMAP, CapsType.CAPSTYPE_ORDER])
         
 class GeneralCapability(CompositeType):
     '''
+    General capability (protocol version and compression mode)
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
     '''
     def __init__(self, conditional = lambda:True):
@@ -265,6 +309,7 @@ class GeneralCapability(CompositeType):
         
 class BitmapCapability(CompositeType):
     '''
+    Bitmap format Capability
     @see: http://msdn.microsoft.com/en-us/library/cc240554.aspx
     '''
     def __init__(self, conditional = lambda:True):
@@ -282,7 +327,32 @@ class BitmapCapability(CompositeType):
         self.drawingFlags = UInt8()
         self.multipleRectangleSupport = UInt16Le(0x0001, constant = True)
         self.pad2octetsB = UInt16Le()
-
+        
+class OrderCapability(CompositeType):
+    '''
+    Order capability list all drawing order supported
+    @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
+    '''
+    def __init__(self, conditional = lambda:True):
+        CompositeType.__init__(self, conditional = conditional)
+        self.terminalDescriptor = String("\x00" * 16)
+        self.pad4octetsA = UInt32Le(0)
+        self.desktopSaveXGranularity = UInt16Le(1)
+        self.desktopSaveYGranularity = UInt16Le(20)
+        self.pad2octetsA = UInt16Le(0)
+        self.maximumOrderLevel = UInt16Le(1)
+        self.numberFonts = UInt16Le(0)
+        self.orderFlags = UInt16Le(0)
+        self.orderSupport = ArrayType(UInt8, [0 for i in range(0,31)])
+        self.textFlags = UInt16Le()
+        self.orderSupportExFlags = UInt16Le()
+        self.pad4octetsB = UInt32Le()
+        self.desktopSaveSize = UInt32Le(480 * 480)
+        self.pad2octetsC = UInt16Le()
+        self.pad2octetsD = UInt16Le()
+        self.textANSICodePage = UInt16Le(0)
+        self.pad2octetsE = UInt16Le()
+        
 class DemandActivePDU(CompositeType):
     '''
     @see: http://msdn.microsoft.com/en-us/library/cc240485.aspx
@@ -390,6 +460,9 @@ class SIL(LayerAutomata):
         self.sendConfirmActivePDU()
         
     def sendConfirmActivePDU(self):
+        '''
+        send all client capabilities
+        '''
         #init general capability
         capability = Capability()
         capability.capabilitySetType = CapsType.CAPSTYPE_GENERAL

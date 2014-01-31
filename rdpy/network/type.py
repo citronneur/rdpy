@@ -733,7 +733,7 @@ class ArrayType(Type):
     but in read mode it can be dynamic
     readLen may be dynamic
     '''
-    def __init__(self, typeFactory, readLen = UInt8(), conditional = lambda:True, optional = False, constant = False):
+    def __init__(self, typeFactory, init = [], readLen = UInt8(), conditional = lambda:True, optional = False, constant = False):
         '''
         constructor
         @param typeFactory: class use to init new element on read
@@ -745,7 +745,7 @@ class ArrayType(Type):
         Type.__init__(self, conditional, optional, constant)
         self._typeFactory = typeFactory
         self._readLen = readLen
-        self._array = []
+        self._array = init
         
     def __read__(self, s):
         '''
