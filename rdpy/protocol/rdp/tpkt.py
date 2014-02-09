@@ -1,7 +1,7 @@
 '''
 @author: sylvain
 '''
-from rdpy.network.layer import RawLayer
+from rdpy.network.layer import RawLayer, LayerMode
 from rdpy.network.type import UInt8, UInt16Be, sizeof
 
 class TPKT(RawLayer):
@@ -17,7 +17,7 @@ class TPKT(RawLayer):
         '''
         Constructor
         '''
-        RawLayer.__init__(self, presentation)
+        RawLayer.__init__(self, LayerMode.NONE, presentation)
         #last packet version read from header
         self._lastPacketVersion = UInt8()
         #length may be coded on more than 1 bytes

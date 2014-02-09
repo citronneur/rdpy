@@ -7,11 +7,11 @@ class Factory(protocol.Factory):
     '''
     Factory of RDP protocol
     '''
-    def __init__(self):
-        pass
+    def __init__(self, mode):
+        self._mode = mode
     
     def buildProtocol(self, addr):
-        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(sil.SIL())));
+        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(sil.SIL(self._mode))));
     
     def startedConnecting(self, connector):
         print 'Started to connect.'

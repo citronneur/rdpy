@@ -391,11 +391,11 @@ class SIL(LayerAutomata):
     Global channel for mcs that handle session
     identification user, licensing management, and capabilities exchange
     '''
-    def __init__(self):
+    def __init__(self, mode):
         '''
         Constructor
         '''
-        LayerAutomata.__init__(self, None)
+        LayerAutomata.__init__(self, mode, None)
         #set by mcs layer channel init
         self._channelId = UInt16Be()
         #logon info send from client to server

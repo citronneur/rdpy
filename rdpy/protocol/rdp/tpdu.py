@@ -1,7 +1,7 @@
 '''
 @author: sylvain
 '''
-from rdpy.network.layer import LayerAutomata
+from rdpy.network.layer import LayerAutomata, LayerMode
 from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
 from rdpy.network.error import InvalidExpectedDataException
 from rdpy.network.const import ConstAttributes, TypeAttributes
@@ -95,12 +95,12 @@ class TPDU(LayerAutomata):
     TPDU layer management
     there is an connection automata
     '''
-    def __init__(self, presentation = None):
+    def __init__(self, presentation):
         '''
         Constructor
         @param presentation: MCS layer
         '''
-        LayerAutomata.__init__(self, presentation)
+        LayerAutomata.__init__(self, presentation._mode, presentation)
         #default selectedProtocol is SSl because is the only supported
         #in this version of RDPY
         #client requested selectedProtocol
@@ -113,7 +113,10 @@ class TPDU(LayerAutomata):
         connection request
         for client send a connection request packet
         '''
-        self.sendConnectionRequest()
+        if self._mode == LayerMode.CLIENT:
+            self.sendConnectionRequest()
+        else:
+            self.setNextState(self.recvConnectionRequest)
     
     def recvConnectionConfirm(self, data):
         '''

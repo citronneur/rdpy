@@ -2,13 +2,18 @@
 @author: sylvain
 '''
 
+class LayerMode(object):
+    NONE = 0
+    SERVER = 1
+    CLIENT = 2
+
 class Layer(object):
     '''
     Network abstraction for protocol
     Try as possible to divide user protocol in layer
     default implementation is a transparent layer
     '''
-    def __init__(self, presentation = None):
+    def __init__(self, mode = LayerMode.NONE, presentation = None):
         '''
         Constructor
         @param presentation: Layer which handled connect and recv messages
@@ -17,6 +22,8 @@ class Layer(object):
         self._presentation = presentation
         #transport layer under layer in model
         self._transport = None
+        #register layer mode
+        self._mode = mode
         #auto set transport layer of own presentation layer
         if not self._presentation is None:
             self._presentation._transport = self
@@ -62,13 +69,13 @@ class LayerAutomata(Layer):
     layer with automata state
     we can set next recv function used
     '''
-    def __init__(self, presentation = None):
+    def __init__(self, mode, presentation = None):
         '''
         Constructor
         @param presentation: presentation Layer
         '''
         #call parent constructor
-        Layer.__init__(self, presentation)
+        Layer.__init__(self, mode, presentation)
         
     def setNextState(self, callback = None):
         '''
@@ -93,12 +100,12 @@ class RawLayer(protocol.Protocol, LayerAutomata):
     allow this protocol to wait until expected size of packet
     and use Layer automata to call next automata state
     '''
-    def __init__(self, presentation = None):
+    def __init__(self, mode, presentation = None):
         '''
         Constructor
         '''
         #call parent automata
-        LayerAutomata.__init__(self, presentation)
+        LayerAutomata.__init__(self, mode, presentation)
         #data buffer received from twisted network layer
         self._buffer = ""
         #len of next packet pass to next state function
