@@ -51,7 +51,7 @@ class MCS(LayerAutomata):
         ctor call base class ctor
         @param presentation: presentation layer
         '''
-        LayerAutomata.__init__(self, presentation)
+        LayerAutomata.__init__(self, presentation._mode, presentation)
         self._clientSettings = gcc.ClientSettings()
         self._serverSettings = gcc.ServerSettings()
         #default user Id

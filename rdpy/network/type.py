@@ -74,7 +74,7 @@ class Type(object):
         self.__read__(s)
         #check constant value
         if self._constant and old != self:
-            raise InvalidExpectedDataException("const value expected")
+            raise InvalidExpectedDataException("%s const value expected %s != %s"%(self.__class__, old.value, self.value))
         
     def __read__(self, s):
         '''

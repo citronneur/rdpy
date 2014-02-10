@@ -13,7 +13,7 @@ class TPKT(RawLayer):
     #first byte of classic tpkt header
     TPKT_PACKET = UInt8(3)
     
-    def __init__(self, presentation = None):
+    def __init__(self, presentation):
         '''
         Constructor
         '''
