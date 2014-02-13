@@ -2,7 +2,7 @@
 @author: sylvain
 '''
 from twisted.internet import protocol
-import tpkt, tpdu, mcs, sil
+import tpkt, tpdu, mcs, pdu
 class Factory(protocol.Factory):
     '''
     Factory of RDP protocol
@@ -11,7 +11,7 @@ class Factory(protocol.Factory):
         self._mode = mode
     
     def buildProtocol(self, addr):
-        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(sil.SIL(self._mode))));
+        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(pdu.PDU(self._mode))));
     
     def startedConnecting(self, connector):
         print 'Started to connect.'

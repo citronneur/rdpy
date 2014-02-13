@@ -74,6 +74,72 @@ class PDUType(object):
     PDUTYPE_DEACTIVATEALLPDU = 0x6001
     PDUTYPE_DATAPDU = 0x7001
     PDUTYPE_SERVER_REDIR_PKT = 0xA001
+
+@ConstAttributes
+@TypeAttributes(UInt8)  
+class PDUType2(object):
+    '''
+    data pdu type
+    @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
+    '''
+    PDUTYPE2_UPDATE = 0x02
+    PDUTYPE2_CONTROL = 0x14
+    PDUTYPE2_POINTER = 0x1B
+    PDUTYPE2_INPUT = 0x1C
+    PDUTYPE2_SYNCHRONIZE = 0x1F
+    PDUTYPE2_REFRESH_RECT = 0x21
+    PDUTYPE2_PLAY_SOUND = 0x22
+    PDUTYPE2_SUPPRESS_OUTPUT = 0x23
+    PDUTYPE2_SHUTDOWN_REQUEST = 0x24
+    PDUTYPE2_SHUTDOWN_DENIED = 0x25
+    PDUTYPE2_SAVE_SESSION_INFO = 0x26
+    PDUTYPE2_FONTLIST = 0x27
+    PDUTYPE2_FONTMAP = 0x28
+    PDUTYPE2_SET_KEYBOARD_INDICATORS = 0x29
+    PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST = 0x2B
+    PDUTYPE2_BITMAPCACHE_ERROR_PDU = 0x2C
+    PDUTYPE2_SET_KEYBOARD_IME_STATUS = 0x2D
+    PDUTYPE2_OFFSCRCACHE_ERROR_PDU = 0x2E
+    PDUTYPE2_SET_ERROR_INFO_PDU = 0x2F
+    PDUTYPE2_DRAWNINEGRID_ERROR_PDU = 0x30
+    PDUTYPE2_DRAWGDIPLUS_ERROR_PDU = 0x31
+    PDUTYPE2_ARC_STATUS_PDU = 0x32
+    PDUTYPE2_STATUS_INFO_PDU = 0x36
+    PDUTYPE2_MONITOR_LAYOUT_PDU = 0x37
+    
+@ConstAttributes
+@TypeAttributes(UInt8) 
+class StreamId(object):
+    '''
+    stream priority
+    @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
+    '''
+    STREAM_UNDEFINED = 0x00
+    STREAM_LOW = 0x01
+    STREAM_MED = 0x02
+    STREAM_HI = 0x04
+    
+@ConstAttributes
+@TypeAttributes(UInt8)   
+class CompressionOrder(object):
+    '''
+    pdu compression order
+    @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
+    '''
+    CompressionTypeMask = 0x0F
+    PACKET_COMPRESSED = 0x20
+    PACKET_AT_FRONT = 0x40
+    PACKET_FLUSHED = 0x80
+
+class CompressionType(object):
+    '''
+    pdu compression type
+    @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
+    '''
+    PACKET_COMPR_TYPE_8K = 0x0
+    PACKET_COMPR_TYPE_64K = 0x1
+    PACKET_COMPR_TYPE_RDP6 = 0x2
+    PACKET_COMPR_TYPE_RDP61 = 0x3
     
 @ConstAttributes
 @TypeAttributes(UInt16Le)     
@@ -273,6 +339,22 @@ class ShareControlHeader(CompositeType):
         self.totalLength = UInt16Le(totalLength)
         self.pduType = UInt16Le()
         self.PDUSource = UInt16Le()
+        
+class SharedataHeader(CompositeType):
+    '''
+    PDU share data header
+    @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
+    '''
+    def __init__(self, size):
+        CompositeType.__init__(self)
+        self.shareControlHeader = ShareControlHeader(size)
+        self.shareId = UInt32Le()
+        self.pad1 = UInt8()
+        self.streamId = UInt8()
+        self.uncompressedLength = UInt16Le()
+        self.pduType2 = UInt8()
+        self.compressedType = UInt8()
+        self.compressedLength = UInt16Le()
     
 class Capability(CompositeType):
     '''
@@ -356,6 +438,7 @@ class OrderCapability(CompositeType):
 class DemandActivePDU(CompositeType):
     '''
     @see: http://msdn.microsoft.com/en-us/library/cc240485.aspx
+    main use for capabilities exchange server -> client
     '''
     def __init__(self):
         CompositeType.__init__(self)
@@ -372,6 +455,7 @@ class DemandActivePDU(CompositeType):
 class ConfirmActivePDU(CompositeType):
     '''
     @see: http://msdn.microsoft.com/en-us/library/cc240488.aspx
+    main use for capabilities confirm client -> sever
     '''
     def __init__(self):
         CompositeType.__init__(self)
@@ -384,10 +468,19 @@ class ConfirmActivePDU(CompositeType):
         self.numberCapabilities = UInt16Le(lambda:len(self.capabilitySets._array))
         self.pad2Octets = UInt16Le()
         self.capabilitySets = ArrayType(Capability, readLen = self.numberCapabilities)
-
-class SIL(LayerAutomata):
+        
+class SynchronizePDU(CompositeType):
     '''
-    Session information layer
+    @see http://msdn.microsoft.com/en-us/library/cc240490.aspx
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.shareControlHeader = SharedataHeader(lambda:sizeof(self))
+        self.messageType = UInt16Le(1, constant = True)
+        self.targetUser = UInt16Le()
+
+class PDU(LayerAutomata):
+    '''
     Global channel for mcs that handle session
     identification user, licensing management, and capabilities exchange
     '''
@@ -404,6 +497,8 @@ class SIL(LayerAutomata):
         self._serverCapabilities = {}
         #client capabilities
         self._clientCapabilities = {}
+        #share id between client and server
+        self._shareId = UInt32Le()
         
     def connect(self):
         '''
