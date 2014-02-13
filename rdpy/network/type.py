@@ -377,7 +377,11 @@ class CompositeType(Type):
         @param s: Stream
         '''
         for name in self._typeName:
-            s.readType(self.__dict__[name])
+            try:
+                s.readType(self.__dict__[name])
+            except Exception as e:
+                print "Error during read %s::%s"%(self.__class__, name)
+                raise e
             
     def __write__(self, s):
         '''
@@ -385,11 +389,15 @@ class CompositeType(Type):
         @param s: Stream
         '''
         for name in self._typeName:
-            s.writeType(self.__dict__[name])
+            try:
+                s.writeType(self.__dict__[name])
+            except Exception as e:
+                print "Error during write %s::%s"%(self.__class__, name)
+                raise e
             
     def __sizeof__(self):
         '''
-        call sizeof on each subtype$
+        call sizeof on each subtype
         @return: sum of sizeof of each public type attributes
         '''
         size = 0
@@ -733,7 +741,7 @@ class ArrayType(Type):
     but in read mode it can be dynamic
     readLen may be dynamic
     '''
-    def __init__(self, typeFactory, init = [], readLen = UInt8(), conditional = lambda:True, optional = False, constant = False):
+    def __init__(self, typeFactory, init = None, readLen = UInt8(), conditional = lambda:True, optional = False, constant = False):
         '''
         constructor
         @param typeFactory: class use to init new element on read
@@ -745,7 +753,9 @@ class ArrayType(Type):
         Type.__init__(self, conditional, optional, constant)
         self._typeFactory = typeFactory
         self._readLen = readLen
-        self._array = init
+        self._array = []
+        if not init is None:
+            self._array = init
         
     def __read__(self, s):
         '''

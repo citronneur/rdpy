@@ -335,15 +335,15 @@ class OrderCapability(CompositeType):
     '''
     def __init__(self, conditional = lambda:True):
         CompositeType.__init__(self, conditional = conditional)
-        self.terminalDescriptor = String("\x00" * 16)
+        self.terminalDescriptor = String("\x00" * 16, readLen = UInt8(16))
         self.pad4octetsA = UInt32Le(0)
         self.desktopSaveXGranularity = UInt16Le(1)
         self.desktopSaveYGranularity = UInt16Le(20)
         self.pad2octetsA = UInt16Le(0)
         self.maximumOrderLevel = UInt16Le(1)
         self.numberFonts = UInt16Le(0)
-        self.orderFlags = UInt16Le(0)
-        self.orderSupport = ArrayType(UInt8, [0 for i in range(0,31)])
+        self.orderFlags = UInt16Le(OrderFlag.NEGOTIATEORDERSUPPORT)
+        self.orderSupport = ArrayType(UInt8, readLen = UInt8(32))
         self.textFlags = UInt16Le()
         self.orderSupportExFlags = UInt16Le()
         self.pad4octetsB = UInt32Le()
