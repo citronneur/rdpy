@@ -563,8 +563,16 @@ class UInt24Be(SimpleType):
     def __write__(self, s):
         '''
         special write for a special type
+        @param s: Stream
         '''
         s.write(struct.pack(">I", self.value)[1:])
+        
+    def __read__(self, s):
+        '''
+        special read for a special type
+        @param s: Stream
+        '''
+        self.value = struct.unpack(self._structFormat, '\x00' + s.read(self._typeSize))[0]
         
 class UInt24Le(SimpleType):
     '''
@@ -587,7 +595,14 @@ class UInt24Le(SimpleType):
         @param s: Stream
         '''
         #don't write first byte
-        s.write(struct.pack("<I", self.value)[1:])
+        s.write(struct.pack("<I", self.value)[:3])
+        
+    def __read__(self, s):
+        '''
+        special read for a special type
+        @param s: Stream
+        '''
+        self.value = struct.unpack(self._structFormat, s.read(self._typeSize) + '\x00')[0]
         
 class String(Type, CallableValue):
     '''
@@ -748,7 +763,7 @@ class ArrayType(Type):
         @param readLen: number of element in sequence
         @param conditional : function call before read or write type
         @param optional: boolean check before read if there is still data in stream
-        @param constant: if true check any changement of object during reading
+        @param constant: if true check any changes of object during reading
         '''
         Type.__init__(self, conditional, optional, constant)
         self._typeFactory = typeFactory
