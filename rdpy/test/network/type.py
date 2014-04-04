@@ -66,102 +66,18 @@ class TypeCase(unittest.TestCase):
         self.assertRaises(Exception, s.readType, TestType(conditional = lambda:False))
         
     
-    def test_sizeof_uint8_conditional_true(self):
+    def test_sizeof_conditional_true(self):
         '''
-        test if sizeof of UInt8 is 1 when type is conditional true
+        test if sizeof of simple type is init value(4) when type is conditional true
         '''
-        v = rdpy.network.type.UInt8(conditional = lambda:True)
-        self.assertEqual(rdpy.network.type.sizeof(v), 1, "invalid sizeof")
-        
-    def test_sizeof_uint8_conditional_false(self):
-        '''
-        test if sizeof of UInt8 is 1 when type is conditional false
-        '''
-        v = rdpy.network.type.UInt8(conditional = lambda:False)
-        self.assertEqual(rdpy.network.type.sizeof(v), 0, "invalid sizeof")
-        
-    def test_sizeof_uint16Le_conditional_true(self):
-        '''
-        test if sizeof of uint16Le is 1 when type is conditional true
-        '''
-        v = rdpy.network.type.UInt16Le(conditional = lambda:True)
-        self.assertEqual(rdpy.network.type.sizeof(v), 2, "invalid sizeof")
-        
-    def test_sizeof_uint16Le_conditional_false(self):
-        '''
-        test if sizeof of uint16Le is 1 when type is conditional false
-        '''
-        v = rdpy.network.type.UInt16Le(conditional = lambda:False)
-        self.assertEqual(rdpy.network.type.sizeof(v), 0, "invalid sizeof")
-        
-    def test_sizeof_uint16Be_conditional_true(self):
-        '''
-        test if sizeof of uint16Be is 1 when type is conditional true
-        '''
-        v = rdpy.network.type.UInt16Be(conditional = lambda:True)
-        self.assertEqual(rdpy.network.type.sizeof(v), 2, "invalid sizeof")
-        
-    def test_sizeof_uint16Be_conditional_false(self):
-        '''
-        test if sizeof of uint16Be is 1 when type is conditional false
-        '''
-        v = rdpy.network.type.UInt16Be(conditional = lambda:False)
-        self.assertEqual(rdpy.network.type.sizeof(v), 0, "invalid sizeof")
-        
-    def test_sizeof_uint24Le_conditional_true(self):
-        '''
-        test if sizeof of uint24Le is 1 when type is conditional true
-        '''
-        v = rdpy.network.type.UInt24Le(conditional = lambda:True)
-        self.assertEqual(rdpy.network.type.sizeof(v), 3, "invalid sizeof")
-        
-    def test_sizeof_uint24Le_conditional_false(self):
-        '''
-        test if sizeof of uint24Le is 1 when type is conditional false
-        '''
-        v = rdpy.network.type.UInt24Le(conditional = lambda:False)
-        self.assertEqual(rdpy.network.type.sizeof(v), 0, "invalid sizeof")
-        
-    def test_sizeof_uint24Be_conditional_true(self):
-        '''
-        test if sizeof of uint24Be is 1 when type is conditional true
-        '''
-        v = rdpy.network.type.UInt24Be(conditional = lambda:True)
-        self.assertEqual(rdpy.network.type.sizeof(v), 3, "invalid sizeof")
-        
-    def test_sizeof_uint24Be_conditional_false(self):
-        '''
-        test if sizeof of uint24Be is 1 when type is conditional false
-        '''
-        v = rdpy.network.type.UInt24Be(conditional = lambda:False)
-        self.assertEqual(rdpy.network.type.sizeof(v), 0, "invalid sizeof")
-        
-    def test_sizeof_uint32Le_conditional_true(self):
-        '''
-        test if sizeof of uint32Le is 1 when type is conditional true
-        '''
-        v = rdpy.network.type.UInt32Le(conditional = lambda:True)
+        v = rdpy.network.type.SimpleType("I", 4, False, 0, conditional = lambda:True)
         self.assertEqual(rdpy.network.type.sizeof(v), 4, "invalid sizeof")
         
-    def test_sizeof_uint32Le_conditional_false(self):
+    def test_sizeof_conditional_false(self):
         '''
-        test if sizeof of uint32Le is 1 when type is conditional false
+        test if sizeof of simple type is 0 when type is conditional false
         '''
-        v = rdpy.network.type.UInt32Le(conditional = lambda:False)
-        self.assertEqual(rdpy.network.type.sizeof(v), 0, "invalid sizeof")
-        
-    def test_sizeof_uint32Be_conditional_true(self):
-        '''
-        test if sizeof of uint32Be is 1 when type is conditional true
-        '''
-        v = rdpy.network.type.UInt32Be(conditional = lambda:True)
-        self.assertEqual(rdpy.network.type.sizeof(v), 4, "invalid sizeof")
-        
-    def test_sizeof_uint32Be_conditional_false(self):
-        '''
-        test if sizeof of uint32Be is 1 when type is conditional false
-        '''
-        v = rdpy.network.type.UInt32Be(conditional = lambda:False)
+        v = rdpy.network.type.SimpleType("I", 4, False, 0, conditional = lambda:False)
         self.assertEqual(rdpy.network.type.sizeof(v), 0, "invalid sizeof")
         
     def test_sizeof_list(self):

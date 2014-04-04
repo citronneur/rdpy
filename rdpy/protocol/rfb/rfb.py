@@ -3,12 +3,8 @@
 '''
 from twisted.internet import protocol
 from rdpy.network.type import String, UInt8, UInt16Be, UInt32Be
-from rdpy.network.layer import RawLayer
+from rdpy.network.layer import RawLayer, LayerMode
 from message import *
-
-class ProtocolMode(object):
-    CLIENT = 0
-    SERVER = 1
 
 class Rfb(RawLayer):
     '''
@@ -18,15 +14,10 @@ class Rfb(RawLayer):
     def __init__(self, mode):
         '''
         constructor
-        mode can be only client or server mode
-        in this RDPY version only client mode is supported
-        @param mode: ProtocolMode.CLIENT | ProtocolMode.SERVER
         '''
-        RawLayer.__init__(self)
+        RawLayer.__init__(self, mode)
         #usefull for rfb protocol
         self._callbackBody = None
-        #mode of automata
-        self._mode = mode
         #protocol version negociated
         self._version = ProtocolVersion.RFB003008
         #nb security launch by server
@@ -91,7 +82,7 @@ class Rfb(RawLayer):
         in Client mode -> wait protocol version
         in Server mode -> send protocol version
         '''
-        if self._mode == ProtocolMode.CLIENT:
+        if self._mode == LayerMode.CLIENT:
             self.expect(12, self.recvProtocolVersion)
         else:
             self.send(self._version)
