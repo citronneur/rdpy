@@ -240,7 +240,28 @@ class TypeCase(unittest.TestCase):
         '''
         #unsigned int case
         t = rdpy.network.type.SimpleType("I", 4, False, 0, optional = True)
+        #empty stream
         s1 = rdpy.network.type.Stream()
         s1.readType(t)
         self.assertEqual(t.value, 0, "invalid stream read optional value")
+        
+    def test_stream_read_conditional_singletype_false(self):
+        '''
+        test conditional option in case of simple type reading and when condition is false (not read)
+        '''
+        #unsigned int case
+        t = rdpy.network.type.SimpleType("I", 4, False, 0, conditional = lambda:False)
+        s1 = rdpy.network.type.Stream("\x01\x00\x00\x00")
+        s1.readType(t)
+        self.assertEqual(t.value, 0, "invalid stream read conditional value")
+        
+    def test_stream_read_conditional_singletype_true(self):
+        '''
+        test conditional option in case of simple type reading and when condition is true (must be read)
+        '''
+        #unsigned int case
+        t = rdpy.network.type.SimpleType("I", 4, False, 0, conditional = lambda:True)
+        s1 = rdpy.network.type.Stream("\x01\x00\x00\x00")
+        s1.readType(t)
+        self.assertEqual(t.value, 1, "invalid stream read conditional value")
         
