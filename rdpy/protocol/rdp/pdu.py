@@ -69,17 +69,21 @@ class AfInet(object):
 @ConstAttributes
 @TypeAttributes(UInt16Le)  
 class PDUType(object):
-    PDUTYPE_DEMANDACTIVEPDU = 0x1001
-    PDUTYPE_CONFIRMACTIVEPDU = 0x3001
-    PDUTYPE_DEACTIVATEALLPDU = 0x6001
-    PDUTYPE_DATAPDU = 0x7001
-    PDUTYPE_SERVER_REDIR_PKT = 0xA001
+    '''
+    data pdu type primary index
+    @see: http://msdn.microsoft.com/en-us/library/cc240576.aspx
+    '''
+    PDUTYPE_DEMANDACTIVEPDU = 0x11
+    PDUTYPE_CONFIRMACTIVEPDU = 0x13
+    PDUTYPE_DEACTIVATEALLPDU = 0x16
+    PDUTYPE_DATAPDU = 0x17
+    PDUTYPE_SERVER_REDIR_PKT = 0x1A
 
 @ConstAttributes
 @TypeAttributes(UInt8)  
 class PDUType2(object):
     '''
-    data pdu type
+    data pdu type secondary index
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     '''
     PDUTYPE2_UPDATE = 0x02
@@ -329,7 +333,7 @@ class ShareControlHeader(CompositeType):
     PDU share control header
     @see: http://msdn.microsoft.com/en-us/library/cc240576.aspx
     '''
-    def __init__(self, totalLength):
+    def __init__(self, totalLength, pduType):
         '''
         constructor
         @param totalLength: total length of pdu packet
@@ -337,7 +341,7 @@ class ShareControlHeader(CompositeType):
         CompositeType.__init__(self)
         #share control header
         self.totalLength = UInt16Le(totalLength)
-        self.pduType = UInt16Le()
+        self.pduType = UInt16Le(pduType.value, constant = True)
         self.PDUSource = UInt16Le()
         
 class SharedataHeader(CompositeType):
@@ -345,14 +349,14 @@ class SharedataHeader(CompositeType):
     PDU share data header
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     '''
-    def __init__(self, size):
+    def __init__(self, size, pduType, pduType2):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(size)
+        self.shareControlHeader = ShareControlHeader(size, pduType)
         self.shareId = UInt32Le()
         self.pad1 = UInt8()
         self.streamId = UInt8()
         self.uncompressedLength = UInt16Le()
-        self.pduType2 = UInt8()
+        self.pduType2 = UInt8(pduType2.value, constant = True)
         self.compressedType = UInt8()
         self.compressedLength = UInt16Le()
     
@@ -404,7 +408,7 @@ class BitmapCapability(CompositeType):
         self.desktopHeight = UInt16Le()
         self.pad2octets = UInt16Le()
         self.desktopResizeFlag = UInt16Le()
-        self.bitmapCompressionFlag = UInt16Le()
+        self.bitmapCompressionFlag = UInt16Le(0x0001, constant = True)
         self.highColorFlags = UInt8(0)
         self.drawingFlags = UInt8()
         self.multipleRectangleSupport = UInt16Le(0x0001, constant = True)
@@ -442,7 +446,7 @@ class DemandActivePDU(CompositeType):
     '''
     def __init__(self):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self))
+        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_DEMANDACTIVEPDU)
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.lengthCombinedCapabilities = UInt16Le(lambda:(sizeof(self.numberCapabilities) + sizeof(self.pad2Octets) + sizeof(self.capabilitySets)))
@@ -459,7 +463,7 @@ class ConfirmActivePDU(CompositeType):
     '''
     def __init__(self):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self))
+        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_CONFIRMACTIVEPDU)
         self.shareId = UInt32Le()
         self.originatorId = UInt16Le(0x03EA, constant = True)
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
@@ -475,7 +479,7 @@ class SynchronizePDU(CompositeType):
     '''
     def __init__(self):
         CompositeType.__init__(self)
-        self.shareControlHeader = SharedataHeader(lambda:sizeof(self))
+        self.shareControlHeader = SharedataHeader(lambda:sizeof(self), PDUType.PDUTYPE_DATAPDU, PDUType2.PDUTYPE2_SYNCHRONIZE)
         self.messageType = UInt16Le(1, constant = True)
         self.targetUser = UInt16Le()
 
@@ -545,6 +549,7 @@ class PDU(LayerAutomata):
         server capabilities. In this version of RDPY only
         restricted group of capabilities are used.
         send confirm active PDU
+        @param data: Stream
         '''
         demandActivePDU = DemandActivePDU()
         data.readType(demandActivePDU)
@@ -566,7 +571,26 @@ class PDU(LayerAutomata):
         capability.generalCapability.extraFlags = GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED
         self._clientCapabilities[capability.capabilitySetType] = capability
         
+        #init general capability
+        capability = Capability()
+        capability.capabilitySetType = CapsType.CAPSTYPE_BITMAP
+        capability.bitmapCapability.preferredBitsPerPixel = self._transport._clientSettings.core.colorDepth
+        capability.bitmapCapability.desktopWidth = self._transport._clientSettings.core.desktopWidth
+        capability.bitmapCapability.desktopHeight = self._transport._clientSettings.core.desktopHeight
+        self._clientCapabilities[capability.capabilitySetType] = capability
+        
         #make active PDU packet
         confirmActivePDU = ConfirmActivePDU()
         confirmActivePDU.capabilitySets._array = self._clientCapabilities.values()
         self._transport.send(self._channelId, confirmActivePDU)
+        #send synchronize
+        self.sendSynchronizePDU()
+        
+    def sendSynchronizePDU(self):
+        '''
+        send a synchronize PDU from client to server
+        '''
+        synchronizePDU = SynchronizePDU()
+        synchronizePDU.targetUser = self._channelId
+        self._transport.send(self._channelId, synchronizePDU)
+    
