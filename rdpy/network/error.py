@@ -55,4 +55,15 @@ class InvalidSize(Exception):
         constructor with message
         @param message: message show when exception is raised
         '''
-        Exception.__init__(self, message)  
+        Exception.__init__(self, message)
+        
+class ErrorReportedFromPeer(Exception):
+    '''
+    raise when peer send an error
+    '''
+    def __init__(self, message = ""):
+        '''
+        constructor with message
+        @param message: message show when exception is raised
+        '''
+        Exception.__init__(self, message) 

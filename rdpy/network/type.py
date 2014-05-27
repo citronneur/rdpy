@@ -6,7 +6,7 @@ import struct
 from copy import deepcopy
 from StringIO import StringIO
 from error import InvalidValue
-from rdpy.network.error import InvalidExpectedDataException
+from rdpy.network.error import InvalidExpectedDataException, InvalidSize
 
 def sizeof(element):
     '''
@@ -70,10 +70,19 @@ class Type(object):
         self._is_readed = self._conditional()
         if not self._is_readed:
             return
+        
+        #not constant mode direct reading
+        if not self._constant:
+            self.__read__(s)
+            return
+        
+        #constant mode
         old = deepcopy(self)
         self.__read__(s)
         #check constant value
-        if self._constant and old != self:
+        if old != self:
+            #rollback read value
+            s.pos -= sizeof(self)
             raise InvalidExpectedDataException("%s const value expected %s != %s"%(self.__class__, old.value, self.value))
         
     def __read__(self, s):
@@ -229,7 +238,9 @@ class SimpleType(Type, CallableValue):
         use struct package
         @param s: Stream
         '''
-        self.value = struct.unpack(self._structFormat,s.read(self._typeSize))[0]
+        if s.dataLen() < self._typeSize:
+            raise InvalidSize("Stream is too small to read expected data")
+        self.value = struct.unpack(self._structFormat, s.read(self._typeSize))[0]
       
     def mask(self):
         '''
@@ -381,6 +392,11 @@ class CompositeType(Type):
                 s.readType(self.__dict__[name])
             except Exception as e:
                 print "Error during read %s::%s"%(self.__class__, name)
+                #rollback already readed
+                for tmpName in self._typeName:
+                    if tmpName == name:
+                        break
+                    s.pos -= sizeof(self.__dict__[tmpName])
                 raise e
             
     def __write__(self, s):
@@ -720,7 +736,15 @@ class Stream(StringIO):
         #read each tuple
         if isinstance(value, tuple) or isinstance(value, list):
             for element in value:
-                self.readType(element)
+                try:
+                    self.readType(element)
+                except Exception as e:
+                    #rollback already readed elements
+                    for tmpElement in value:
+                        if tmpElement == element:
+                            break
+                        self.pos -= sizeof(tmpElement)
+                    raise e
             return
         
         #optional value not present
@@ -760,6 +784,7 @@ class ArrayType(Type):
         '''
         constructor
         @param typeFactory: class use to init new element on read
+        @param init: init array
         @param readLen: number of element in sequence
         @param conditional : function call before read or write type
         @param optional: boolean check before read if there is still data in stream

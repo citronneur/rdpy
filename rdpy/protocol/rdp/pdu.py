@@ -5,7 +5,7 @@
 from rdpy.network.layer import LayerAutomata
 from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt16Be, UInt32Le, sizeof, ArrayType
 from rdpy.network.const import ConstAttributes, TypeAttributes
-from rdpy.network.error import InvalidExpectedDataException
+from rdpy.network.error import InvalidExpectedDataException, ErrorReportedFromPeer
 
 import gcc
 import lic
@@ -286,11 +286,150 @@ class OrderEx(object):
     '''
     ORDERFLAGS_EX_CACHE_BITMAP_REV3_SUPPORT = 0x0002
     ORDERFLAGS_EX_ALTSEC_FRAME_MARKER_SUPPORT = 0x0004
+
+@ConstAttributes
+@TypeAttributes(UInt16Le)
+class Action(object):
+    '''
+    Action flag use in Control PDU packet
+    @see: http://msdn.microsoft.com/en-us/library/cc240492.aspx
+    '''
+    CTRLACTION_REQUEST_CONTROL = 0x0001
+    CTRLACTION_GRANTED_CONTROL = 0x0002
+    CTRLACTION_DETACH = 0x0003
+    CTRLACTION_COOPERATE = 0x0004
+    
+@ConstAttributes
+@TypeAttributes(UInt16Le)
+class PersistentKeyListFlag(object):
+    '''
+    use to determine the number of persistent key packet
+    @see: http://msdn.microsoft.com/en-us/library/cc240495.aspx
+    '''
+    PERSIST_FIRST_PDU = 0x01
+    PERSIST_LAST_PDU = 0x02
+
+@ConstAttributes
+@TypeAttributes(UInt32Le)
+class ErrorInfo(object):
+    '''
+    Error code use in Error info pdu
+    @see: http://msdn.microsoft.com/en-us/library/cc240544.aspx
+    '''
+    ERRINFO_RPC_INITIATED_DISCONNECT = 0x00000001
+    ERRINFO_RPC_INITIATED_LOGOFF = 0x00000002
+    ERRINFO_IDLE_TIMEOUT = 0x00000003
+    ERRINFO_LOGON_TIMEOUT = 0x00000004
+    ERRINFO_DISCONNECTED_BY_OTHERCONNECTION = 0x00000005
+    ERRINFO_OUT_OF_MEMORY = 0x00000006
+    ERRINFO_SERVER_DENIED_CONNECTION = 0x00000007
+    ERRINFO_SERVER_INSUFFICIENT_PRIVILEGES = 0x00000009
+    ERRINFO_SERVER_FRESH_CREDENTIALS_REQUIRED = 0x0000000A
+    ERRINFO_RPC_INITIATED_DISCONNECT_BYUSER = 0x0000000B
+    ERRINFO_LOGOFF_BY_USER = 0x0000000C
+    ERRINFO_LICENSE_INTERNAL = 0x00000100
+    ERRINFO_LICENSE_NO_LICENSE_SERVER = 0x00000101
+    ERRINFO_LICENSE_NO_LICENSE = 0x00000102
+    ERRINFO_LICENSE_BAD_CLIENT_MSG = 0x00000103
+    ERRINFO_LICENSE_HWID_DOESNT_MATCH_LICENSE = 0x00000104
+    ERRINFO_LICENSE_BAD_CLIENT_LICENSE = 0x00000105
+    ERRINFO_LICENSE_CANT_FINISH_PROTOCOL = 0x00000106
+    ERRINFO_LICENSE_CLIENT_ENDED_PROTOCOL = 0x00000107
+    ERRINFO_LICENSE_BAD_CLIENT_ENCRYPTION = 0x00000108
+    ERRINFO_LICENSE_CANT_UPGRADE_LICENSE = 0x00000109
+    ERRINFO_LICENSE_NO_REMOTE_CONNECTIONS = 0x0000010A
+    ERRINFO_CB_DESTINATION_NOT_FOUND = 0x0000400
+    ERRINFO_CB_LOADING_DESTINATION = 0x0000402
+    ERRINFO_CB_REDIRECTING_TO_DESTINATION = 0x0000404
+    ERRINFO_CB_SESSION_ONLINE_VM_WAKE = 0x0000405
+    ERRINFO_CB_SESSION_ONLINE_VM_BOOT = 0x0000406
+    ERRINFO_CB_SESSION_ONLINE_VM_NO_DNS = 0x0000407
+    ERRINFO_CB_DESTINATION_POOL_NOT_FREE = 0x0000408
+    ERRINFO_CB_CONNECTION_CANCELLED = 0x0000409
+    ERRINFO_CB_CONNECTION_ERROR_INVALID_SETTINGS = 0x0000410
+    ERRINFO_CB_SESSION_ONLINE_VM_BOOT_TIMEOUT = 0x0000411
+    ERRINFO_CB_SESSION_ONLINE_VM_SESSMON_FAILED = 0x0000412
+    ERRINFO_UNKNOWNPDUTYPE2 = 0x000010C9
+    ERRINFO_UNKNOWNPDUTYPE = 0x000010CA
+    ERRINFO_DATAPDUSEQUENCE = 0x000010CB
+    ERRINFO_CONTROLPDUSEQUENCE = 0x000010CD
+    ERRINFO_INVALIDCONTROLPDUACTION = 0x000010CE
+    ERRINFO_INVALIDINPUTPDUTYPE = 0x000010CF
+    ERRINFO_INVALIDINPUTPDUMOUSE = 0x000010D0
+    ERRINFO_INVALIDREFRESHRECTPDU = 0x000010D1
+    ERRINFO_CREATEUSERDATAFAILED = 0x000010D2
+    ERRINFO_CONNECTFAILED =0x000010D3
+    ERRINFO_CONFIRMACTIVEWRONGSHAREID = 0x000010D4
+    ERRINFO_CONFIRMACTIVEWRONGORIGINATOR = 0x000010D5
+    ERRINFO_PERSISTENTKEYPDUBADLENGTH = 0x000010DA
+    ERRINFO_PERSISTENTKEYPDUILLEGALFIRST = 0x000010DB
+    ERRINFO_PERSISTENTKEYPDUTOOMANYTOTALKEYS = 0x000010DC
+    ERRINFO_PERSISTENTKEYPDUTOOMANYCACHEKEYS = 0x000010DD
+    ERRINFO_INPUTPDUBADLENGTH = 0x000010DE
+    ERRINFO_BITMAPCACHEERRORPDUBADLENGTH = 0x000010DF
+    ERRINFO_SECURITYDATATOOSHORT = 0x000010E0
+    ERRINFO_VCHANNELDATATOOSHORT = 0x000010E1
+    ERRINFO_SHAREDATATOOSHORT = 0x000010E2
+    ERRINFO_BADSUPRESSOUTPUTPDU = 0x000010E3
+    ERRINFO_CONFIRMACTIVEPDUTOOSHORT = 0x000010E5
+    ERRINFO_CAPABILITYSETTOOSMALL = 0x000010E7
+    ERRINFO_CAPABILITYSETTOOLARGE = 0x000010E8
+    ERRINFO_NOCURSORCACHE = 0x000010E9
+    ERRINFO_BADCAPABILITIES = 0x000010EA
+    ERRINFO_VIRTUALCHANNELDECOMPRESSIONERR = 0x000010EC
+    ERRINFO_INVALIDVCCOMPRESSIONTYPE = 0x000010ED
+    ERRINFO_INVALIDCHANNELID = 0x000010EF
+    ERRINFO_VCHANNELSTOOMANY = 0x000010F0
+    ERRINFO_REMOTEAPPSNOTENABLED = 0x000010F3
+    ERRINFO_CACHECAPNOTSET = 0x000010F4
+    ERRINFO_BITMAPCACHEERRORPDUBADLENGTH2 = 0x000010F5
+    ERRINFO_OFFSCRCACHEERRORPDUBADLENGTH = 0x000010F6
+    ERRINFO_DNGCACHEERRORPDUBADLENGTH = 0x000010F7
+    ERRINFO_GDIPLUSPDUBADLENGTH = 0x000010F8
+    ERRINFO_SECURITYDATATOOSHORT2 = 0x00001111
+    ERRINFO_SECURITYDATATOOSHORT3 = 0x00001112
+    ERRINFO_SECURITYDATATOOSHORT4 = 0x00001113
+    ERRINFO_SECURITYDATATOOSHORT5 = 0x00001114
+    ERRINFO_SECURITYDATATOOSHORT6 = 0x00001115
+    ERRINFO_SECURITYDATATOOSHORT7 = 0x00001116
+    ERRINFO_SECURITYDATATOOSHORT8 = 0x00001117
+    ERRINFO_SECURITYDATATOOSHORT9 = 0x00001118
+    ERRINFO_SECURITYDATATOOSHORT10 = 0x00001119
+    ERRINFO_SECURITYDATATOOSHORT11 = 0x0000111A
+    ERRINFO_SECURITYDATATOOSHORT12 = 0x0000111B
+    ERRINFO_SECURITYDATATOOSHORT13 = 0x0000111C
+    ERRINFO_SECURITYDATATOOSHORT14 = 0x0000111D
+    ERRINFO_SECURITYDATATOOSHORT15 = 0x0000111E
+    ERRINFO_SECURITYDATATOOSHORT16 = 0x0000111F
+    ERRINFO_SECURITYDATATOOSHORT17 = 0x00001120
+    ERRINFO_SECURITYDATATOOSHORT18 = 0x00001121
+    ERRINFO_SECURITYDATATOOSHORT19 = 0x00001122
+    ERRINFO_SECURITYDATATOOSHORT20 = 0x00001123
+    ERRINFO_SECURITYDATATOOSHORT21 = 0x00001124
+    ERRINFO_SECURITYDATATOOSHORT22 = 0x00001125
+    ERRINFO_SECURITYDATATOOSHORT23 = 0x00001126
+    ERRINFO_BADMONITORDATA = 0x00001129
+    ERRINFO_VCDECOMPRESSEDREASSEMBLEFAILED = 0x0000112A
+    ERRINFO_VCDATATOOLONG = 0x0000112B
+    ERRINFO_BAD_FRAME_ACK_DATA = 0x0000112C
+    ERRINFO_GRAPHICSMODENOTSUPPORTED = 0x0000112D
+    ERRINFO_GRAPHICSSUBSYSTEMRESETFAILED = 0x0000112E
+    ERRINFO_GRAPHICSSUBSYSTEMFAILED = 0x0000112F
+    ERRINFO_TIMEZONEKEYNAMELENGTHTOOSHORT = 0x00001130
+    ERRINFO_TIMEZONEKEYNAMELENGTHTOOLONG = 0x00001131
+    ERRINFO_DYNAMICDSTDISABLEDFIELDMISSING = 0x00001132
+    ERRINFO_VCDECODINGERROR = 0x00001133
+    ERRINFO_UPDATESESSIONKEYFAILED = 0x00001191
+    ERRINFO_DECRYPTFAILED = 0x00001192
+    ERRINFO_ENCRYPTFAILED = 0x00001193
+    ERRINFO_ENCPKGMISMATCH = 0x00001194
+    ERRINFO_DECRYPTFAILED2 = 0x00001195
     
 class RDPInfo(CompositeType):
     '''
     client informations
     contains credentials (very important packet)
+    @see: http://msdn.microsoft.com/en-us/library/cc240475.aspx
     '''
     def __init__(self, extendedInfoConditional):
         CompositeType.__init__(self)
@@ -333,7 +472,7 @@ class ShareControlHeader(CompositeType):
     PDU share control header
     @see: http://msdn.microsoft.com/en-us/library/cc240576.aspx
     '''
-    def __init__(self, totalLength, pduType):
+    def __init__(self, totalLength, pduType, userId):
         '''
         constructor
         @param totalLength: total length of pdu packet
@@ -342,16 +481,16 @@ class ShareControlHeader(CompositeType):
         #share control header
         self.totalLength = UInt16Le(totalLength)
         self.pduType = UInt16Le(pduType.value, constant = True)
-        self.PDUSource = UInt16Le()
+        self.PDUSource = UInt16Le(userId.value + 1001)
         
-class SharedataHeader(CompositeType):
+class ShareDataHeader(CompositeType):
     '''
     PDU share data header
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     '''
-    def __init__(self, size, pduType, pduType2):
+    def __init__(self, size, pduType2, userId = UInt16Le()):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(size, pduType)
+        self.shareControlHeader = ShareControlHeader(size, PDUType.PDUTYPE_DATAPDU, userId)
         self.shareId = UInt32Le()
         self.pad1 = UInt8()
         self.streamId = UInt8()
@@ -428,7 +567,7 @@ class OrderCapability(CompositeType):
         self.pad2octetsA = UInt16Le(0)
         self.maximumOrderLevel = UInt16Le(1)
         self.numberFonts = UInt16Le(0)
-        self.orderFlags = UInt16Le(OrderFlag.NEGOTIATEORDERSUPPORT)
+        self.orderFlags = OrderFlag.NEGOTIATEORDERSUPPORT
         self.orderSupport = ArrayType(UInt8, readLen = UInt8(32))
         self.textFlags = UInt16Le()
         self.orderSupportExFlags = UInt16Le()
@@ -444,9 +583,9 @@ class DemandActivePDU(CompositeType):
     @see: http://msdn.microsoft.com/en-us/library/cc240485.aspx
     main use for capabilities exchange server -> client
     '''
-    def __init__(self):
+    def __init__(self, userId = UInt16Le()):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_DEMANDACTIVEPDU)
+        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_DEMANDACTIVEPDU, userId)
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.lengthCombinedCapabilities = UInt16Le(lambda:(sizeof(self.numberCapabilities) + sizeof(self.pad2Octets) + sizeof(self.capabilitySets)))
@@ -461,9 +600,9 @@ class ConfirmActivePDU(CompositeType):
     @see: http://msdn.microsoft.com/en-us/library/cc240488.aspx
     main use for capabilities confirm client -> sever
     '''
-    def __init__(self):
+    def __init__(self, userId = UInt16Le()):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_CONFIRMACTIVEPDU)
+        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_CONFIRMACTIVEPDU, userId)
         self.shareId = UInt32Le()
         self.originatorId = UInt16Le(0x03EA, constant = True)
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
@@ -477,11 +616,68 @@ class SynchronizePDU(CompositeType):
     '''
     @see http://msdn.microsoft.com/en-us/library/cc240490.aspx
     '''
-    def __init__(self):
+    def __init__(self, userId = UInt16Le()):
         CompositeType.__init__(self)
-        self.shareControlHeader = SharedataHeader(lambda:sizeof(self), PDUType.PDUTYPE_DATAPDU, PDUType2.PDUTYPE2_SYNCHRONIZE)
+        self.shareControlHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_SYNCHRONIZE, userId)
         self.messageType = UInt16Le(1, constant = True)
         self.targetUser = UInt16Le()
+        
+class ControlPDU(CompositeType):
+    '''
+    @see http://msdn.microsoft.com/en-us/library/cc240492.aspx
+    '''
+    def __init__(self, userId = UInt16Le()):
+        CompositeType.__init__(self)
+        self.shareControlHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_CONTROL, userId)
+        self.action = UInt16Le()
+        self.grantId = UInt16Le()
+        self.controlId = UInt32Le()
+
+class PersistentListEntry(CompositeType):   
+    '''
+    use to record persistent key in PersistentListPDU
+    @see: http://msdn.microsoft.com/en-us/library/cc240496.aspx
+    '''  
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.key1 = UInt32Le()
+        self.key2 = UInt32Le()
+    
+    
+class PersistentListPDU(CompositeType):
+    '''
+    Use to indicate that bitmap cache was already
+    fill with some keys from previous session
+    @see: http://msdn.microsoft.com/en-us/library/cc240495.aspx
+    '''
+    def __init__(self, userId = UInt16Le()):
+        CompositeType.__init__(self)
+        self.shareControlHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST, userId)
+        self.numEntriesCache0 = UInt16Le()
+        self.numEntriesCache1 = UInt16Le()
+        self.numEntriesCache2 = UInt16Le()
+        self.numEntriesCache3 = UInt16Le()
+        self.numEntriesCache4 = UInt16Le()
+        self.totalEntriesCache0 = UInt16Le()
+        self.totalEntriesCache1 = UInt16Le()
+        self.totalEntriesCache2 = UInt16Le()
+        self.totalEntriesCache3 = UInt16Le()
+        self.totalEntriesCache4 = UInt16Le()
+        self.bitMask = UInt8()
+        self.pad2 = UInt8()
+        self.pad3 = UInt16Le()
+        self.entries = ArrayType(PersistentListEntry, readLen = lambda:(self.numEntriesCache0 + self.numEntriesCache1 + self.numEntriesCache2 + self.numEntriesCache3 + self.numEntriesCache4))
+        
+class ErrorInfoPDU(CompositeType):
+    '''
+    Use to inform error in PDU layer
+    @see: http://msdn.microsoft.com/en-us/library/cc240544.aspx
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.shareControlHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU)
+        #use to collect error info pdu
+        self.errorInfo = UInt32Le()
 
 class PDU(LayerAutomata):
     '''
@@ -503,12 +699,17 @@ class PDU(LayerAutomata):
         self._clientCapabilities = {}
         #share id between client and server
         self._shareId = UInt32Le()
+        #mcs user id use for pdu packet
+        self._userId = UInt16Be()
         
     def connect(self):
         '''
         connect event in client mode send logon info
         nextstate recv licence pdu
         '''
+        #get user id from mcs layer
+        self._userId = self._transport._userId
+        
         self.sendInfoPkt()
         #next state is licence info PDU
         self.setNextState(self.recvLicenceInfo)
@@ -543,6 +744,21 @@ class PDU(LayerAutomata):
         
         self.setNextState(self.recvDemandActivePDU)
         
+    def readPDU(self, data, pdu):
+        '''
+        Try to read expected pdu or try to parse error info pdu
+        '''
+        try:
+            data.readType(pdu)
+        except Exception:
+            #maybe an error message
+            errorInfoPDU = ErrorInfoPDU()
+            try:
+                data.readType(errorInfoPDU)
+                raise ErrorReportedFromPeer("Receive PDU Error info : %s"%hex(errorInfoPDU.errorInfo.value))
+            except:
+                raise InvalidExpectedDataException("Invalid PDU")
+        
     def recvDemandActivePDU(self, data):
         '''
         receive demand active PDU which contains 
@@ -552,12 +768,31 @@ class PDU(LayerAutomata):
         @param data: Stream
         '''
         demandActivePDU = DemandActivePDU()
-        data.readType(demandActivePDU)
+        self.readPDU(data, demandActivePDU)
+        
+        self._shareId = demandActivePDU.shareId
         
         for cap in demandActivePDU.capabilitySets._array:
             self._serverCapabilities[cap.capabilitySetType] = cap
         
         self.sendConfirmActivePDU()
+        
+    def recvServerFinalizeSynchronizePDU(self, data):
+        '''
+        receive from server 
+        '''
+        synchronizePDU = SynchronizePDU()
+        self.readPDU(data, synchronizePDU)
+            
+        
+        if synchronizePDU.targetUser != self._channelId:
+            raise InvalidExpectedDataException("receive synchronize for an invalide user")
+        
+        controlCooparatePDU = ControlPDU(self._userId)
+        self.readPDU(data, controlCooparatePDU)
+        
+        if controlCooparatePDU.action != Action.CTRLACTION_COOPERATE:
+            raise InvalidExpectedDataException("receive an invalid cooparate control PDU")
         
     def sendConfirmActivePDU(self):
         '''
@@ -571,7 +806,7 @@ class PDU(LayerAutomata):
         capability.generalCapability.extraFlags = GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED
         self._clientCapabilities[capability.capabilitySetType] = capability
         
-        #init general capability
+        #init bitmap capability
         capability = Capability()
         capability.capabilitySetType = CapsType.CAPSTYPE_BITMAP
         capability.bitmapCapability.preferredBitsPerPixel = self._transport._clientSettings.core.colorDepth
@@ -579,18 +814,43 @@ class PDU(LayerAutomata):
         capability.bitmapCapability.desktopHeight = self._transport._clientSettings.core.desktopHeight
         self._clientCapabilities[capability.capabilitySetType] = capability
         
+        #init order capability
+        capability = Capability()
+        capability.capabilitySetType = CapsType.CAPSTYPE_ORDER
+        capability.orderCapability.orderFlags |= OrderFlag.ZEROBOUNDSDELTASSUPPORT
+        capability.orderCapability.orderSupport = [UInt8(0) for i in range (0, 32)]
+        self._clientCapabilities[capability.capabilitySetType] = capability
+        
         #make active PDU packet
-        confirmActivePDU = ConfirmActivePDU()
+        confirmActivePDU = ConfirmActivePDU(self._userId)
+        confirmActivePDU.shareId = self._shareId
         confirmActivePDU.capabilitySets._array = self._clientCapabilities.values()
         self._transport.send(self._channelId, confirmActivePDU)
         #send synchronize
-        self.sendSynchronizePDU()
+        self.sendClientFinalizeSynchronizePDU()
         
-    def sendSynchronizePDU(self):
+    def sendClientFinalizeSynchronizePDU(self):
         '''
         send a synchronize PDU from client to server
         '''
-        synchronizePDU = SynchronizePDU()
+        synchronizePDU = SynchronizePDU(self._userId)
         synchronizePDU.targetUser = self._channelId
         self._transport.send(self._channelId, synchronizePDU)
+        
+        #ask for cooperation
+        controlCooperatePDU = ControlPDU(self._userId)
+        controlCooperatePDU.action = Action.CTRLACTION_COOPERATE
+        self._transport.send(self._channelId, controlCooperatePDU)
+        
+        #request control
+        controlRequestPDU = ControlPDU(self._userId)
+        controlRequestPDU.action = Action.CTRLACTION_REQUEST_CONTROL
+        self._transport.send(self._channelId, controlRequestPDU)
+        
+        #send persistent list pdu
+        persistentListPDU = PersistentListPDU(self._userId)
+        persistentListPDU.bitMask = PersistentKeyListFlag.PERSIST_FIRST_PDU | PersistentKeyListFlag.PERSIST_LAST_PDU
+        self._transport.send(self._channelId, persistentListPDU)
+        
+        self.setNextState(self.recvServerFinalizeSynchronizePDU)
     

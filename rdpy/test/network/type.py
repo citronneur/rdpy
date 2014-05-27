@@ -265,3 +265,70 @@ class TypeCase(unittest.TestCase):
         s1.readType(t)
         self.assertEqual(t.value, 1, "invalid stream read conditional value")
         
+    def test_strem_read_rollback_constant_constraint(self):
+        '''
+        test if constant constraint fail, the reading stream is correctly rollback
+        '''
+        class TestComposite(rdpy.network.type.CompositeType):
+            def __init__(self):
+                rdpy.network.type.CompositeType.__init__(self)
+                self.padding = rdpy.network.type.UInt32Le(0)
+                self.constraint = rdpy.network.type.UInt32Le(1, constant = True)
+                
+        s = rdpy.network.type.Stream("\x00\x00\x00\x00\x00\x00\x00\x00")
+        try:
+            s.readType(TestComposite())
+        except Exception:
+            self.assertEqual(s.readLen(), 0, "invalid stream roll back operation")
+            return
+        self.assertTrue(False, "Constant constraint fail")
+        
+    def test_strem_read_rollback_constant_constraint_recurcive(self):
+        '''
+        test if constant constraint fail even in recurcive composite type, 
+        the reading stream is correctly rollback
+        '''
+        class TestSubComposite(rdpy.network.type.CompositeType):
+            def __init__(self):
+                rdpy.network.type.CompositeType.__init__(self)
+                self.padding = rdpy.network.type.UInt32Le(0)
+                self.constraint = rdpy.network.type.UInt32Le(1, constant = True)
+                
+        class TestComposite(rdpy.network.type.CompositeType):
+            def __init__(self):
+                rdpy.network.type.CompositeType.__init__(self)
+                self.padding = rdpy.network.type.UInt32Le(0)
+                self.recurcive = TestSubComposite()
+                
+        s = rdpy.network.type.Stream("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+        try:
+            s.readType(TestComposite())
+        except Exception:
+            self.assertEqual(s.readLen(), 0, "invalid stream roll back operation")
+            return
+        self.assertTrue(False, "Constant constraint fail")
+    
+    def test_strem_read_rollback_not_enough_data(self):
+        '''
+        test if constant constraint fail even in recurcive composite type, 
+        the reading stream is correctly rollback
+        '''
+        class TestSubComposite(rdpy.network.type.CompositeType):
+            def __init__(self):
+                rdpy.network.type.CompositeType.__init__(self)
+                self.padding = rdpy.network.type.UInt32Le(0)
+                self.constraint = rdpy.network.type.UInt32Le(1)
+                
+        class TestComposite(rdpy.network.type.CompositeType):
+            def __init__(self):
+                rdpy.network.type.CompositeType.__init__(self)
+                self.padding = rdpy.network.type.UInt32Le(0)
+                self.recurcive = TestSubComposite()
+                
+        s = rdpy.network.type.Stream("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+        try:
+            s.readType(TestComposite())
+        except Exception:
+            self.assertEqual(s.readLen(), 0, "invalid stream roll back operation")
+            return
+        self.assertTrue(False, "Constant constraint fail")
