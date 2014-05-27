@@ -425,7 +425,7 @@ class ErrorInfo(object):
     ERRINFO_ENCPKGMISMATCH = 0x00001194
     ERRINFO_DECRYPTFAILED2 = 0x00001195
     
-    MESSAGES = {
+    _MESSAGES_ = {
      ERRINFO_RPC_INITIATED_DISCONNECT : "The disconnection was initiated by an administrative tool on the server in another session.",
      ERRINFO_RPC_INITIATED_LOGOFF : "The disconnection was due to a forced logoff initiated by an administrative tool on the server in another session.",
      ERRINFO_IDLE_TIMEOUT : "The idle session limit timer on the server has elapsed.",
