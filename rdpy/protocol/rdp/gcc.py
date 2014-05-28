@@ -157,6 +157,49 @@ class ChannelOptions(object):
     CHANNEL_OPTION_SHOW_PROTOCOL = 0x00200000
     REMOTE_CONTROL_PERSISTENT = 0x00100000
 
+@ConstAttributes
+@TypeAttributes(UInt32Le) 
+class KeyboardType(object):
+    '''
+    Keyboard type
+    IBM_101_102_KEYS is the most common keyboard type
+    '''
+    IBM_PC_XT_83_KEY = 0x00000001
+    OLIVETTI = 0x00000002
+    IBM_PC_AT_84_KEY = 0x00000003
+    IBM_101_102_KEYS = 0x00000004
+    NOKIA_1050 = 0x00000005
+    NOKIA_9140 = 0x00000006
+    JAPANESE = 0x00000007
+
+@ConstAttributes
+@TypeAttributes(UInt32Le)  
+class KeyboardLayout(object):
+    '''
+    Keyboard layout definition
+    @see: http://technet.microsoft.com/en-us/library/cc766503%28WS.10%29.aspx
+    '''
+    ARABIC = 0x00000401
+    BULGARIAN = 0x00000402
+    CHINESE_US_KEYBOARD = 0x00000404
+    CZECH = 0x00000405
+    DANISH = 0x00000406
+    GERMAN = 0x00000407
+    GREEK = 0x00000408
+    US = 0x00000409
+    SPANISH = 0x0000040a
+    FINNISH = 0x0000040b
+    FRENCH = 0x0000040c
+    HEBREW = 0x0000040d
+    HUNGARIAN = 0x0000040e
+    ICELANDIC = 0x0000040f
+    ITALIAN = 0x00000410
+    JAPANESE = 0x00000411
+    KOREAN = 0x00000412
+    DUTCH = 0x00000413
+    NORWEGIAN = 0x00000414
+    
+
 class ClientCoreSettings(CompositeType):
     '''
     class that represent core setting of client
@@ -169,10 +212,10 @@ class ClientCoreSettings(CompositeType):
         self.desktopHeight = UInt16Le(1024)
         self.colorDepth = ColorDepth.RNS_UD_COLOR_8BPP
         self.sasSequence = Sequence.RNS_UD_SAS_DEL
-        self.kbdLayout = UInt32Le(0x409)
+        self.kbdLayout = KeyboardLayout.FRENCH
         self.clientBuild = UInt32Le(3790)
         self.clientName = UniString("rdpy" + "\x00"*11, readLen = UInt8(30))
-        self.keyboardType = UInt32Le(4)
+        self.keyboardType = KeyboardType.IBM_101_102_KEYS
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
         self.imeFileName = String("\x00"*64, readLen = UInt8(64))

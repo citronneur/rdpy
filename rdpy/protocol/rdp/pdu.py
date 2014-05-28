@@ -3,7 +3,7 @@
 '''
 
 from rdpy.network.layer import LayerAutomata
-from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt16Be, UInt32Le, sizeof, ArrayType
+from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt16Be, UInt32Le, sizeof, ArrayType, FactoryType
 from rdpy.network.const import ConstAttributes, TypeAttributes
 from rdpy.network.error import InvalidExpectedDataException, ErrorReportedFromPeer
 
@@ -483,8 +483,70 @@ class ErrorInfo(object):
      ERRINFO_BADSUPRESSOUTPUTPDU : "There is not enough data to process Suppress Output PDU Data (section 2.2.11.3.1) OR The allowDisplayUpdates field of the Suppress Output PDU Data (section 2.2.11.3.1) is invalid.",
      ERRINFO_CONFIRMACTIVEPDUTOOSHORT : "There is not enough data to read the shareControlHeader, shareId, originatorId, lengthSourceDescriptor, and lengthCombinedCapabilities fields of the Confirm Active PDU Data (section 2.2.1.13.2.1) OR There is not enough data to read the sourceDescriptor, numberCapabilities, pad2Octets, and capabilitySets fields of the Confirm Active PDU Data (section 2.2.1.13.2.1).",
      ERRINFO_CAPABILITYSETTOOSMALL : "There is not enough data to read the capabilitySetType and the lengthCapability fields in a received Capability Set (section 2.2.1.13.1.1.1).",
-     ERRINFO_CAPABILITYSETTOOLARGE : "A Capability Set (section 2.2.1.13.1.1.1) has been received with a lengthCapability field that contains a value greater than the total length of the data received."
+     ERRINFO_CAPABILITYSETTOOLARGE : "A Capability Set (section 2.2.1.13.1.1.1) has been received with a lengthCapability field that contains a value greater than the total length of the data received.",
+     ERRINFO_NOCURSORCACHE : "Both the colorPointerCacheSize and pointerCacheSize fields in the Pointer Capability Set (section 2.2.7.1.5) are set to zero OR The pointerCacheSize field in the Pointer Capability Set (section 2.2.7.1.5) is not present, and the colorPointerCacheSize field is set to zero.",
+     ERRINFO_BADCAPABILITIES : "The capabilities received from the client in the Confirm Active PDU (section 2.2.1.13.2) were not accepted by the server.",
+     ERRINFO_VIRTUALCHANNELDECOMPRESSIONERR : "An error occurred while using the bulk compressor (section 3.1.8 and [MS-RDPEGDI] section 3.1.8) to decompress a Virtual Channel PDU (section 2.2.6.1).",
+     ERRINFO_INVALIDVCCOMPRESSIONTYPE : "An invalid bulk compression package was specified in the flags field of the Channel PDU Header (section 2.2.6.1.1).",
+     ERRINFO_INVALIDCHANNELID : "An invalid MCS channel ID was specified in the mcsPdu field of the Virtual Channel PDU (section 2.2.6.1).",
+     ERRINFO_VCHANNELSTOOMANY : "The client requested more than the maximum allowed 31 static virtual channels in the Client Network Data (section 2.2.1.3.4).",
+     ERRINFO_REMOTEAPPSNOTENABLED : "The INFO_RAIL flag (0x00008000) MUST be set in the flags field of the Info Packet (section 2.2.1.11.1.1) as the session on the remote server can only host remote applications.",
+     ERRINFO_CACHECAPNOTSET : "The client sent a Persistent Key List PDU (section 2.2.1.17) without including the prerequisite Revision 2 Bitmap Cache Capability Set (section 2.2.7.1.4.2) in the Confirm Active PDU (section 2.2.1.13.2).",
+     ERRINFO_BITMAPCACHEERRORPDUBADLENGTH2 : "The NumInfoBlocks field in the Bitmap Cache Error PDU Data is inconsistent with the amount of data in the Info field ([MS-RDPEGDI] section 2.2.2.3.1.1).",
+     ERRINFO_OFFSCRCACHEERRORPDUBADLENGTH : "There is not enough data to process an Offscreen Bitmap Cache Error PDU ([MS-RDPEGDI] section 2.2.2.3.2).",
+     ERRINFO_GDIPLUSPDUBADLENGTH : "There is not enough data to process a GDI+ Error PDU ([MS-RDPEGDI] section 2.2.2.3.4).",
+     ERRINFO_SECURITYDATATOOSHORT2 : "There is not enough data to read a Basic Security Header (section 2.2.8.1.1.2.1).",
+     ERRINFO_SECURITYDATATOOSHORT3 : "There is not enough data to read a Non-FIPS Security Header (section 2.2.8.1.1.2.2) or FIPS Security Header (section 2.2.8.1.1.2.3).",
+     ERRINFO_SECURITYDATATOOSHORT4 : "There is not enough data to read the basicSecurityHeader and length fields of the Security Exchange PDU Data (section 2.2.1.10.1).",
+     ERRINFO_SECURITYDATATOOSHORT5 : "There is not enough data to read the CodePage, flags, cbDomain, cbUserName, cbPassword, cbAlternateShell, cbWorkingDir, Domain, UserName, Password, AlternateShell, and WorkingDir fields in the Info Packet (section 2.2.1.11.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT6 : "There is not enough data to read the CodePage, flags, cbDomain, cbUserName, cbPassword, cbAlternateShell, and cbWorkingDir fields in the Info Packet (section 2.2.1.11.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT7 : "There is not enough data to read the clientAddressFamily and cbClientAddress fields in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT8 : "There is not enough data to read the clientAddress field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT9 : "There is not enough data to read the cbClientDir field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT10 : "There is not enough data to read the clientDir field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT11 : "There is not enough data to read the clientTimeZone field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT12 : "There is not enough data to read the clientSessionId field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT13 : "There is not enough data to read the performanceFlags field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT14 : "There is not enough data to read the cbAutoReconnectCookie field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT15 : "There is not enough data to read the autoReconnectCookie field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT16 : "The cbAutoReconnectCookie field in the Extended Info Packet (section 2.2.1.11.1.1.1) contains a value which is larger than the maximum allowed length of 128 bytes.",
+     ERRINFO_SECURITYDATATOOSHORT17 : "There is not enough data to read the clientAddressFamily and cbClientAddress fields in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT18 : "There is not enough data to read the clientAddress field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT19 : "There is not enough data to read the cbClientDir field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT20 : "There is not enough data to read the clientDir field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT21 : "There is not enough data to read the clientTimeZone field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT22 : "There is not enough data to read the clientSessionId field in the Extended Info Packet (section 2.2.1.11.1.1.1).",
+     ERRINFO_SECURITYDATATOOSHORT23 : "There is not enough data to read the Client Info PDU Data (section 2.2.1.11.1).",
+     ERRINFO_BADMONITORDATA : "The monitorCount field in the Client Monitor Data (section 2.2.1.3.6) is invalid.",
+     ERRINFO_VCDECOMPRESSEDREASSEMBLEFAILED : "The server-side decompression buffer is invalid, or the size of the decompressed VC data exceeds the chunking size specified in the Virtual Channel Capability Set (section 2.2.7.1.10).",
+     ERRINFO_VCDATATOOLONG : "The size of a received Virtual Channel PDU (section 2.2.6.1) exceeds the chunking size specified in the Virtual Channel Capability Set (section 2.2.7.1.10).",
     }
+
+@ConstAttributes
+@TypeAttributes(UInt16Le) 
+class InputFlags(object):
+    '''
+    Input flag use in input capability
+    @see:  http://msdn.microsoft.com/en-us/library/cc240563.aspx
+    '''
+    INPUT_FLAG_SCANCODES = 0x0001
+    INPUT_FLAG_MOUSEX = 0x0004
+    INPUT_FLAG_FASTPATH_INPUT = 0x0008
+    INPUT_FLAG_UNICODE = 0x0010
+    INPUT_FLAG_FASTPATH_INPUT2 = 0x0020
+    INPUT_FLAG_UNUSED1 = 0x0040
+    INPUT_FLAG_UNUSED2 = 0x0080
+    TS_INPUT_FLAG_MOUSE_HWHEEL = 0x0100
+
+@ConstAttributes
+@TypeAttributes(UInt32Le)
+class BrushSupport(object):
+    '''
+    Brush support of client
+    '''
+    BRUSH_DEFAULT = 0x00000000
+    BRUSH_COLOR_8x8 = 0x00000001
+    BRUSH_COLOR_FULL = 0x00000002
     
 class RDPInfo(CompositeType):
     '''
@@ -565,22 +627,40 @@ class Capability(CompositeType):
     A capability
     @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
     '''
-    def __init__(self):
+    def __init__(self, capabilitySetType = UInt16Le(), capability = None):
         CompositeType.__init__(self)
-        self.capabilitySetType = UInt16Le()
+        self.capabilitySetType = capabilitySetType
         self.lengthCapability = UInt16Le(lambda:sizeof(self))
-        self.generalCapability = GeneralCapability(conditional = lambda:self.capabilitySetType == CapsType.CAPSTYPE_GENERAL)
-        self.bitmapCapability = BitmapCapability(conditional = lambda:self.capabilitySetType == CapsType.CAPSTYPE_BITMAP)
-        self.orderCapability = OrderCapability(conditional = lambda:self.capabilitySetType == CapsType.CAPSTYPE_ORDER)
-        self.capabilityData = String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4), conditional = lambda:not self.capabilitySetType in [CapsType.CAPSTYPE_GENERAL, CapsType.CAPSTYPE_BITMAP, CapsType.CAPSTYPE_ORDER])
+        
+        def CapabilityFactory():
+            '''
+            closure for capability factory
+            '''
+            if self.capabilitySetType == CapsType.CAPSTYPE_GENERAL:
+                return GeneralCapability()
+            elif self.capabilitySetType == CapsType.CAPSTYPE_BITMAP:
+                return BitmapCapability()
+            elif self.capabilitySetType == CapsType.CAPSTYPE_ORDER:
+                return OrderCapability()
+            elif self.capabilitySetType == CapsType.CAPSTYPE_BITMAPCACHE:
+                return BitmapCacheCapability()
+            else:
+                return String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
+        
+        if capability is None:
+            capability = CapabilityFactory
+            
+        self.capability = FactoryType(capability)
         
 class GeneralCapability(CompositeType):
     '''
     General capability (protocol version and compression mode)
+    client -> server
+    server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
     '''
-    def __init__(self, conditional = lambda:True):
-        CompositeType.__init__(self, conditional = conditional)
+    def __init__(self):
+        CompositeType.__init__(self)
         self.osMajorType = UInt16Le()
         self.osMinorType = UInt16Le()
         self.protocolVersion = UInt16Le(0x0200, constant = True)
@@ -596,10 +676,12 @@ class GeneralCapability(CompositeType):
 class BitmapCapability(CompositeType):
     '''
     Bitmap format Capability
+    client -> server
+    server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240554.aspx
     '''
-    def __init__(self, conditional = lambda:True):
-        CompositeType.__init__(self, conditional = conditional)
+    def __init__(self):
+        CompositeType.__init__(self)
         self.preferredBitsPerPixel = UInt16Le()
         self.receive1BitPerPixel = UInt16Le(0x0001)
         self.receive4BitsPerPixel = UInt16Le(0x0001)
@@ -617,10 +699,12 @@ class BitmapCapability(CompositeType):
 class OrderCapability(CompositeType):
     '''
     Order capability list all drawing order supported
+    client -> server
+    server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
     '''
-    def __init__(self, conditional = lambda:True):
-        CompositeType.__init__(self, conditional = conditional)
+    def __init__(self):
+        CompositeType.__init__(self)
         self.terminalDescriptor = String("\x00" * 16, readLen = UInt8(16))
         self.pad4octetsA = UInt32Le(0)
         self.desktopSaveXGranularity = UInt16Le(1)
@@ -638,6 +722,73 @@ class OrderCapability(CompositeType):
         self.pad2octetsD = UInt16Le()
         self.textANSICodePage = UInt16Le(0)
         self.pad2octetsE = UInt16Le()
+        
+class BitmapCacheCapability(CompositeType):
+    '''
+    Order use to cache bitmap very usefull
+    client -> server
+    @see: http://msdn.microsoft.com/en-us/library/cc240559.aspx
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.pad1 = UInt32Le()
+        self.pad2 = UInt32Le()
+        self.pad3 = UInt32Le()
+        self.pad4 = UInt32Le()
+        self.pad5 = UInt32Le()
+        self.pad6 = UInt32Le()
+        self.cache0Entries = UInt16Le()
+        self.cache0MaximumCellSize = UInt16Le()
+        self.cache1Entries = UInt16Le()
+        self.cache1MaximumCellSize = UInt16Le()
+        self.cache2Entries = UInt16Le()
+        self.cache2MaximumCellSize = UInt16Le()
+        
+class PointerCapability(CompositeType):
+    '''
+    Use to indicate pointer handle of client
+    Paint by server or per client
+    client -> server
+    server -> client
+    @see: http://msdn.microsoft.com/en-us/library/cc240562.aspx
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.colorPointerFlag = Boolean.TRUE
+        self.colorPointerCacheSize = UInt16Le()
+        self.pointerCacheSize = UInt16Le()
+        
+class InputCapability(CompositeType):
+    '''
+    Use to indicate input capabilities
+    client -> server
+    server -> client
+    @see: http://msdn.microsoft.com/en-us/library/cc240563.aspx
+    '''
+    def __init__(self, client = False):
+        CompositeType.__init__(self)
+        self.inputFlags = UInt16Le()
+        self.pad2octetsA = UInt16Le()
+        #same value as gcc.ClientCoreSettings.kbdLayout
+        self.keyboardLayout = UInt32Le(conditional = lambda:client)
+        #same value as gcc.ClientCoreSettings.keyboardType
+        self.keyboardType = UInt32Le(conditional = lambda:client)
+        #same value as gcc.ClientCoreSettings.keyboardSubType
+        self.keyboardSubType = UInt32Le(conditional = lambda:client)
+        #same value as gcc.ClientCoreSettings.keyboardFnKeys
+        self.keyboardFunctionKey = UInt32Le(conditional = lambda:client)
+        #same value as gcc.ClientCoreSettings.imeFileName
+        self.imeFileName = String("\x00" * 64, conditional = lambda:client)
+        
+class BrushCapability(CompositeType):
+    '''
+    Use to indicate brush capability
+    client -> server
+    @see: http://msdn.microsoft.com/en-us/library/cc240564.aspx
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.brushSupportLevel = BrushSupport.BRUSH_DEFAULT
         
 class DemandActivePDU(CompositeType):
     '''
@@ -755,9 +906,23 @@ class PDU(LayerAutomata):
         #logon info send from client to server
         self._info = RDPInfo(extendedInfoConditional = lambda:self._transport._serverSettings.core.rdpVersion == gcc.Version.RDP_VERSION_5_PLUS)
         #server capabilities
-        self._serverCapabilities = {}
+        self._serverCapabilities = {
+            CapsType.CAPSTYPE_GENERAL : Capability(CapsType.CAPSTYPE_GENERAL, GeneralCapability()),
+            CapsType.CAPSTYPE_BITMAP : Capability(CapsType.CAPSTYPE_BITMAP, BitmapCapability()),
+            CapsType.CAPSTYPE_ORDER : Capability(CapsType.CAPSTYPE_ORDER, OrderCapability()),
+            CapsType.CAPSTYPE_POINTER : Capability(CapsType.CAPSTYPE_POINTER, PointerCapability()),
+            CapsType.CAPSTYPE_INPUT : Capability(CapsType.CAPSTYPE_INPUT, InputCapability())
+        }
         #client capabilities
-        self._clientCapabilities = {}
+        self._clientCapabilities = {
+            CapsType.CAPSTYPE_GENERAL : Capability(CapsType.CAPSTYPE_GENERAL, GeneralCapability()),
+            CapsType.CAPSTYPE_BITMAP : Capability(CapsType.CAPSTYPE_BITMAP, BitmapCapability()),
+            CapsType.CAPSTYPE_ORDER : Capability(CapsType.CAPSTYPE_ORDER, OrderCapability()),
+            CapsType.CAPSTYPE_BITMAPCACHE : Capability(CapsType.CAPSTYPE_BITMAPCACHE, BitmapCacheCapability()),
+            CapsType.CAPSTYPE_POINTER : Capability(CapsType.CAPSTYPE_POINTER, PointerCapability()),
+            CapsType.CAPSTYPE_INPUT : Capability(CapsType.CAPSTYPE_INPUT, InputCapability(client = True)),
+            CapsType.CAPSTYPE_BRUSH : Capability(CapsType.CAPSTYPE_BRUSH, BrushCapability())
+        }
         #share id between client and server
         self._shareId = UInt32Le()
         #mcs user id use for pdu packet
@@ -766,7 +931,7 @@ class PDU(LayerAutomata):
     def connect(self):
         '''
         connect event in client mode send logon info
-        nextstate recv licence pdu
+        next state recv licence pdu
         '''
         #get user id from mcs layer
         self._userId = self._transport._userId
@@ -817,8 +982,8 @@ class PDU(LayerAutomata):
             try:
                 data.readType(errorInfoPDU)
                 message = "Unknown code %s"%hex(errorInfoPDU.errorInfo.value)
-                if ErrorInfo.MESSAGES.has_key(errorInfoPDU.errorInfo):
-                    message = ErrorInfo.MESSAGES[errorInfoPDU.errorInfo]
+                if ErrorInfo._MESSAGES_.has_key(errorInfoPDU.errorInfo):
+                    message = ErrorInfo._MESSAGES_[errorInfoPDU.errorInfo]
                 raise ErrorReportedFromPeer("Receive PDU Error info : %s"%message)
             except:
                 raise InvalidExpectedDataException("Invalid PDU")
@@ -863,27 +1028,29 @@ class PDU(LayerAutomata):
         send all client capabilities
         '''
         #init general capability
-        capability = Capability()
-        capability.capabilitySetType = CapsType.CAPSTYPE_GENERAL
-        capability.generalCapability.osMajorType = MajorType.OSMAJORTYPE_UNIX
-        capability.generalCapability.osMinorType = MinorType.OSMINORTYPE_UNSPECIFIED
-        capability.generalCapability.extraFlags = GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED
-        self._clientCapabilities[capability.capabilitySetType] = capability
+        generalCapability = self._clientCapabilities[CapsType.CAPSTYPE_GENERAL].capability._value
+        generalCapability.osMajorType = MajorType.OSMAJORTYPE_UNIX
+        generalCapability.osMinorType = MinorType.OSMINORTYPE_UNSPECIFIED
+        generalCapability.extraFlags = GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED
         
         #init bitmap capability
-        capability = Capability()
-        capability.capabilitySetType = CapsType.CAPSTYPE_BITMAP
-        capability.bitmapCapability.preferredBitsPerPixel = self._transport._clientSettings.core.colorDepth
-        capability.bitmapCapability.desktopWidth = self._transport._clientSettings.core.desktopWidth
-        capability.bitmapCapability.desktopHeight = self._transport._clientSettings.core.desktopHeight
-        self._clientCapabilities[capability.capabilitySetType] = capability
+        bitmapCapability = self._clientCapabilities[CapsType.CAPSTYPE_BITMAP].capability._value
+        bitmapCapability.preferredBitsPerPixel = self._transport._clientSettings.core.colorDepth
+        bitmapCapability.desktopWidth = self._transport._clientSettings.core.desktopWidth
+        bitmapCapability.desktopHeight = self._transport._clientSettings.core.desktopHeight
         
         #init order capability
-        capability = Capability()
-        capability.capabilitySetType = CapsType.CAPSTYPE_ORDER
-        capability.orderCapability.orderFlags |= OrderFlag.ZEROBOUNDSDELTASSUPPORT
-        capability.orderCapability.orderSupport = [UInt8(0) for i in range (0, 32)]
-        self._clientCapabilities[capability.capabilitySetType] = capability
+        orderCapability = self._clientCapabilities[CapsType.CAPSTYPE_ORDER].capability._value
+        orderCapability.orderFlags |= OrderFlag.ZEROBOUNDSDELTASSUPPORT
+        orderCapability.orderSupport = [UInt8(0) for i in range (0, 32)]
+        
+        #init input capability
+        inputCapability = self._clientCapabilities[CapsType.CAPSTYPE_INPUT].capability._value
+        inputCapability.keyboardLayout = self._transport._clientSettings.core.kbdLayout
+        inputCapability.keyboardType = self._transport._clientSettings.core.keyboardType
+        inputCapability.keyboardSubType = self._transport._clientSettings.core.keyboardSubType
+        inputCapability.keyboardFunctionKey = self._transport._clientSettings.core.keyboardFnKeys
+        inputCapability.imeFileName = self._transport._clientSettings.core.imeFileName
         
         #make active PDU packet
         confirmActivePDU = ConfirmActivePDU(self._userId)

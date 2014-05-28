@@ -819,6 +819,47 @@ class ArrayType(Type):
         sizeof inner array
         '''
         return sizeof(self._array)
+    
+class FactoryType(Type):
+    '''
+    Call factory function on read or write
+    '''
+    def __init__(self, factory, conditional = lambda:True, optional = False, constant = False):
+        '''
+        ctor of factory type
+        @param factory: factory
+        @param conditional : function call before read or write type
+        @param optional: boolean check before read if there is still data in stream
+        @param constant: if true check any changes of object during reading
+        '''
+        Type.__init__(self, conditional, optional, constant)
+        self._factory = factory
+        if not callable(factory):
+            self._factory = lambda:factory
+
+        self._value = self._factory()
+    
+    def __read__(self, s):
+        '''
+        call factory and read it
+        @param s: Stream
+        '''
+        self._value = self._factory()
+        s.readType(self._value)
+    
+    def __write__(self, s):
+        '''
+        call factory and write elements
+        @param s: Stream
+        '''
+        self._value = self._factory()
+        s.writeType(self._value)
+    
+    def __sizeof__(self):
+        '''
+        sizeof of object returned by factory
+        '''
+        return sizeof(self._factory())
 
 def CheckValueOnRead(cls):
     '''
