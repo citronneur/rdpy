@@ -363,14 +363,16 @@ class CompositeType(Type):
     @param conditional : function call before read or write type
     @param optional: boolean check before read if there is still data in stream
     @param constant: if true check any changement of object during reading
+    @param readLen: max length to read
     '''
-    def __init__(self, conditional = lambda:True, optional = False, constant = False):
+    def __init__(self, conditional = lambda:True, optional = False, constant = False, readLen = None):
         '''
         init list of simple value
         '''
         Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
         #list of ordoned type
         self._typeName = []
+        self._readLen = readLen
     
     def __setattr__(self, name, value):
         '''
@@ -384,10 +386,17 @@ class CompositeType(Type):
             
     def __read__(self, s):
         '''
-        call read on each ordered subtype 
+        call read on each ordered subtype
         @param s: Stream
         '''
+        readLen = 0
         for name in self._typeName:
+            if not self._readLen is None and readLen + sizeof(self.__dict__[name]) > self._readLen.value:
+                #optional maybe be unread
+                if self.__dict__[name]._optional:
+                    continue
+                else:
+                    raise InvalidSize("Impossible to read type %s::%s : read size is too small"%(self.__class__, name))
             try:
                 s.readType(self.__dict__[name])
             except Exception as e:
@@ -398,6 +407,14 @@ class CompositeType(Type):
                         break
                     s.pos -= sizeof(self.__dict__[tmpName])
                 raise e
+            
+            readLen += sizeof(self.__dict__[name])
+        
+        selfSize = sizeof(self)
+        if readLen != selfSize:
+            #read end padding
+            s.read(selfSize - readLen)
+            print "Warning: type %s still have data after read, use as padding"%self.__class__
             
     def __write__(self, s):
         '''
@@ -802,6 +819,7 @@ class ArrayType(Type):
         create new object and read it
         @param s: Stream
         '''
+        self._array = []
         for i in range(0, self._readLen.value):
             element = self._typeFactory()
             s.readType(element)

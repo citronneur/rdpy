@@ -13,5 +13,5 @@ from rdpy.network.layer import LayerMode
 
 if __name__ == '__main__':
     from twisted.internet import reactor
-    reactor.connectTCP("192.168.135.198", 3389, rdp.Factory(LayerMode.CLIENT))
+    reactor.connectTCP("192.168.135.59", 3389, rdp.Factory(LayerMode.CLIENT))
     reactor.run()
