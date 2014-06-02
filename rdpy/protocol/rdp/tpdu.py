@@ -160,10 +160,10 @@ class TPDU(LayerAutomata):
         message = TPDUConnectMessage()
         data.readType(message)
         if message.code != MessageType.X224_TPDU_CONNECTION_REQUEST:
-            raise InvalidExpectedDataException("expect connection packet")
+            raise InvalidExpectedDataException("Expect connection packet")
         
         if not message.protocolNeg._is_readed or message.protocolNeg.failureCode._is_readed:
-            raise InvalidExpectedDataException("too older rdp client")
+            raise InvalidExpectedDataException("Too older rdp client")
         
         self._requestedProtocol = message.protocolNeg.selectedProtocol
         

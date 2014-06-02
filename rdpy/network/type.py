@@ -409,12 +409,6 @@ class CompositeType(Type):
                 raise e
             
             readLen += sizeof(self.__dict__[name])
-        
-        selfSize = sizeof(self)
-        if readLen != selfSize:
-            #read end padding
-            s.read(selfSize - readLen)
-            print "Warning: type %s still have data after read, use as padding"%self.__class__
             
     def __write__(self, s):
         '''
