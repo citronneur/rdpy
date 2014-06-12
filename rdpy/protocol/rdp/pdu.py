@@ -712,6 +712,16 @@ class Capability(CompositeType):
                 return VirtualChannelCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
             elif self.capabilitySetType == CapsType.CAPSTYPE_SOUND:
                 return SoundCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
+            elif self.capabilitySetType == CapsType.CAPSTYPE_CONTROL:
+                return ControlCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
+            elif self.capabilitySetType == CapsType.CAPSTYPE_ACTIVATION:
+                return WindowActivationCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
+            elif self.capabilitySetType == CapsType.CAPSTYPE_FONT:
+                return FontCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
+            elif self.capabilitySetType == CapsType.CAPSTYPE_COLORCACHE:
+                return ColorCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
+            elif self.capabilitySetType == CapsType.CAPSTYPE_SHARE:
+                return ShareCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
             else:
                 return String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
         
@@ -822,7 +832,7 @@ class PointerCapability(CompositeType):
     '''
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.colorPointerFlag = UInt16Le(1)
+        self.colorPointerFlag = UInt16Le()
         self.colorPointerCacheSize = UInt16Le()
         self.pointerCacheSize = UInt16Le()
         
@@ -906,7 +916,65 @@ class SoundCapability(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.soundFlags = SoundFlag.NONE
         self.pad2octetsA = UInt16Le()
+        
+class ControlCapability(CompositeType):
+    '''
+    client -> server but server ignore contents! Thanks krosoft for brandwidth
+    @see: http://msdn.microsoft.com/en-us/library/cc240568.aspx
+    '''
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.controlFlags = UInt16Le()
+        self.remoteDetachFlag = UInt16Le()
+        self.controlInterest = UInt16Le(0x0002)
+        self.detachInterest = UInt16Le(0x0002)
     
+class WindowActivationCapability(CompositeType):
+    '''
+    client -> server but server ignore contents! Thanks krosoft for brandwidth
+    @see: http://msdn.microsoft.com/en-us/library/cc240569.aspx
+    '''
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.helpKeyFlag = UInt16Le()
+        self.helpKeyIndexFlag = UInt16Le()
+        self.helpExtendedKeyFlag = UInt16Le()
+        self.windowManagerKeyFlag = UInt16Le()
+        
+class FontCapability(CompositeType):
+    '''
+    use to indicate font support
+    client -> server
+    server -> client
+    @see: http://msdn.microsoft.com/en-us/library/cc240571.aspx
+    '''
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.fontSupportFlags = UInt16Le(0x0001)
+        self.pad2octets = UInt16Le()
+        
+class ColorCacheCapability(CompositeType):
+    '''
+    client -> server
+    server -> client
+    @see: http://msdn.microsoft.com/en-us/library/cc241564.aspx
+    '''
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.colorTableCacheSize = UInt16Le(0x0006)
+        self.pad2octets = UInt16Le()
+        
+class ShareCapability(CompositeType):
+    '''
+    use to advertise channel id of server
+    client -> server
+    server -> client
+    @see: http://msdn.microsoft.com/en-us/library/cc240570.aspx
+    '''
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.nodeId = UInt16Le()
+        self.pad2octets = UInt16Le()
         
 class DemandActivePDU(CompositeType):
     '''
@@ -1030,7 +1098,10 @@ class PDU(LayerAutomata):
             CapsType.CAPSTYPE_ORDER : Capability(CapsType.CAPSTYPE_ORDER, OrderCapability()),
             CapsType.CAPSTYPE_POINTER : Capability(CapsType.CAPSTYPE_POINTER, PointerCapability()),
             CapsType.CAPSTYPE_INPUT : Capability(CapsType.CAPSTYPE_INPUT, InputCapability()),
-            CapsType.CAPSTYPE_VIRTUALCHANNEL : Capability(CapsType.CAPSTYPE_VIRTUALCHANNEL, VirtualChannelCapability())
+            CapsType.CAPSTYPE_VIRTUALCHANNEL : Capability(CapsType.CAPSTYPE_VIRTUALCHANNEL, VirtualChannelCapability()),
+            CapsType.CAPSTYPE_FONT : Capability(CapsType.CAPSTYPE_FONT, FontCapability()),
+            CapsType.CAPSTYPE_COLORCACHE : Capability(CapsType.CAPSTYPE_COLORCACHE, ColorCacheCapability()),
+            CapsType.CAPSTYPE_SHARE : Capability(CapsType.CAPSTYPE_SHARE, ShareCapability())
         }
         #client capabilities
         self._clientCapabilities = {
@@ -1044,7 +1115,12 @@ class PDU(LayerAutomata):
             CapsType.CAPSTYPE_GLYPHCACHE : Capability(CapsType.CAPSTYPE_GLYPHCACHE, GlyphCapability()),
             CapsType.CAPSTYPE_OFFSCREENCACHE : Capability(CapsType.CAPSTYPE_OFFSCREENCACHE, OffscreenBitmapCacheCapability()),
             CapsType.CAPSTYPE_VIRTUALCHANNEL : Capability(CapsType.CAPSTYPE_VIRTUALCHANNEL, VirtualChannelCapability()),
-            CapsType.CAPSTYPE_SOUND : Capability(CapsType.CAPSTYPE_SOUND, SoundCapability())
+            CapsType.CAPSTYPE_SOUND : Capability(CapsType.CAPSTYPE_SOUND, SoundCapability()),
+            CapsType.CAPSTYPE_CONTROL : Capability(CapsType.CAPSTYPE_CONTROL, ControlCapability()),
+            CapsType.CAPSTYPE_ACTIVATION : Capability(CapsType.CAPSTYPE_ACTIVATION, WindowActivationCapability()),
+            CapsType.CAPSTYPE_FONT : Capability(CapsType.CAPSTYPE_FONT, FontCapability()),
+            CapsType.CAPSTYPE_COLORCACHE : Capability(CapsType.CAPSTYPE_COLORCACHE, ColorCacheCapability()),
+            CapsType.CAPSTYPE_SHARE : Capability(CapsType.CAPSTYPE_SHARE, ShareCapability())
         }
         #share id between client and server
         self._shareId = UInt32Le()
@@ -1136,14 +1212,14 @@ class PDU(LayerAutomata):
         synchronizePDU = SynchronizePDU()
         self.readPDU(data, synchronizePDU)
             
-        if synchronizePDU.targetUser != self._channelId:
-            raise InvalidExpectedDataException("receive synchronize for an invalide user")
+        #if synchronizePDU.targetUser != self._channelId:
+        #    raise InvalidExpectedDataException("receive synchronize for an invalid user")
         
         controlCooparatePDU = ControlPDU(self._userId)
         self.readPDU(data, controlCooparatePDU)
         
         if controlCooparatePDU.action != Action.CTRLACTION_COOPERATE:
-            raise InvalidExpectedDataException("receive an invalid cooparate control PDU")
+            raise InvalidExpectedDataException("receive an invalid cooperate control PDU")
         
     def sendConfirmActivePDU(self):
         '''
@@ -1153,11 +1229,10 @@ class PDU(LayerAutomata):
         generalCapability = self._clientCapabilities[CapsType.CAPSTYPE_GENERAL].capability._value
         generalCapability.osMajorType = MajorType.OSMAJORTYPE_UNIX
         generalCapability.osMinorType = MinorType.OSMINORTYPE_UNSPECIFIED
-        generalCapability.extraFlags = GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED
         
         #init bitmap capability
         bitmapCapability = self._clientCapabilities[CapsType.CAPSTYPE_BITMAP].capability._value
-        bitmapCapability.preferredBitsPerPixel = self._transport._clientSettings.core.colorDepth
+        bitmapCapability.preferredBitsPerPixel = self._transport._clientSettings.core.highColorDepth
         bitmapCapability.desktopWidth = self._transport._clientSettings.core.desktopWidth
         bitmapCapability.desktopHeight = self._transport._clientSettings.core.desktopHeight
          
@@ -1167,6 +1242,7 @@ class PDU(LayerAutomata):
         
         #init input capability
         inputCapability = self._clientCapabilities[CapsType.CAPSTYPE_INPUT].capability._value
+        inputCapability.inputFlags = InputFlags.INPUT_FLAG_SCANCODES | InputFlags.INPUT_FLAG_MOUSEX | InputFlags.INPUT_FLAG_UNICODE
         inputCapability.keyboardLayout = self._transport._clientSettings.core.kbdLayout
         inputCapability.keyboardType = self._transport._clientSettings.core.keyboardType
         inputCapability.keyboardSubType = self._transport._clientSettings.core.keyboardSubType
