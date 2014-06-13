@@ -591,6 +591,7 @@ class SoundFlag(object):
     '''
     NONE = 0x0000
     SOUND_BEEPS_FLAG = 0x0001
+    
 class RDPInfo(CompositeType):
     '''
     client informations
@@ -654,13 +655,13 @@ class ShareDataHeader(CompositeType):
     PDU share data header
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     '''
-    def __init__(self, size, pduType2, userId = UInt16Le()):
+    def __init__(self, size, pduType2, userId = UInt16Le(), shareId = UInt32Le()):
         CompositeType.__init__(self)
         self.shareControlHeader = ShareControlHeader(size, PDUType.PDUTYPE_DATAPDU, userId)
-        self.shareId = UInt32Le()
+        self.shareId = shareId
         self.pad1 = UInt8()
-        self.streamId = UInt8()
-        self.uncompressedLength = UInt16Le()
+        self.streamId = StreamId.STREAM_LOW
+        self.uncompressedLength = UInt16Le(lambda:(UInt16Le(size).value - 14))
         self.pduType2 = UInt8(pduType2.value, constant = True)
         self.compressedType = UInt8()
         self.compressedLength = UInt16Le()
@@ -1014,9 +1015,9 @@ class SynchronizePDU(CompositeType):
     '''
     @see http://msdn.microsoft.com/en-us/library/cc240490.aspx
     '''
-    def __init__(self, userId = UInt16Le()):
+    def __init__(self, userId = UInt16Le(), shareId = UInt32Le()):
         CompositeType.__init__(self)
-        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_SYNCHRONIZE, userId)
+        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_SYNCHRONIZE, userId, shareId)
         self.messageType = UInt16Le(1, constant = True)
         self.targetUser = UInt16Le()
         
@@ -1024,9 +1025,9 @@ class ControlPDU(CompositeType):
     '''
     @see http://msdn.microsoft.com/en-us/library/cc240492.aspx
     '''
-    def __init__(self, userId = UInt16Le()):
+    def __init__(self, userId = UInt16Le(), shareId = UInt32Le()):
         CompositeType.__init__(self)
-        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_CONTROL, userId)
+        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_CONTROL, userId, shareId)
         self.action = UInt16Le()
         self.grantId = UInt16Le()
         self.controlId = UInt32Le()
@@ -1048,9 +1049,9 @@ class PersistentListPDU(CompositeType):
     fill with some keys from previous session
     @see: http://msdn.microsoft.com/en-us/library/cc240495.aspx
     '''
-    def __init__(self, userId = UInt16Le()):
+    def __init__(self, userId = UInt16Le(), shareId = UInt32Le()):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST, userId)
+        self.shareControlHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST, userId, shareId)
         self.numEntriesCache0 = UInt16Le()
         self.numEntriesCache1 = UInt16Le()
         self.numEntriesCache2 = UInt16Le()
@@ -1116,11 +1117,11 @@ class PDU(LayerAutomata):
             CapsType.CAPSTYPE_OFFSCREENCACHE : Capability(CapsType.CAPSTYPE_OFFSCREENCACHE, OffscreenBitmapCacheCapability()),
             CapsType.CAPSTYPE_VIRTUALCHANNEL : Capability(CapsType.CAPSTYPE_VIRTUALCHANNEL, VirtualChannelCapability()),
             CapsType.CAPSTYPE_SOUND : Capability(CapsType.CAPSTYPE_SOUND, SoundCapability()),
-            CapsType.CAPSTYPE_CONTROL : Capability(CapsType.CAPSTYPE_CONTROL, ControlCapability()),
-            CapsType.CAPSTYPE_ACTIVATION : Capability(CapsType.CAPSTYPE_ACTIVATION, WindowActivationCapability()),
-            CapsType.CAPSTYPE_FONT : Capability(CapsType.CAPSTYPE_FONT, FontCapability()),
-            CapsType.CAPSTYPE_COLORCACHE : Capability(CapsType.CAPSTYPE_COLORCACHE, ColorCacheCapability()),
-            CapsType.CAPSTYPE_SHARE : Capability(CapsType.CAPSTYPE_SHARE, ShareCapability())
+            #CapsType.CAPSTYPE_CONTROL : Capability(CapsType.CAPSTYPE_CONTROL, ControlCapability()),
+            #CapsType.CAPSTYPE_ACTIVATION : Capability(CapsType.CAPSTYPE_ACTIVATION, WindowActivationCapability()),
+            #CapsType.CAPSTYPE_FONT : Capability(CapsType.CAPSTYPE_FONT, FontCapability()),
+            #CapsType.CAPSTYPE_COLORCACHE : Capability(CapsType.CAPSTYPE_COLORCACHE, ColorCacheCapability()),
+            #CapsType.CAPSTYPE_SHARE : Capability(CapsType.CAPSTYPE_SHARE, ShareCapability())
         }
         #share id between client and server
         self._shareId = UInt32Le()
@@ -1261,22 +1262,22 @@ class PDU(LayerAutomata):
         '''
         send a synchronize PDU from client to server
         '''
-        synchronizePDU = SynchronizePDU(self._userId)
-        synchronizePDU.targetUser = self._channelId
+        synchronizePDU = SynchronizePDU(self._userId, self._shareId)
+        synchronizePDU.targetUser = UInt16Le(self._channelId.value)
         self._transport.send(self._channelId, synchronizePDU)
         
         #ask for cooperation
-        controlCooperatePDU = ControlPDU(self._userId)
+        controlCooperatePDU = ControlPDU(self._userId, self._shareId)
         controlCooperatePDU.action = Action.CTRLACTION_COOPERATE
         self._transport.send(self._channelId, controlCooperatePDU)
         
         #request control
-        controlRequestPDU = ControlPDU(self._userId)
+        controlRequestPDU = ControlPDU(self._userId, self._shareId)
         controlRequestPDU.action = Action.CTRLACTION_REQUEST_CONTROL
         self._transport.send(self._channelId, controlRequestPDU)
         
         #send persistent list pdu
-        persistentListPDU = PersistentListPDU(self._userId)
+        persistentListPDU = PersistentListPDU(self._userId, self._shareId)
         persistentListPDU.bitMask = PersistentKeyListFlag.PERSIST_FIRST_PDU | PersistentKeyListFlag.PERSIST_LAST_PDU
         self._transport.send(self._channelId, persistentListPDU)
         
