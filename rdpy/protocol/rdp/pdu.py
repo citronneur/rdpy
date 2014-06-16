@@ -790,7 +790,7 @@ class OrderCapability(CompositeType):
         self.desktopSaveYGranularity = UInt16Le(20)
         self.pad2octetsA = UInt16Le(0)
         self.maximumOrderLevel = UInt16Le(1)
-        self.numberFonts = UInt16Le(0)
+        self.numberFonts = UInt16Le()
         self.orderFlags = OrderFlag.NEGOTIATEORDERSUPPORT
         self.orderSupport = ArrayType(UInt8, init = [UInt8(0) for i in range (0, 32)],  readLen = UInt8(32))
         self.textFlags = UInt16Le()
@@ -1006,7 +1006,7 @@ class ConfirmActivePDU(CompositeType):
         self.originatorId = UInt16Le(0x03EA, constant = True)
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.lengthCombinedCapabilities = UInt16Le(lambda:(sizeof(self.numberCapabilities) + sizeof(self.pad2Octets) + sizeof(self.capabilitySets)))
-        self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
+        self.sourceDescriptor = String("RDPY", readLen = self.lengthSourceDescriptor)
         self.numberCapabilities = UInt16Le(lambda:len(self.capabilitySets._array))
         self.pad2Octets = UInt16Le()
         self.capabilitySets = ArrayType(Capability, readLen = self.numberCapabilities)
@@ -1025,10 +1025,10 @@ class ControlPDU(CompositeType):
     '''
     @see http://msdn.microsoft.com/en-us/library/cc240492.aspx
     '''
-    def __init__(self, userId = UInt16Le(), shareId = UInt32Le()):
+    def __init__(self, action, userId = UInt16Le(), shareId = UInt32Le()):
         CompositeType.__init__(self)
         self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_CONTROL, userId, shareId)
-        self.action = UInt16Le()
+        self.action = UInt16Le(action.value, constant = True)
         self.grantId = UInt16Le()
         self.controlId = UInt32Le()
 
@@ -1206,21 +1206,31 @@ class PDU(LayerAutomata):
         
         self.sendConfirmActivePDU()
         
-    def recvServerFinalizeSynchronizePDU(self, data):
+    def recvServerSynchronizePDU(self, data):
         '''
         receive from server 
+        @param data: Stream from transport layer
         '''
         synchronizePDU = SynchronizePDU()
         self.readPDU(data, synchronizePDU)
-            
-        #if synchronizePDU.targetUser != self._channelId:
-        #    raise InvalidExpectedDataException("receive synchronize for an invalid user")
+        self.setNextState(self.recvServerControlCooperatePDU)
         
-        controlCooparatePDU = ControlPDU(self._userId)
+    def recvServerControlCooperatePDU(self, data):
+        '''
+        receive control cooperate pdu from server
+        @param data: Stream from transport layer
+        '''
+        controlCooparatePDU = ControlPDU(Action.CTRLACTION_COOPERATE)
         self.readPDU(data, controlCooparatePDU)
+        self.setNextState(self.recvServerControlGrantedPDU)
         
-        if controlCooparatePDU.action != Action.CTRLACTION_COOPERATE:
-            raise InvalidExpectedDataException("receive an invalid cooperate control PDU")
+    def recvServerControlGrantedPDU(self, data):
+        '''
+        receive last control pdu the granted control pdu
+        @param data: Stream from transport layer
+        '''
+        controlCooparatePDU = ControlPDU(Action.CTRLACTION_GRANTED_CONTROL)
+        self.readPDU(data, controlCooparatePDU)
         
     def sendConfirmActivePDU(self):
         '''
@@ -1228,8 +1238,9 @@ class PDU(LayerAutomata):
         '''
         #init general capability
         generalCapability = self._clientCapabilities[CapsType.CAPSTYPE_GENERAL].capability._value
-        generalCapability.osMajorType = MajorType.OSMAJORTYPE_UNIX
-        generalCapability.osMinorType = MinorType.OSMINORTYPE_UNSPECIFIED
+        generalCapability.osMajorType = MajorType.OSMAJORTYPE_WINDOWS
+        generalCapability.osMinorType = MinorType.OSMINORTYPE_WINDOWS_NT
+        generalCapability.extraFlags = GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR
         
         #init bitmap capability
         bitmapCapability = self._clientCapabilities[CapsType.CAPSTYPE_BITMAP].capability._value
@@ -1247,7 +1258,7 @@ class PDU(LayerAutomata):
         inputCapability.keyboardLayout = self._transport._clientSettings.core.kbdLayout
         inputCapability.keyboardType = self._transport._clientSettings.core.keyboardType
         inputCapability.keyboardSubType = self._transport._clientSettings.core.keyboardSubType
-        inputCapability.keyboardFunctionKey = self._transport._clientSettings.core.keyboardFnKeys
+        inputCapability.keyboardrFunctionKey = self._transport._clientSettings.core.keyboardFnKeys
         inputCapability.imeFileName = self._transport._clientSettings.core.imeFileName
         
         #make active PDU packet
@@ -1267,13 +1278,11 @@ class PDU(LayerAutomata):
         self._transport.send(self._channelId, synchronizePDU)
         
         #ask for cooperation
-        controlCooperatePDU = ControlPDU(self._userId, self._shareId)
-        controlCooperatePDU.action = Action.CTRLACTION_COOPERATE
+        controlCooperatePDU = ControlPDU(Action.CTRLACTION_COOPERATE, self._userId, self._shareId)
         self._transport.send(self._channelId, controlCooperatePDU)
         
         #request control
-        controlRequestPDU = ControlPDU(self._userId, self._shareId)
-        controlRequestPDU.action = Action.CTRLACTION_REQUEST_CONTROL
+        controlRequestPDU = ControlPDU(Action.CTRLACTION_REQUEST_CONTROL, self._userId, self._shareId)
         self._transport.send(self._channelId, controlRequestPDU)
         
         #send persistent list pdu
@@ -1281,5 +1290,5 @@ class PDU(LayerAutomata):
         persistentListPDU.bitMask = PersistentKeyListFlag.PERSIST_FIRST_PDU | PersistentKeyListFlag.PERSIST_LAST_PDU
         self._transport.send(self._channelId, persistentListPDU)
         
-        self.setNextState(self.recvServerFinalizeSynchronizePDU)
+        self.setNextState(self.recvServerSynchronizePDU)
     
