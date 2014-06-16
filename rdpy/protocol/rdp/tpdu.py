@@ -56,12 +56,12 @@ class TPDUConnectMessage(CompositeType):
     '''
     header of TPDU connection messages 
     '''
-    def __init__(self):
+    def __init__(self, code):
         CompositeType.__init__(self)
         self.len = UInt8(lambda:sizeof(self) - 1)
-        self.code = UInt8()
+        self.code = UInt8(code.value, constant = True)
         self.padding = (UInt16Be(), UInt16Be(), UInt8())
-        #read if there is enought data
+        #read if there is enough data
         self.protocolNeg = Negotiation(optional = True)
         
 class TPDUDataHeader(CompositeType):
@@ -71,7 +71,7 @@ class TPDUDataHeader(CompositeType):
     def __init__(self):
         CompositeType.__init__(self)
         self.header = UInt8(2, constant = True)
-        self.messageType = MessageType.X224_TPDU_DATA
+        self.messageType = UInt8(MessageType.X224_TPDU_DATA.value, constant = True)
         self.separator = UInt8(0x80, constant = True)
     
 class Negotiation(CompositeType):
@@ -127,10 +127,9 @@ class TPDU(LayerAutomata):
         @see: response -> http://msdn.microsoft.com/en-us/library/cc240506.aspx
         @see: failure ->http://msdn.microsoft.com/en-us/library/cc240507.aspx
         '''
-        message = TPDUConnectMessage()
+        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_CONFIRM)
         data.readType(message)
-        if message.code != MessageType.X224_TPDU_CONNECTION_CONFIRM:
-            raise InvalidExpectedDataException("invalid TPDU header code X224_TPDU_CONNECTION_CONFIRM != %d"%message.code)
+        
         #check presence of negotiation response
         if not message.protocolNeg._is_readed:
             raise InvalidExpectedDataException("server must support negotiation protocol to use SSL")
@@ -157,10 +156,8 @@ class TPDU(LayerAutomata):
         @param data: stream
         @see : http://msdn.microsoft.com/en-us/library/cc240470.aspx
         '''
-        message = TPDUConnectMessage()
+        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_REQUEST)
         data.readType(message)
-        if message.code != MessageType.X224_TPDU_CONNECTION_REQUEST:
-            raise InvalidExpectedDataException("Expect connection packet")
         
         if not message.protocolNeg._is_readed or message.protocolNeg.failureCode._is_readed:
             raise InvalidExpectedDataException("Too older rdp client")
@@ -187,12 +184,7 @@ class TPDU(LayerAutomata):
         '''
         header = TPDUDataHeader()
         data.readType(header)
-        if header.messageType == MessageType.X224_TPDU_DATA:
-            LayerAutomata.recv(self, data)
-        elif header.messageType == MessageType.X224_TPDU_ERROR:
-            raise Exception("receive error from tpdu layer")
-        else:
-            raise InvalidExpectedDataException("unknow tpdu code %s"%header.messageType)
+        LayerAutomata.recv(self, data)
         
     def sendConnectionRequest(self):
         '''
@@ -200,8 +192,7 @@ class TPDU(LayerAutomata):
         next state is recvConnectionConfirm
         @see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
         '''
-        message = TPDUConnectMessage()
-        message.code = MessageType.X224_TPDU_CONNECTION_REQUEST
+        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_REQUEST)
         message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_REQ
         message.protocolNeg.selectedProtocol = self._requestedProtocol
         self._transport.send(message)
@@ -213,12 +204,14 @@ class TPDU(LayerAutomata):
         next state is recvData
         @see : http://msdn.microsoft.com/en-us/library/cc240501.aspx
         '''
-        message = TPDUConnectMessage()
-        message.code = MessageType.X224_TPDU_CONNECTION_CONFIRM
+        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_CONFIRM)
         message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_REQ
         message.protocolNeg.selectedProtocol = self._selectedProtocol
         self._transport.send(message)
-        self.setNextState(self.recvConnectionConfirm)
+        #_transport is TPKT and transport is TCP layer of twisted
+        self._transport.transport.startTLS(ServerTLSContext())
+        #connection is done send to presentation
+        LayerAutomata.connect(self)
         
     def send(self, message):
         '''
@@ -242,3 +235,11 @@ class ClientTLSContext(ssl.ClientContextFactory):
         context.set_options(SSL.OP_DONT_INSERT_EMPTY_FRAGMENTS)
         context.set_options(SSL.OP_TLS_BLOCK_PADDING_BUG)
         return context
+    
+class ServerTLSContext(ssl.DefaultOpenSSLContextFactory):
+    '''
+    server context factory for open ssl
+    '''
+    def __init__(self, *args, **kw):
+        kw['sslmethod'] = SSL.TLSv1_METHOD
+        ssl.DefaultOpenSSLContextFactory.__init__(self, *args, **kw)
