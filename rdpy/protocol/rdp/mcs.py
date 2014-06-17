@@ -3,7 +3,7 @@
 '''
 
 from rdpy.network.const import ConstAttributes, TypeAttributes
-from rdpy.network.layer import LayerAutomata
+from rdpy.network.layer import LayerAutomata, Layer
 from rdpy.network.type import sizeof, Stream, UInt8, UInt16Be
 from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
@@ -46,6 +46,53 @@ class MCS(LayerAutomata):
     the main layer of RDP protocol
     is why he can do everything and more!
     '''
+    
+    class MCSProxySender(Layer):
+        '''
+        Proxy use to set as trnsport layer for upper channel
+        use to abstract channel id for presentation layer
+        '''
+        def __init__(self, mcs, channelId):
+            '''
+            ctor
+            @param mcs: mcs layer use as proxy
+            @param channelId: channel id for presentation layer 
+            '''
+            self._mcs = mcs
+            self._channelId = channelId
+            
+        def send(self, data):
+            '''
+            a send proxy function, use channel id and specific 
+            send function of mcs layer
+            '''
+            self._mcs.send(self._channelId, data)
+            
+        def getUserId(self):
+            '''
+            @return: mcs user id
+            '''
+            return self._mcs._userId
+        
+        def getChannelId(self):
+            '''
+            @return: return channel id of proxy
+            '''
+            return self._channelId
+            
+        def getGCCClientSettings(self):
+            '''
+            @return: mcs layer gcc client settings
+            '''
+            return self._mcs._clientSettings
+        
+        def getGCCServerSettings(self):
+            '''
+            @return: mcs layer gcc server settings
+            '''
+            return self._mcs._serverSettings
+        
+    
     def __init__(self, presentation):
         '''
         ctor call base class ctor
@@ -85,8 +132,8 @@ class MCS(LayerAutomata):
         #try connection on all requested channel
         for (channelId, layer) in self._channelIds.iteritems():
             if self._channelIdsRequest[channelId] and not layer is None:
-                layer._transport = self
-                layer._channelId = channelId
+                #use proxy foreach channell
+                layer._transport = MCS.MCSProxySender(self, channelId)
                 layer.connect()
                 
     def sendConnectInitial(self):
@@ -164,7 +211,7 @@ class MCS(LayerAutomata):
             
         #build channel list because we have user id
         #add default channel + channels accepted by gcc connection sequence
-        self._channelIds[self._userId + Channel.MCS_USERCHANNEL_BASE] = None#TODO + [(x, False) for x in self._serverSettings.channelsId])
+        self._channelIds[self._userId + Channel.MCS_USERCHANNEL_BASE] = None
         
         self.connectNextChannel()
     

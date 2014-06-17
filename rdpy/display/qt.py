@@ -65,7 +65,7 @@ class RfbAdaptor(RfbObserver, QAdaptor):
         else:
             print "Receive image in bad format"
             return
-            
+ 
         image = QtGui.QImage(data, width, height, imageFormat)
         self._qRemoteDesktop.notifyImage(x, y, image)
         

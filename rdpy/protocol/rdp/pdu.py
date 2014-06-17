@@ -1,14 +1,16 @@
 '''
-@author: sylvain
+@author: citronneur
 '''
 
 from rdpy.network.layer import LayerAutomata
-from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt16Be, UInt32Le, sizeof, ArrayType, FactoryType
+from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType,\
+    FactoryType
 from rdpy.network.const import ConstAttributes, TypeAttributes
 from rdpy.network.error import InvalidExpectedDataException, ErrorReportedFromPeer
 
 import gcc
 import lic
+import caps
 
 @ConstAttributes
 @TypeAttributes(UInt16Le)
@@ -134,7 +136,9 @@ class CompressionOrder(object):
     PACKET_COMPRESSED = 0x20
     PACKET_AT_FRONT = 0x40
     PACKET_FLUSHED = 0x80
-
+    
+@ConstAttributes
+@TypeAttributes(UInt8)
 class CompressionType(object):
     '''
     pdu compression type
@@ -145,148 +149,6 @@ class CompressionType(object):
     PACKET_COMPR_TYPE_RDP6 = 0x2
     PACKET_COMPR_TYPE_RDP61 = 0x3
     
-@ConstAttributes
-@TypeAttributes(UInt16Le)     
-class CapsType(object):
-    '''
-    different type of capabilities
-    @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
-    '''
-    CAPSTYPE_GENERAL = 0x0001
-    CAPSTYPE_BITMAP = 0x0002
-    CAPSTYPE_ORDER = 0x0003
-    CAPSTYPE_BITMAPCACHE = 0x0004
-    CAPSTYPE_CONTROL = 0x0005
-    CAPSTYPE_ACTIVATION = 0x0007
-    CAPSTYPE_POINTER = 0x0008
-    CAPSTYPE_SHARE = 0x0009
-    CAPSTYPE_COLORCACHE = 0x000A
-    CAPSTYPE_SOUND = 0x000C
-    CAPSTYPE_INPUT = 0x000D
-    CAPSTYPE_FONT = 0x000E
-    CAPSTYPE_BRUSH = 0x000F
-    CAPSTYPE_GLYPHCACHE = 0x0010
-    CAPSTYPE_OFFSCREENCACHE = 0x0011
-    CAPSTYPE_BITMAPCACHE_HOSTSUPPORT = 0x0012
-    CAPSTYPE_BITMAPCACHE_REV2 = 0x0013
-    CAPSTYPE_VIRTUALCHANNEL = 0x0014
-    CAPSTYPE_DRAWNINEGRIDCACHE = 0x0015
-    CAPSTYPE_DRAWGDIPLUS = 0x0016
-    CAPSTYPE_RAIL = 0x0017
-    CAPSTYPE_WINDOW = 0x0018
-    CAPSETTYPE_COMPDESK = 0x0019
-    CAPSETTYPE_MULTIFRAGMENTUPDATE = 0x001A
-    CAPSETTYPE_LARGE_POINTER = 0x001B
-    CAPSETTYPE_SURFACE_COMMANDS = 0x001C
-    CAPSETTYPE_BITMAP_CODECS = 0x001D
-    CAPSSETTYPE_FRAME_ACKNOWLEDGE = 0x001E
-    
-@ConstAttributes
-@TypeAttributes(UInt16Le)  
-class MajorType(object):
-    '''
-    use in general capability
-    @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
-    '''
-    OSMAJORTYPE_UNSPECIFIED = 0x0000
-    OSMAJORTYPE_WINDOWS = 0x0001
-    OSMAJORTYPE_OS2 = 0x0002
-    OSMAJORTYPE_MACINTOSH = 0x0003
-    OSMAJORTYPE_UNIX = 0x0004
-    OSMAJORTYPE_IOS = 0x0005
-    OSMAJORTYPE_OSX = 0x0006
-    OSMAJORTYPE_ANDROID = 0x0007
-    
-@ConstAttributes
-@TypeAttributes(UInt16Le)    
-class MinorType(object):
-    '''
-    use in general capability
-    @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
-    '''
-    OSMINORTYPE_UNSPECIFIED = 0x0000
-    OSMINORTYPE_WINDOWS_31X = 0x0001
-    OSMINORTYPE_WINDOWS_95 = 0x0002
-    OSMINORTYPE_WINDOWS_NT = 0x0003
-    OSMINORTYPE_OS2_V21 = 0x0004
-    OSMINORTYPE_POWER_PC = 0x0005
-    OSMINORTYPE_MACINTOSH = 0x0006
-    OSMINORTYPE_NATIVE_XSERVER = 0x0007
-    OSMINORTYPE_PSEUDO_XSERVER = 0x0008
-    OSMINORTYPE_WINDOWS_RT = 0x0009
-
-@ConstAttributes
-@TypeAttributes(UInt16Le)  
-class GeneralExtraFlag(object):
-    '''
-    use in general capability
-    @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
-    '''
-    FASTPATH_OUTPUT_SUPPORTED = 0x0001
-    NO_BITMAP_COMPRESSION_HDR = 0x0400
-    LONG_CREDENTIALS_SUPPORTED = 0x0004
-    AUTORECONNECT_SUPPORTED = 0x0008
-    ENC_SALTED_CHECKSUM = 0x0010
-    
-@ConstAttributes
-@TypeAttributes(UInt8)   
-class Boolean(object):
-    FALSE = 0x00
-    TRUE = 0x01
-
-@ConstAttributes
-@TypeAttributes(UInt16Le)  
-class OrderFlag(object):
-    '''
-    use in order capability
-    @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
-    '''
-    NEGOTIATEORDERSUPPORT = 0x0002
-    ZEROBOUNDSDELTASSUPPORT = 0x0008
-    COLORINDEXSUPPORT = 0x0020
-    SOLIDPATTERNBRUSHONLY = 0x0040
-    ORDERFLAGS_EXTRA_FLAGS = 0x0080
-    
-@ConstAttributes
-@TypeAttributes(UInt8) 
-class Order(object):
-    '''
-    drawing orders supported
-    use in order capability
-    @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
-    '''
-    TS_NEG_DSTBLT_INDEX = 0x00
-    TS_NEG_PATBLT_INDEX = 0x01
-    TS_NEG_SCRBLT_INDEX = 0x02
-    TS_NEG_MEMBLT_INDEX = 0x03
-    TS_NEG_MEM3BLT_INDEX = 0x04
-    TS_NEG_DRAWNINEGRID_INDEX = 0x07
-    TS_NEG_LINETO_INDEX = 0x08
-    TS_NEG_MULTI_DRAWNINEGRID_INDEX = 0x09
-    TS_NEG_SAVEBITMAP_INDEX = 0x0B
-    TS_NEG_MULTIDSTBLT_INDEX = 0x0F
-    TS_NEG_MULTIPATBLT_INDEX = 0x10
-    TS_NEG_MULTISCRBLT_INDEX = 0x11
-    TS_NEG_MULTIOPAQUERECT_INDEX = 0x12
-    TS_NEG_FAST_INDEX_INDEX = 0x13
-    TS_NEG_POLYGON_SC_INDEX = 0x14
-    TS_NEG_POLYGON_CB_INDEX = 0x15
-    TS_NEG_POLYLINE_INDEX = 0x16
-    TS_NEG_FAST_GLYPH_INDEX = 0x18
-    TS_NEG_ELLIPSE_SC_INDEX = 0x19
-    TS_NEG_ELLIPSE_CB_INDEX = 0x1A
-    TS_NEG_INDEX_INDEX = 0x1B
-    
-@ConstAttributes
-@TypeAttributes(UInt16Le)     
-class OrderEx(object):
-    '''
-    extension orders
-    use in order capability
-    '''
-    ORDERFLAGS_EX_CACHE_BITMAP_REV3_SUPPORT = 0x0002
-    ORDERFLAGS_EX_ALTSEC_FRAME_MARKER_SUPPORT = 0x0004
-
 @ConstAttributes
 @TypeAttributes(UInt16Le)
 class Action(object):
@@ -308,6 +170,28 @@ class PersistentKeyListFlag(object):
     '''
     PERSIST_FIRST_PDU = 0x01
     PERSIST_LAST_PDU = 0x02
+
+@ConstAttributes
+@TypeAttributes(UInt16Le)
+class BitmapFlag(object):
+    '''
+    use in bitmap update PDU
+    @see: http://msdn.microsoft.com/en-us/library/cc240612.aspx
+    '''
+    BITMAP_COMPRESSION = 0x0001
+    NO_BITMAP_COMPRESSION_HDR = 0x0400
+
+@ConstAttributes
+@TypeAttributes(UInt16Le)  
+class UpdateType(object):
+    '''
+    use in update pdu to determine which type of update
+    @see: http://msdn.microsoft.com/en-us/library/cc240608.aspx
+    '''
+    UPDATETYPE_ORDERS = 0x0000
+    UPDATETYPE_BITMAP = 0x0001
+    UPDATETYPE_PALETTE = 0x0002
+    UPDATETYPE_SYNCHRONIZE = 0x0003
 
 @ConstAttributes
 @TypeAttributes(UInt32Le)
@@ -521,76 +405,6 @@ class ErrorInfo(object):
      ERRINFO_VCDECOMPRESSEDREASSEMBLEFAILED : "The server-side decompression buffer is invalid, or the size of the decompressed VC data exceeds the chunking size specified in the Virtual Channel Capability Set (section 2.2.7.1.10).",
      ERRINFO_VCDATATOOLONG : "The size of a received Virtual Channel PDU (section 2.2.6.1) exceeds the chunking size specified in the Virtual Channel Capability Set (section 2.2.7.1.10).",
     }
-
-@ConstAttributes
-@TypeAttributes(UInt16Le) 
-class InputFlags(object):
-    '''
-    Input flag use in input capability
-    @see:  http://msdn.microsoft.com/en-us/library/cc240563.aspx
-    '''
-    INPUT_FLAG_SCANCODES = 0x0001
-    INPUT_FLAG_MOUSEX = 0x0004
-    INPUT_FLAG_FASTPATH_INPUT = 0x0008
-    INPUT_FLAG_UNICODE = 0x0010
-    INPUT_FLAG_FASTPATH_INPUT2 = 0x0020
-    INPUT_FLAG_UNUSED1 = 0x0040
-    INPUT_FLAG_UNUSED2 = 0x0080
-    TS_INPUT_FLAG_MOUSE_HWHEEL = 0x0100
-
-@ConstAttributes
-@TypeAttributes(UInt32Le)
-class BrushSupport(object):
-    '''
-    Brush support of client
-    @see: http://msdn.microsoft.com/en-us/library/cc240564.aspx
-    '''
-    BRUSH_DEFAULT = 0x00000000
-    BRUSH_COLOR_8x8 = 0x00000001
-    BRUSH_COLOR_FULL = 0x00000002
-
-@ConstAttributes
-@TypeAttributes(UInt16Le)  
-class GlyphSupport(object):
-    '''
-    Use by glyph order
-    @see: http://msdn.microsoft.com/en-us/library/cc240565.aspx
-    '''
-    GLYPH_SUPPORT_NONE = 0x0000
-    GLYPH_SUPPORT_PARTIAL = 0x0001
-    GLYPH_SUPPORT_FULL = 0x0002
-    GLYPH_SUPPORT_ENCODE = 0x0003
-
-@ConstAttributes
-@TypeAttributes(UInt32Le)    
-class OffscreenSupportLevel(object):
-    '''
-    Use to determine offscreen cache level supported
-    @see: http://msdn.microsoft.com/en-us/library/cc240550.aspx
-    '''
-    FALSE = 0x00000000
-    TRUE = 0x00000001
-
-@ConstAttributes
-@TypeAttributes(UInt32Le) 
-class VirtualChannelCompressionFlag(object):
-    '''
-    Use to determine virtual channel compression
-    @see: http://msdn.microsoft.com/en-us/library/cc240551.aspx
-    '''
-    VCCAPS_NO_COMPR = 0x00000000
-    VCCAPS_COMPR_SC = 0x00000001
-    VCCAPS_COMPR_CS_8K = 0x00000002
-
-@ConstAttributes
-@TypeAttributes(UInt16Le)   
-class SoundFlag(object):
-    '''
-    Use in sound capability to inform it
-    @see: http://msdn.microsoft.com/en-us/library/cc240552.aspx
-    '''
-    NONE = 0x0000
-    SOUND_BEEPS_FLAG = 0x0001
     
 class RDPInfo(CompositeType):
     '''
@@ -655,327 +469,16 @@ class ShareDataHeader(CompositeType):
     PDU share data header
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     '''
-    def __init__(self, size, pduType2, userId = UInt16Le(), shareId = UInt32Le()):
+    def __init__(self, size, pduType2 = None, userId = UInt16Le(), shareId = UInt32Le()):
         CompositeType.__init__(self)
         self.shareControlHeader = ShareControlHeader(size, PDUType.PDUTYPE_DATAPDU, userId)
         self.shareId = shareId
         self.pad1 = UInt8()
         self.streamId = StreamId.STREAM_LOW
         self.uncompressedLength = UInt16Le(lambda:(UInt16Le(size).value - 14))
-        self.pduType2 = UInt8(pduType2.value, constant = True)
+        self.pduType2 = UInt8() if pduType2 is None else UInt8(pduType2.value, constant = True)
         self.compressedType = UInt8()
         self.compressedLength = UInt16Le()
-        
-class CacheEntry(CompositeType):
-    '''
-    Use in capability cache exchange
-    @see: http://msdn.microsoft.com/en-us/library/cc240566.aspx
-    '''
-    def __init__(self):
-        CompositeType.__init__(self)
-        self.cacheEntries = UInt16Le()
-        self.cacheMaximumCellSize = UInt16Le()
-    
-    
-class Capability(CompositeType):
-    '''
-    A capability
-    @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
-    '''
-    def __init__(self, capabilitySetType = UInt16Le(), capability = None):
-        CompositeType.__init__(self)
-        self.capabilitySetType = UInt16Le(capabilitySetType.value, constant = (not capability is None))
-        self.lengthCapability = UInt16Le(lambda:sizeof(self))
-        
-        def CapabilityFactory():
-            '''
-            closure for capability factory
-            '''
-            if self.capabilitySetType == CapsType.CAPSTYPE_GENERAL:
-                return GeneralCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_BITMAP:
-                return BitmapCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_ORDER:
-                return OrderCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_BITMAPCACHE:
-                return BitmapCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_POINTER:
-                return PointerCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_INPUT:
-                return InputCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_BRUSH:
-                return BrushCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_GLYPHCACHE:
-                return GlyphCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_OFFSCREENCACHE:
-                return OffscreenBitmapCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_VIRTUALCHANNEL:
-                return VirtualChannelCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_SOUND:
-                return SoundCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_CONTROL:
-                return ControlCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_ACTIVATION:
-                return WindowActivationCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_FONT:
-                return FontCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_COLORCACHE:
-                return ColorCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_SHARE:
-                return ShareCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            else:
-                return String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-        
-        if capability is None:
-            capability = CapabilityFactory
-            
-        self.capability = FactoryType(capability)
-        
-class GeneralCapability(CompositeType):
-    '''
-    General capability (protocol version and compression mode)
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.osMajorType = UInt16Le()
-        self.osMinorType = UInt16Le()
-        self.protocolVersion = UInt16Le(0x0200, constant = True)
-        self.pad2octetsA = UInt16Le()
-        self.generalCompressionTypes = UInt16Le(0, constant = True)
-        self.extraFlags = UInt16Le()
-        self.updateCapabilityFlag = UInt16Le(0, constant = True)
-        self.remoteUnshareFlag = UInt16Le(0, constant = True)
-        self.generalCompressionLevel = UInt16Le(0, constant = True)
-        self.refreshRectSupport = UInt8()
-        self.suppressOutputSupport = UInt8()
-        
-class BitmapCapability(CompositeType):
-    '''
-    Bitmap format Capability
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc240554.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.preferredBitsPerPixel = UInt16Le()
-        self.receive1BitPerPixel = UInt16Le(0x0001)
-        self.receive4BitsPerPixel = UInt16Le(0x0001)
-        self.receive8BitsPerPixel = UInt16Le(0x0001)
-        self.desktopWidth = UInt16Le()
-        self.desktopHeight = UInt16Le()
-        self.pad2octets = UInt16Le()
-        self.desktopResizeFlag = UInt16Le()
-        self.bitmapCompressionFlag = UInt16Le(0x0001, constant = True)
-        self.highColorFlags = UInt8(0)
-        self.drawingFlags = UInt8()
-        self.multipleRectangleSupport = UInt16Le(0x0001, constant = True)
-        self.pad2octetsB = UInt16Le()
-        
-class OrderCapability(CompositeType):
-    '''
-    Order capability list all drawing order supported
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.terminalDescriptor = String("\x00" * 16, readLen = UInt8(16))
-        self.pad4octetsA = UInt32Le(0)
-        self.desktopSaveXGranularity = UInt16Le(1)
-        self.desktopSaveYGranularity = UInt16Le(20)
-        self.pad2octetsA = UInt16Le(0)
-        self.maximumOrderLevel = UInt16Le(1)
-        self.numberFonts = UInt16Le()
-        self.orderFlags = OrderFlag.NEGOTIATEORDERSUPPORT
-        self.orderSupport = ArrayType(UInt8, init = [UInt8(0) for i in range (0, 32)],  readLen = UInt8(32))
-        self.textFlags = UInt16Le()
-        self.orderSupportExFlags = UInt16Le()
-        self.pad4octetsB = UInt32Le()
-        self.desktopSaveSize = UInt32Le(480 * 480)
-        self.pad2octetsC = UInt16Le()
-        self.pad2octetsD = UInt16Le()
-        self.textANSICodePage = UInt16Le(0)
-        self.pad2octetsE = UInt16Le()
-        
-class BitmapCacheCapability(CompositeType):
-    '''
-    Order use to cache bitmap very usefull
-    client -> server
-    @see: http://msdn.microsoft.com/en-us/library/cc240559.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.pad1 = UInt32Le()
-        self.pad2 = UInt32Le()
-        self.pad3 = UInt32Le()
-        self.pad4 = UInt32Le()
-        self.pad5 = UInt32Le()
-        self.pad6 = UInt32Le()
-        self.cache0Entries = UInt16Le()
-        self.cache0MaximumCellSize = UInt16Le()
-        self.cache1Entries = UInt16Le()
-        self.cache1MaximumCellSize = UInt16Le()
-        self.cache2Entries = UInt16Le()
-        self.cache2MaximumCellSize = UInt16Le()
-        
-class PointerCapability(CompositeType):
-    '''
-    Use to indicate pointer handle of client
-    Paint by server or per client
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc240562.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.colorPointerFlag = UInt16Le()
-        self.colorPointerCacheSize = UInt16Le()
-        self.pointerCacheSize = UInt16Le()
-        
-class InputCapability(CompositeType):
-    '''
-    Use to indicate input capabilities
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc240563.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.inputFlags = UInt16Le()
-        self.pad2octetsA = UInt16Le()
-        #same value as gcc.ClientCoreSettings.kbdLayout
-        self.keyboardLayout = UInt32Le()
-        #same value as gcc.ClientCoreSettings.keyboardType
-        self.keyboardType = UInt32Le()
-        #same value as gcc.ClientCoreSettings.keyboardSubType
-        self.keyboardSubType = UInt32Le()
-        #same value as gcc.ClientCoreSettings.keyboardFnKeys
-        self.keyboardFunctionKey = UInt32Le()
-        #same value as gcc.ClientCoreSettingrrs.imeFileName
-        self.imeFileName = String("\x00" * 64, readLen = UInt8(64))
-        
-class BrushCapability(CompositeType):
-    '''
-    Use to indicate brush capability
-    client -> server
-    @see: http://msdn.microsoft.com/en-us/library/cc240564.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.brushSupportLevel = BrushSupport.BRUSH_DEFAULT
-        
-class GlyphCapability(CompositeType):
-    '''
-    Use in font order
-    client -> server
-    @see: http://msdn.microsoft.com/en-us/library/cc240565.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.glyphCache = ArrayType(CacheEntry, init = [CacheEntry() for i in range(0,10)], readLen = UInt8(10))
-        self.fragCache = UInt32Le()
-        #all fonts are sent with bitmap format (very expensive)
-        self.glyphSupportLevel = GlyphSupport.GLYPH_SUPPORT_NONE
-        self.pad2octets = UInt16Le()
-        
-class OffscreenBitmapCacheCapability(CompositeType):
-    '''
-    use to cached bitmap in offscreen area
-    client -> server
-    @see: http://msdn.microsoft.com/en-us/library/cc240550.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.offscreenSupportLevel = OffscreenSupportLevel.FALSE
-        self.offscreenCacheSize = UInt16Le()
-        self.offscreenCacheEntries = UInt16Le()
-        
-class VirtualChannelCapability(CompositeType):
-    '''
-    use to determine virtual channel compression
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc240551.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.flags = VirtualChannelCompressionFlag.VCCAPS_NO_COMPR
-        self.VCChunkSize = UInt32Le(optional = True)
-        
-class SoundCapability(CompositeType):
-    '''
-    use to exchange sound capability
-    client -> server
-    @see: http://msdn.microsoft.com/en-us/library/cc240552.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.soundFlags = SoundFlag.NONE
-        self.pad2octetsA = UInt16Le()
-        
-class ControlCapability(CompositeType):
-    '''
-    client -> server but server ignore contents! Thanks krosoft for brandwidth
-    @see: http://msdn.microsoft.com/en-us/library/cc240568.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.controlFlags = UInt16Le()
-        self.remoteDetachFlag = UInt16Le()
-        self.controlInterest = UInt16Le(0x0002)
-        self.detachInterest = UInt16Le(0x0002)
-    
-class WindowActivationCapability(CompositeType):
-    '''
-    client -> server but server ignore contents! Thanks krosoft for brandwidth
-    @see: http://msdn.microsoft.com/en-us/library/cc240569.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.helpKeyFlag = UInt16Le()
-        self.helpKeyIndexFlag = UInt16Le()
-        self.helpExtendedKeyFlag = UInt16Le()
-        self.windowManagerKeyFlag = UInt16Le()
-        
-class FontCapability(CompositeType):
-    '''
-    use to indicate font support
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc240571.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.fontSupportFlags = UInt16Le(0x0001)
-        self.pad2octets = UInt16Le()
-        
-class ColorCacheCapability(CompositeType):
-    '''
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc241564.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.colorTableCacheSize = UInt16Le(0x0006)
-        self.pad2octets = UInt16Le()
-        
-class ShareCapability(CompositeType):
-    '''
-    use to advertise channel id of server
-    client -> server
-    server -> client
-    @see: http://msdn.microsoft.com/en-us/library/cc240570.aspx
-    '''
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.nodeId = UInt16Le()
-        self.pad2octets = UInt16Le()
         
 class DemandActivePDU(CompositeType):
     '''
@@ -991,7 +494,7 @@ class DemandActivePDU(CompositeType):
         self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
         self.numberCapabilities = UInt16Le(lambda:len(self.capabilitySets._array))
         self.pad2Octets = UInt16Le()
-        self.capabilitySets = ArrayType(Capability, readLen = self.numberCapabilities)
+        self.capabilitySets = ArrayType(caps.Capability, readLen = self.numberCapabilities)
         self.sessionId = UInt32Le()
         
 class ConfirmActivePDU(CompositeType):
@@ -1001,7 +504,7 @@ class ConfirmActivePDU(CompositeType):
     '''
     def __init__(self, userId = UInt16Le()):
         CompositeType.__init__(self)
-        self.shareDataHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_CONFIRMACTIVEPDU, userId)
+        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_CONFIRMACTIVEPDU, userId)
         self.shareId = UInt32Le()
         self.originatorId = UInt16Le(0x03EA, constant = True)
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
@@ -1009,28 +512,7 @@ class ConfirmActivePDU(CompositeType):
         self.sourceDescriptor = String("RDPY", readLen = self.lengthSourceDescriptor)
         self.numberCapabilities = UInt16Le(lambda:len(self.capabilitySets._array))
         self.pad2Octets = UInt16Le()
-        self.capabilitySets = ArrayType(Capability, readLen = self.numberCapabilities)
-        
-class SynchronizePDU(CompositeType):
-    '''
-    @see http://msdn.microsoft.com/en-us/library/cc240490.aspx
-    '''
-    def __init__(self, userId = UInt16Le(), shareId = UInt32Le()):
-        CompositeType.__init__(self)
-        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_SYNCHRONIZE, userId, shareId)
-        self.messageType = UInt16Le(1, constant = True)
-        self.targetUser = UInt16Le()
-        
-class ControlPDU(CompositeType):
-    '''
-    @see http://msdn.microsoft.com/en-us/library/cc240492.aspx
-    '''
-    def __init__(self, action, userId = UInt16Le(), shareId = UInt32Le()):
-        CompositeType.__init__(self)
-        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_CONTROL, userId, shareId)
-        self.action = UInt16Le(action.value, constant = True)
-        self.grantId = UInt16Le()
-        self.controlId = UInt32Le()
+        self.capabilitySets = ArrayType(caps.Capability, readLen = self.numberCapabilities)
 
 class PersistentListEntry(CompositeType):   
     '''
@@ -1042,7 +524,6 @@ class PersistentListEntry(CompositeType):
         self.key1 = UInt32Le()
         self.key2 = UInt32Le()
     
-    
 class PersistentListPDU(CompositeType):
     '''
     Use to indicate that bitmap cache was already
@@ -1051,7 +532,7 @@ class PersistentListPDU(CompositeType):
     '''
     def __init__(self, userId = UInt16Le(), shareId = UInt32Le()):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST, userId, shareId)
+        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST, userId, shareId)
         self.numEntriesCache0 = UInt16Le()
         self.numEntriesCache1 = UInt16Le()
         self.numEntriesCache2 = UInt16Le()
@@ -1065,19 +546,156 @@ class PersistentListPDU(CompositeType):
         self.bitMask = UInt8()
         self.pad2 = UInt8()
         self.pad3 = UInt16Le()
-        self.entries = ArrayType(PersistentListEntry, readLen = lambda:(self.numEntriesCache0 + self.numEntriesCache1 + self.numEntriesCache2 + self.numEntriesCache3 + self.numEntriesCache4))
+        self.entries = ArrayType(PersistentListEntry, readLen = UInt16Le(lambda:(self.numEntriesCache0 + self.numEntriesCache1 + self.numEntriesCache2 + self.numEntriesCache3 + self.numEntriesCache4)))
         
-class ErrorInfoPDU(CompositeType):
+class DataPDU(CompositeType):
+    '''
+    Generic pdu packet use after connection sequence
+    '''
+    def __init__(self, pduType = None, pduData = None, userId = UInt16Le(), shareId = UInt32Le()):
+        CompositeType.__init__(self)
+        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), pduType, userId, shareId)
+        
+        def PDUDataFactory():
+            if self.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_UPDATE:
+                return UpdateDataPDU()
+            elif self.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_SYNCHRONIZE:
+                return SynchronizeDataPDU()
+            elif self.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_CONTROL:
+                return ControlDataPDU()
+            elif self.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
+                return ErrorInfoDataPDU()
+            elif self.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_FONTLIST:
+                return FontListDataPDU()
+            elif self.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_FONTMAP:
+                return FontMapDataPDU()
+            else:
+                #read all value
+                return String()
+            
+        if pduData is None:
+            pduData = PDUDataFactory
+            
+        self.pduData = FactoryType(pduData)
+        
+class SynchronizeDataPDU(CompositeType):
+    '''
+    @see http://msdn.microsoft.com/en-us/library/cc240490.aspx
+    '''
+    def __init__(self, targetUser = UInt16Le()):
+        CompositeType.__init__(self)
+        self.messageType = UInt16Le(1, constant = True)
+        self.targetUser = targetUser
+        
+class ControlDataPDU(CompositeType):
+    '''
+    @see http://msdn.microsoft.com/en-us/library/cc240492.aspx
+    '''
+    def __init__(self, action = None):
+        CompositeType.__init__(self)
+        self.action = UInt16Le(action.value, constant = True) if not action is None else UInt16Le()
+        self.grantId = UInt16Le()
+        self.controlId = UInt32Le()
+        
+class ErrorInfoDataPDU(CompositeType):
     '''
     Use to inform error in PDU layer
     @see: http://msdn.microsoft.com/en-us/library/cc240544.aspx
     '''
+    def __init__(self, errorInfo = UInt32Le()):
+        CompositeType.__init__(self)
+        #use to collect error info pdu
+        self.errorInfo = errorInfo
+        
+class FontListDataPDU(CompositeType):
+    '''
+    Use to indicate list of font. Deprecated packet
+    client -> server
+    @see: http://msdn.microsoft.com/en-us/library/cc240498.aspx
+    '''
     def __init__(self):
         CompositeType.__init__(self)
-        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU)
-        #use to collect error info pdu
-        self.errorInfo = UInt32Le()
+        self.numberFonts = UInt16Le()
+        self.totalNumFonts = UInt16Le()
+        self.listFlags = UInt16Le(0x0003)
+        self.entrySize = UInt16Le(0x0032)
+        
+class FontMapDataPDU(CompositeType):
+    '''
+    Use to indicate map of font. Deprecated packet (maybe the same as FontListDataPDU)
+    server -> client
+    @see: http://msdn.microsoft.com/en-us/library/cc240498.aspx
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.numberEntries = UInt16Le()
+        self.totalNumEntries = UInt16Le()
+        self.mapFlags = UInt16Le(0x0003)
+        self.entrySize = UInt16Le(0x0004)
 
+class UpdateDataPDU(CompositeType):
+    '''
+    Update data pdu use by server to inform update img or palette
+    for example
+    @see: http://msdn.microsoft.com/en-us/library/cc240608.aspx
+    '''
+    def __init__(self, updateType = UInt16Le(), updateData = None):
+        CompositeType.__init__(self)
+        self.updateType = updateType
+        
+        def UpdateDataFactory():
+            if self.updateType == UpdateType.UPDATETYPE_BITMAP:
+                return BitmapUpdateDataPDU()
+            else:
+                String()
+            
+        if updateData is None:
+            updateData = UpdateDataFactory
+            
+        self.updateData = FactoryType(updateData, conditional = lambda:(self.updateType != UpdateType.UPDATETYPE_SYNCHRONIZE))
+        
+class BitmapUpdateDataPDU(CompositeType):
+    '''
+    PDU use to send raw bitmap compressed or not
+    @see: http://msdn.microsoft.com/en-us/library/dd306368.aspx
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.numberRectangles = UInt16Le()
+        self.rectangles = ArrayType(BitmapData, readLen = self.numberRectangles)
+
+class BitmapCompressedDataHeader(CompositeType):
+    '''
+    Compressed header of bitmap
+    @see: http://msdn.microsoft.com/en-us/library/cc240644.aspx
+    '''
+    def __init__(self, conditional = lambda:True):
+        CompositeType.__init__(self, conditional = conditional)
+        self.cbCompFirstRowSize = UInt16Le(0x0000, constant = True)
+        #compressed data size
+        self.cbCompMainBodySize = UInt16Le()
+        self.cbScanWidth = UInt16Le()
+        #uncompressed data size
+        self.cbUncompressedSize = UInt16Le()
+
+class BitmapData(CompositeType):
+    '''
+    Bitmap data here the screen capture
+    '''
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.destLeft = UInt16Le()
+        self.destTop = UInt16Le()
+        self.destRight = UInt16Le()
+        self.destBottom = UInt16Le()
+        self.width = UInt16Le()
+        self.height = UInt16Le()
+        self.bitsPerPixel = UInt16Le()
+        self.flags = UInt16Le()
+        self.bitmapLength = UInt16Le()
+        self.bitmapComprHdr = BitmapCompressedDataHeader(conditional = lambda:(not (self.flags | BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
+        self.bitmapDataStream = String(readLen = UInt16Le(lambda:(self.bitmapLength.value if (self.flags | BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
+        
 class PDU(LayerAutomata):
     '''
     Global channel for mcs that handle session
@@ -1088,54 +706,47 @@ class PDU(LayerAutomata):
         Constructor
         '''
         LayerAutomata.__init__(self, mode, None)
-        #set by mcs layer channel init
-        self._channelId = UInt16Be()
         #logon info send from client to server
-        self._info = RDPInfo(extendedInfoConditional = lambda:self._transport._serverSettings.core.rdpVersion == gcc.Version.RDP_VERSION_5_PLUS)
+        self._info = RDPInfo(extendedInfoConditional = lambda:self._transport.getGCCServerSettings().core.rdpVersion == gcc.Version.RDP_VERSION_5_PLUS)
         #server capabilities
         self._serverCapabilities = {
-            CapsType.CAPSTYPE_GENERAL : Capability(CapsType.CAPSTYPE_GENERAL, GeneralCapability()),
-            CapsType.CAPSTYPE_BITMAP : Capability(CapsType.CAPSTYPE_BITMAP, BitmapCapability()),
-            CapsType.CAPSTYPE_ORDER : Capability(CapsType.CAPSTYPE_ORDER, OrderCapability()),
-            CapsType.CAPSTYPE_POINTER : Capability(CapsType.CAPSTYPE_POINTER, PointerCapability()),
-            CapsType.CAPSTYPE_INPUT : Capability(CapsType.CAPSTYPE_INPUT, InputCapability()),
-            CapsType.CAPSTYPE_VIRTUALCHANNEL : Capability(CapsType.CAPSTYPE_VIRTUALCHANNEL, VirtualChannelCapability()),
-            CapsType.CAPSTYPE_FONT : Capability(CapsType.CAPSTYPE_FONT, FontCapability()),
-            CapsType.CAPSTYPE_COLORCACHE : Capability(CapsType.CAPSTYPE_COLORCACHE, ColorCacheCapability()),
-            CapsType.CAPSTYPE_SHARE : Capability(CapsType.CAPSTYPE_SHARE, ShareCapability())
+            caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.CapsType.CAPSTYPE_GENERAL, caps.GeneralCapability()),
+            caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.CapsType.CAPSTYPE_BITMAP, caps.BitmapCapability()),
+            caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.CapsType.CAPSTYPE_ORDER, caps.OrderCapability()),
+            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.CapsType.CAPSTYPE_POINTER, caps.PointerCapability()),
+            caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.CapsType.CAPSTYPE_INPUT, caps.InputCapability()),
+            caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.CapsType.CAPSTYPE_VIRTUALCHANNEL, caps.VirtualChannelCapability()),
+            caps.CapsType.CAPSTYPE_FONT : caps.Capability(caps.CapsType.CAPSTYPE_FONT, caps.FontCapability()),
+            caps.CapsType.CAPSTYPE_COLORCACHE : caps.Capability(caps.CapsType.CAPSTYPE_COLORCACHE, caps.ColorCacheCapability()),
+            caps.CapsType.CAPSTYPE_SHARE : caps.Capability(caps.CapsType.CAPSTYPE_SHARE, caps.ShareCapability())
         }
         #client capabilities
         self._clientCapabilities = {
-            CapsType.CAPSTYPE_GENERAL : Capability(CapsType.CAPSTYPE_GENERAL, GeneralCapability()),
-            CapsType.CAPSTYPE_BITMAP : Capability(CapsType.CAPSTYPE_BITMAP, BitmapCapability()),
-            CapsType.CAPSTYPE_ORDER : Capability(CapsType.CAPSTYPE_ORDER, OrderCapability()),
-            CapsType.CAPSTYPE_BITMAPCACHE : Capability(CapsType.CAPSTYPE_BITMAPCACHE, BitmapCacheCapability()),
-            CapsType.CAPSTYPE_POINTER : Capability(CapsType.CAPSTYPE_POINTER, PointerCapability()),
-            CapsType.CAPSTYPE_INPUT : Capability(CapsType.CAPSTYPE_INPUT, InputCapability()),
-            CapsType.CAPSTYPE_BRUSH : Capability(CapsType.CAPSTYPE_BRUSH, BrushCapability()),
-            CapsType.CAPSTYPE_GLYPHCACHE : Capability(CapsType.CAPSTYPE_GLYPHCACHE, GlyphCapability()),
-            CapsType.CAPSTYPE_OFFSCREENCACHE : Capability(CapsType.CAPSTYPE_OFFSCREENCACHE, OffscreenBitmapCacheCapability()),
-            CapsType.CAPSTYPE_VIRTUALCHANNEL : Capability(CapsType.CAPSTYPE_VIRTUALCHANNEL, VirtualChannelCapability()),
-            CapsType.CAPSTYPE_SOUND : Capability(CapsType.CAPSTYPE_SOUND, SoundCapability()),
-            #CapsType.CAPSTYPE_CONTROL : Capability(CapsType.CAPSTYPE_CONTROL, ControlCapability()),
-            #CapsType.CAPSTYPE_ACTIVATION : Capability(CapsType.CAPSTYPE_ACTIVATION, WindowActivationCapability()),
-            #CapsType.CAPSTYPE_FONT : Capability(CapsType.CAPSTYPE_FONT, FontCapability()),
-            #CapsType.CAPSTYPE_COLORCACHE : Capability(CapsType.CAPSTYPE_COLORCACHE, ColorCacheCapability()),
-            #CapsType.CAPSTYPE_SHARE : Capability(CapsType.CAPSTYPE_SHARE, ShareCapability())
+            caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.CapsType.CAPSTYPE_GENERAL, caps.GeneralCapability()),
+            caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.CapsType.CAPSTYPE_BITMAP, caps.BitmapCapability()),
+            caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.CapsType.CAPSTYPE_ORDER, caps.OrderCapability()),
+            caps.CapsType.CAPSTYPE_BITMAPCACHE : caps.Capability(caps.CapsType.CAPSTYPE_BITMAPCACHE, caps.BitmapCacheCapability()),
+            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.CapsType.CAPSTYPE_POINTER, caps.PointerCapability()),
+            caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.CapsType.CAPSTYPE_INPUT, caps.InputCapability()),
+            caps.CapsType.CAPSTYPE_BRUSH : caps.Capability(caps.CapsType.CAPSTYPE_BRUSH, caps.BrushCapability()),
+            caps.CapsType.CAPSTYPE_GLYPHCACHE : caps.Capability(caps.CapsType.CAPSTYPE_GLYPHCACHE, caps.GlyphCapability()),
+            caps.CapsType.CAPSTYPE_OFFSCREENCACHE : caps.Capability(caps.CapsType.CAPSTYPE_OFFSCREENCACHE, caps.OffscreenBitmapCacheCapability()),
+            caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.CapsType.CAPSTYPE_VIRTUALCHANNEL, caps.VirtualChannelCapability()),
+            caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.CapsType.CAPSTYPE_SOUND, caps.SoundCapability()),
+            #caps.CapsType.CAPSTYPE_CONTROL : caps.Capability(CapsType.CAPSTYPE_CONTROL, caps.ControlCapability()),
+            #caps.CapsType.CAPSTYPE_ACTIVATION : caps.Capability(CapsType.CAPSTYPE_ACTIVATION, caps.WindowActivationCapability()),
+            #caps.CapsType.CAPSTYPE_FONT : caps.Capability(CapsType.CAPSTYPE_FONT, caps.FontCapability()),
+            #caps.CapsType.CAPSTYPE_COLORCACHE : caps.Capability(CapsType.CAPSTYPE_COLORCACHE, caps.ColorCacheCapability()),
+            #caps.CapsType.CAPSTYPE_SHARE : caps.Capability(CapsType.CAPSTYPE_SHARE, caps.ShareCapability())
         }
         #share id between client and server
         self._shareId = UInt32Le()
-        #mcs user id use for pdu packet
-        self._userId = UInt16Be()
         
     def connect(self):
         '''
         connect event in client mode send logon info
         next state recv licence pdu
-        '''
-        #get user id from mcs layer
-        self._userId = self._transport._userId
-        
+        '''        
         self.sendInfoPkt()
         #next state is licence info PDU
         self.setNextState(self.recvLicenceInfo)
@@ -1145,7 +756,7 @@ class PDU(LayerAutomata):
         send a logon info packet
         '''
         #always send extended info because rdpy only accept rdp version 5 and more
-        self._transport.send(self._channelId, (SecurityFlag.SEC_INFO_PKT, UInt16Le(), self._info))
+        self._transport.send((SecurityFlag.SEC_INFO_PKT, UInt16Le(), self._info))
     
     def recvLicenceInfo(self, data):
         '''
@@ -1170,23 +781,24 @@ class PDU(LayerAutomata):
         
         self.setNextState(self.recvDemandActivePDU)
         
-    def readPDU(self, data, pdu):
+    def readDataPDU(self, data):
         '''
-        Try to read expected pdu or try to parse error info pdu
+        Read a DataPdu struct. If is an error pdu log and close layer
+        @param data: Stream from transport layer
+        @return:
         '''
-        try:
-            data.readType(pdu)
-        except Exception as e:
-            #maybe an error message
-            errorInfoPDU = ErrorInfoPDU()
-            try:
-                data.readType(errorInfoPDU)
-                message = "Unknown code %s"%hex(errorInfoPDU.errorInfo.value)
-                if ErrorInfo._MESSAGES_.has_key(errorInfoPDU.errorInfo):
-                    message = ErrorInfo._MESSAGES_[errorInfoPDU.errorInfo]
-                raise ErrorReportedFromPeer("Receive PDU Error info : %s"%message)
-            except InvalidExpectedDataException:
-                raise e
+        #maybe an error message
+        dataPDU = DataPDU()
+        data.readType(dataPDU)
+        if dataPDU.shareDataHeader.pduType2 != PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
+            return dataPDU
+        
+        message = "Unknown code %s"%hex(dataPDU.pduData.errorInfo.value)
+        if ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
+            message = ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
+        
+        raise ErrorReportedFromPeer("Receive PDU Error info : %s"%message)
+            
         
     def recvDemandActivePDU(self, data):
         '''
@@ -1197,7 +809,7 @@ class PDU(LayerAutomata):
         @param data: Stream
         '''
         demandActivePDU = DemandActivePDU()
-        self.readPDU(data, demandActivePDU)
+        data.readType(demandActivePDU)
         
         self._shareId = demandActivePDU.shareId
         
@@ -1211,8 +823,9 @@ class PDU(LayerAutomata):
         receive from server 
         @param data: Stream from transport layer
         '''
-        synchronizePDU = SynchronizePDU()
-        self.readPDU(data, synchronizePDU)
+        dataPDU = self.readDataPDU(data)
+        if dataPDU.shareDataHeader.pduType2 != PDUType2.PDUTYPE2_SYNCHRONIZE:
+            raise InvalidExpectedDataException("Error in PDU layer automata : expected synchronizePDU")
         self.setNextState(self.recvServerControlCooperatePDU)
         
     def recvServerControlCooperatePDU(self, data):
@@ -1220,8 +833,9 @@ class PDU(LayerAutomata):
         receive control cooperate pdu from server
         @param data: Stream from transport layer
         '''
-        controlCooparatePDU = ControlPDU(Action.CTRLACTION_COOPERATE)
-        self.readPDU(data, controlCooparatePDU)
+        dataPDU = self.readDataPDU(data)
+        if dataPDU.shareDataHeader.pduType2 != PDUType2.PDUTYPE2_CONTROL or dataPDU.pduData._value.action != Action.CTRLACTION_COOPERATE:
+            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlCooperatePDU")
         self.setNextState(self.recvServerControlGrantedPDU)
         
     def recvServerControlGrantedPDU(self, data):
@@ -1229,43 +843,65 @@ class PDU(LayerAutomata):
         receive last control pdu the granted control pdu
         @param data: Stream from transport layer
         '''
-        controlCooparatePDU = ControlPDU(Action.CTRLACTION_GRANTED_CONTROL)
-        self.readPDU(data, controlCooparatePDU)
+        dataPDU = self.readDataPDU(data)
+        if dataPDU.shareDataHeader.pduType2 != PDUType2.PDUTYPE2_CONTROL or dataPDU.pduData._value.action != Action.CTRLACTION_GRANTED_CONTROL:
+            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlGrantedPDU")
+        self.setNextState(self.recvServerFontMapPDU)
+        
+    def recvServerFontMapPDU(self, data):
+        '''
+        last useless connection packet from server to client
+        @param data: Stream from transport layer
+        '''
+        dataPDU = self.readDataPDU(data)
+        if dataPDU.shareDataHeader.pduType2 != PDUType2.PDUTYPE2_FONTMAP:
+            raise InvalidExpectedDataException("Error in PDU layer automata : expected fontMapPDU")
+        print "client is now connected"
+        if not self._presentation is None:
+            self._presentation.connect()
+        self.setNextState(self.recvDataPDU)
+        
+    def recvDataPDU(self, data):
+        '''
+        main receive function after connection sequence
+        @param data: Stream from transport layer
+        '''
+        dataPDU = self.readDataPDU(data)
         
     def sendConfirmActivePDU(self):
         '''
         send all client capabilities
         '''
         #init general capability
-        generalCapability = self._clientCapabilities[CapsType.CAPSTYPE_GENERAL].capability._value
-        generalCapability.osMajorType = MajorType.OSMAJORTYPE_WINDOWS
-        generalCapability.osMinorType = MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags = GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR
+        generalCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability._value
+        generalCapability.osMajorType = caps.MajorType.OSMAJORTYPE_WINDOWS
+        generalCapability.osMinorType = caps.MinorType.OSMINORTYPE_WINDOWS_NT
+        generalCapability.extraFlags = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR
         
         #init bitmap capability
-        bitmapCapability = self._clientCapabilities[CapsType.CAPSTYPE_BITMAP].capability._value
-        bitmapCapability.preferredBitsPerPixel = self._transport._clientSettings.core.highColorDepth
-        bitmapCapability.desktopWidth = self._transport._clientSettings.core.desktopWidth
-        bitmapCapability.desktopHeight = self._transport._clientSettings.core.desktopHeight
+        bitmapCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability._value
+        bitmapCapability.preferredBitsPerPixel = self._transport.getGCCClientSettings().core.highColorDepth
+        bitmapCapability.desktopWidth = self._transport.getGCCClientSettings().core.desktopWidth
+        bitmapCapability.desktopHeight = self._transport.getGCCClientSettings().core.desktopHeight
          
         #init order capability
-        orderCapability = self._clientCapabilities[CapsType.CAPSTYPE_ORDER].capability._value
-        orderCapability.orderFlags |= OrderFlag.ZEROBOUNDSDELTASSUPPORT
+        orderCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_ORDER].capability._value
+        orderCapability.orderFlags |= caps.OrderFlag.ZEROBOUNDSDELTASSUPPORT
         
         #init input capability
-        inputCapability = self._clientCapabilities[CapsType.CAPSTYPE_INPUT].capability._value
-        inputCapability.inputFlags = InputFlags.INPUT_FLAG_SCANCODES | InputFlags.INPUT_FLAG_MOUSEX | InputFlags.INPUT_FLAG_UNICODE
-        inputCapability.keyboardLayout = self._transport._clientSettings.core.kbdLayout
-        inputCapability.keyboardType = self._transport._clientSettings.core.keyboardType
-        inputCapability.keyboardSubType = self._transport._clientSettings.core.keyboardSubType
-        inputCapability.keyboardrFunctionKey = self._transport._clientSettings.core.keyboardFnKeys
-        inputCapability.imeFileName = self._transport._clientSettings.core.imeFileName
+        inputCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_INPUT].capability._value
+        inputCapability.inputFlags = caps.InputFlags.INPUT_FLAG_SCANCODES | caps.InputFlags.INPUT_FLAG_MOUSEX | caps.InputFlags.INPUT_FLAG_UNICODE
+        inputCapability.keyboardLayout = self._transport.getGCCClientSettings().core.kbdLayout
+        inputCapability.keyboardType = self._transport.getGCCClientSettings().core.keyboardType
+        inputCapability.keyboardSubType = self._transport.getGCCClientSettings().core.keyboardSubType
+        inputCapability.keyboardrFunctionKey = self._transport.getGCCClientSettings().core.keyboardFnKeys
+        inputCapability.imeFileName = self._transport.getGCCClientSettings().core.imeFileName
         
         #make active PDU packet
-        confirmActivePDU = ConfirmActivePDU(self._userId)
+        confirmActivePDU = ConfirmActivePDU(self._transport.getUserId())
         confirmActivePDU.shareId = self._shareId
         confirmActivePDU.capabilitySets._array = self._clientCapabilities.values()
-        self._transport.send(self._channelId, confirmActivePDU)
+        self._transport.send(confirmActivePDU)
         #send synchronize
         self.sendClientFinalizeSynchronizePDU()
         
@@ -1273,22 +909,25 @@ class PDU(LayerAutomata):
         '''
         send a synchronize PDU from client to server
         '''
-        synchronizePDU = SynchronizePDU(self._userId, self._shareId)
-        synchronizePDU.targetUser = UInt16Le(self._channelId.value)
-        self._transport.send(self._channelId, synchronizePDU)
+        synchronizePDU = DataPDU(PDUType2.PDUTYPE2_SYNCHRONIZE, SynchronizeDataPDU(UInt16Le(self._transport.getChannelId().value)), self._transport.getUserId(), self._shareId)
+        self._transport.send(synchronizePDU)
         
         #ask for cooperation
-        controlCooperatePDU = ControlPDU(Action.CTRLACTION_COOPERATE, self._userId, self._shareId)
-        self._transport.send(self._channelId, controlCooperatePDU)
+        controlCooperatePDU = DataPDU(PDUType2.PDUTYPE2_CONTROL, ControlDataPDU(Action.CTRLACTION_COOPERATE), self._transport.getUserId(), self._shareId)
+        self._transport.send(controlCooperatePDU)
         
         #request control
-        controlRequestPDU = ControlPDU(Action.CTRLACTION_REQUEST_CONTROL, self._userId, self._shareId)
-        self._transport.send(self._channelId, controlRequestPDU)
+        controlRequestPDU = DataPDU(PDUType2.PDUTYPE2_CONTROL, ControlDataPDU(Action.CTRLACTION_REQUEST_CONTROL), self._transport.getUserId(), self._shareId)
+        self._transport.send(controlRequestPDU)
         
-        #send persistent list pdu
-        persistentListPDU = PersistentListPDU(self._userId, self._shareId)
-        persistentListPDU.bitMask = PersistentKeyListFlag.PERSIST_FIRST_PDU | PersistentKeyListFlag.PERSIST_LAST_PDU
-        self._transport.send(self._channelId, persistentListPDU)
+        #send persistent list pdu I don't know why this packet is rejected maybe beacause we made a 0 size bitmapcache capability
+        #persistentListPDU = PersistentListPDU(self._transport.getUserId(), self._shareId)
+        #persistentListPDU.bitMask = PersistentKeyListFlag.PERSIST_FIRST_PDU | PersistentKeyListFlag.PERSIST_LAST_PDU
+        #self._transport.send(persistentListPDU)
+        
+        #deprecated font list pdu
+        fontListPDU = DataPDU(PDUType2.PDUTYPE2_FONTLIST, FontListDataPDU(), self._transport.getUserId(), self._shareId)
+        self._transport.send(fontListPDU)
         
         self.setNextState(self.recvServerSynchronizePDU)
     
