@@ -31,7 +31,7 @@ class RDP(object):
         for observer in self._observers:
             #for each rectangle in update PDU
             for rectangle in bitmapUpdateData.rectangles._array:
-                observer.notifyBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, rectangle.flags | pdu.BitmapFlag.BITMAP_COMPRESSION, rectangle.bitmapDataStream.value)
+                observer.notifyBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, (rectangle.flags & pdu.BitmapFlag.BITMAP_COMPRESSION).value, rectangle.bitmapDataStream.value)
 
 class Factory(protocol.Factory):
     '''

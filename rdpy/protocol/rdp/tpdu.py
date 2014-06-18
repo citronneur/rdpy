@@ -164,7 +164,7 @@ class TPDU(LayerAutomata):
         
         self._requestedProtocol = message.protocolNeg.selectedProtocol
         
-        if not self._requestedProtocol | Protocols.PROTOCOL_SSL:
+        if not self._requestedProtocol & Protocols.PROTOCOL_SSL:
             #send error message and quit
             message = TPDUConnectMessage()
             message.code = MessageType.X224_TPDU_CONNECTION_CONFIRM
