@@ -357,6 +357,7 @@ class Rfb(RawLayer):
         '''
         for observer in self._observer:
             observer.notifyFramebufferUpdate(self._currentRect.width.value, self._currentRect.height.value, self._currentRect.x.value, self._currentRect.y.value, self._pixelFormat, self._currentRect.encoding, data.getvalue())
+            
         self._nbRect = self._nbRect - 1
         #if there is another rect to read
         if self._nbRect == 0:
@@ -410,15 +411,26 @@ class Rfb(RawLayer):
         '''
         self.send((ClientToServerMessages.CUT_TEXT, ClientCutText(text)))
 
-class Factory(protocol.Factory):
+class ClientFactory(protocol.Factory):
     '''
     Factory of RFB protocol
     '''
-    def __init__(self, mode):
-        self._protocol = Rfb(mode)
+    def __init__(self, observer):
+        '''
+        save mode and adapter
+        @param adapter: graphic client adapter
+        '''
+        self._observer = observer
     
     def buildProtocol(self, addr):
-        return self._protocol;
+        '''
+        function call by twisted on connection
+        @param addr: adresse where client try to connect
+        '''
+        protocol =  Rfb(LayerMode.CLIENT)
+        protocol.addObserver(self._observer)
+        self._observer.setProtocol(protocol)
+        return protocol
     
     def startedConnecting(self, connector):
         print 'Started to connect.'
@@ -443,5 +455,12 @@ class RfbObserver(object):
         @param pixelFormat : pixel format struct from rfb.types
         @param encoding : encoding struct from rfb.types
         @param data : in respect of dataFormat and pixelFormat
+        '''
+        pass
+    
+    def setProtocol(self, rfbLayer):
+        '''
+        call when observer is added to an rfb layer
+        @param: rfbLayer layer inform the observer
         '''
         pass

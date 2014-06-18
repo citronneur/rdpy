@@ -701,7 +701,7 @@ class PDU(LayerAutomata):
     Global channel for mcs that handle session
     identification user, licensing management, and capabilities exchange
     '''
-    def __init__(self, mode):
+    def __init__(self, mode, dispatcher):
         '''
         Constructor
         '''
@@ -741,6 +741,9 @@ class PDU(LayerAutomata):
         }
         #share id between client and server
         self._shareId = UInt32Le()
+        
+        #rdp observer
+        self._dispatcher = dispatcher
         
     def connect(self):
         '''
@@ -793,9 +796,9 @@ class PDU(LayerAutomata):
         if dataPDU.shareDataHeader.pduType2 != PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
             return dataPDU
         
-        message = "Unknown code %s"%hex(dataPDU.pduData.errorInfo.value)
-        if ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
-            message = ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
+        message = "Unknown code %s"%hex(dataPDU.pduData._value.errorInfo.value)
+        if ErrorInfo._MESSAGES_.has_key(dataPDU.pduData._value.errorInfo):
+            message = ErrorInfo._MESSAGES_[dataPDU.pduData._value.errorInfo]
         
         raise ErrorReportedFromPeer("Receive PDU Error info : %s"%message)
             
@@ -867,6 +870,9 @@ class PDU(LayerAutomata):
         @param data: Stream from transport layer
         '''
         dataPDU = self.readDataPDU(data)
+        if dataPDU.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_UPDATE and dataPDU.pduData._value.updateType == UpdateType.UPDATETYPE_BITMAP:
+            self._dispatcher.recvBitmapUpdateDataPDU(dataPDU.pduData._value.updateData._value)
+            
         
     def sendConfirmActivePDU(self):
         '''

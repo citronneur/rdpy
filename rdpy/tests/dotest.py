@@ -3,7 +3,7 @@
 '''
 import sys, os
 # Change path so we find rdpy
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
+sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 import unittest, rdpy.tests.network.type, rdpy.tests.network.const, rdpy.tests.network.layer
 
 def headerTest(name):

@@ -3,19 +3,21 @@
 '''
 from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RfbObserver
+from rdpy.protocol.rdp.rdp import RDPObserver
 
 class QAdaptor(object):
     '''
     adaptor model with link beetween protocol
     and qt widget 
     '''
-    def __init__(self):
+    def __init__(self, qRemoteDesktop):
         '''
         constructor
         must set qRemoteDesktop attribute
         '''
         #qwidget use for render
-        self._qRemoteDesktop = None
+        self._qRemoteDesktop = qRemoteDesktop
+        self._qRemoteDesktop._adaptor = self
 
     def sendMouseEvent(self, e):
         '''
@@ -39,14 +41,21 @@ class RfbAdaptor(RfbObserver, QAdaptor):
     QAdaptor for specific RFB protocol stack
     is to an RFB observer 
     '''
-    def __init__(self, rfb):
+    def __init__(self, qRemoteDesktop):
         '''
         ctor
-        @param rfb: RFB protocol stack
+        @param qRemoteDesktop: widget use for render
         '''
-        self._rfb = rfb
+        QAdaptor.__init__(self, qRemoteDesktop)
+        self._rfb = None
+        
+    def setProtocol(self, rfb):
+        '''
+        inherit from RfbObserver
+        init protocol settings
+        '''
         #set RFB observer to
-        self._rfb.addObserver(self)
+        self._rfb = rfb
     
     def notifyFramebufferUpdate(self, width, height, x, y, pixelFormat, encoding, data):
         '''
@@ -92,23 +101,60 @@ class RfbAdaptor(RfbObserver, QAdaptor):
         @param e: qKeyEvent
         '''
         self._rfb.sendKeyEvent(True, e.nativeVirtualKey())
-
+        
+class RDPAdaptor(RDPObserver, QAdaptor):
+    '''
+    Adaptor for RDP client
+    '''
+    def __init__(self, qRemoteDesktop):
+        '''
+        constructor
+        @param qRemoteDesktop: widget use for render
+        '''
+        QAdaptor.__init__(self, qRemoteDesktop)
+    
+    def notifyBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+        '''
+        notify bitmap update
+        @param destLeft: xmin position
+        @param destTop: ymin position
+        @param destRight: xmax position because RDP can send bitmap with padding
+        @param destBottom: ymax position because RDP can send bitmap with padding
+        @param width: width of bitmap
+        @param height: height of bitmap
+        @param bitsPerPixel: number of bit per pixel
+        @param isCompress: use RLE compression
+        @param data: bitmap data
+        '''
+        #TODO
+        if isCompress:
+            return
+        
+        imageFormat = None
+        if bitsPerPixel == 16:
+            imageFormat = QtGui.QImage.Format_RGB16
+        elif bitsPerPixel == 24:
+            imageFormat = QtGui.QImage.Format_RGB888
+        elif bitsPerPixel == 32:
+            imageFormat = QtGui.QImage.Format_RGB32
+        else:
+            print "Receive image in bad format"
+            return
+        
+        image = QtGui.QImage(data, width, height, imageFormat)
+        self._qRemoteDesktop.notifyImage(destLeft, destTop, image)
         
 class QRemoteDesktop(QtGui.QWidget):
     '''
     qt display widget
     '''
-    def __init__(self, adaptor):
+    def __init__(self):
         '''
         constructor
-        @param adaptor: any object which inherit 
-        from QAdaptor (RfbAdaptor | RdpAdaptor)
         '''
         super(QRemoteDesktop, self).__init__()
-        #set adaptor
-        self._adaptor = adaptor
-        #set widget attribute of adaptor
-        self._adaptor._qRemoteDesktop = self
+        #set by adaptor
+        self._adaptor = None
         #refresh stack of image
         #because we can update image only in paint
         #event function. When protocol receive image
@@ -153,6 +199,8 @@ class QRemoteDesktop(QtGui.QWidget):
         call when mouse move
         @param event: qMouseEvent
         '''
+        if self._adaptor is None:
+            print "No adaptor to send mouse move event"
         self._adaptor.sendMouseEvent(event)
         
     def mousePressEvent(self, event):
@@ -160,6 +208,8 @@ class QRemoteDesktop(QtGui.QWidget):
         call when button mouse is pressed
         @param event: qMouseEvent
         '''
+        if self._adaptor is None:
+            print "No adaptor to send mouse press event"
         self._adaptor.sendMouseEvent(event)
         
     def keyPressEvent(self, event):
@@ -167,4 +217,6 @@ class QRemoteDesktop(QtGui.QWidget):
         call when button key is pressed
         @param event: qKeyEvent
         '''
+        if self._adaptor is None:
+            print "No adaptor to send key press event"
         self._adaptor.sendKeyEvent(event)
