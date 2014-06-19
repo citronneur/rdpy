@@ -34,7 +34,6 @@ class QAdaptor(object):
         @param e: qEvent
         '''
         pass
-    
 
 class RfbAdaptor(RfbObserver, QAdaptor):
     '''
@@ -159,7 +158,7 @@ class QRemoteDesktop(QtGui.QWidget):
         #because we can update image only in paint
         #event function. When protocol receive image
         #we will stock into refresh list
-        #and in paiont event paint list of all refresh iomages
+        #and in paiont event paint list of all refresh images
         self._refresh = []
         #bind mouse event
         self.setMouseTracking(True)

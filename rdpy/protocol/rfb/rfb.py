@@ -425,21 +425,12 @@ class ClientFactory(protocol.Factory):
     def buildProtocol(self, addr):
         '''
         function call by twisted on connection
-        @param addr: adresse where client try to connect
+        @param addr: adress where client try to connect
         '''
         protocol =  Rfb(LayerMode.CLIENT)
         protocol.addObserver(self._observer)
         self._observer.setProtocol(protocol)
         return protocol
-    
-    def startedConnecting(self, connector):
-        print 'Started to connect.'
-        
-    def clientConnectionLost(self, connector, reason):
-        print 'Lost connection.  Reason:', reason
-
-    def clientConnectionFailed(self, connector, reason):
-        print 'Connection failed. Reason:', reason
         
 class RfbObserver(object):
     '''
