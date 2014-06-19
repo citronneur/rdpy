@@ -33,30 +33,24 @@ class RDP(object):
             for rectangle in bitmapUpdateData.rectangles._array:
                 observer.notifyBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, (rectangle.flags & pdu.BitmapFlag.BITMAP_COMPRESSION).value, rectangle.bitmapDataStream.value)
 
-class Factory(protocol.Factory):
+class ClientFactory(protocol.Factory):
     '''
     Factory of Client RDP protocol
     '''
     def __init__(self, observer):
         '''
         ctor
-        @param observer: observer use by rdp protocol to handle events
+        @param observer: observer use by rdp protocol to handle events must implement RDPObserver
         '''
         self._observer = observer
     
     def buildProtocol(self, addr):
+        '''
+        Function call from twisted and build rdp protocol stack
+        '''
         rdp = RDP()
         rdp.addObserver(self._observer)
         return tpkt.TPKT(tpdu.TPDU(mcs.MCS(pdu.PDU(LayerMode.CLIENT, rdp))));
-    
-    def startedConnecting(self, connector):
-        print 'Started to connect.'
-        
-    def clientConnectionLost(self, connector, reason):
-        print 'Lost connection.  Reason:', reason
-
-    def clientConnectionFailed(self, connector, reason):
-        print 'Connection failed. Reason:', reason
         
 class RDPObserver(object):
     '''
