@@ -701,7 +701,7 @@ class PDU(LayerAutomata):
     Global channel for mcs that handle session
     identification user, licensing management, and capabilities exchange
     '''
-    def __init__(self, mode, dispatcher):
+    def __init__(self, mode, ordersManager):
         '''
         Constructor
         '''
@@ -743,7 +743,7 @@ class PDU(LayerAutomata):
         self._shareId = UInt32Le()
         
         #rdp observer
-        self._dispatcher = dispatcher
+        self._ordersManager = ordersManager
         
     def connect(self):
         '''
@@ -871,7 +871,7 @@ class PDU(LayerAutomata):
         '''
         dataPDU = self.readDataPDU(data)
         if dataPDU.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_UPDATE and dataPDU.pduData._value.updateType == UpdateType.UPDATETYPE_BITMAP:
-            self._dispatcher.recvBitmapUpdateDataPDU(dataPDU.pduData._value.updateData._value)
+            self._ordersManager.recvBitmapUpdateDataPDU(dataPDU.pduData._value.updateData._value)
             
         
     def sendConfirmActivePDU(self):

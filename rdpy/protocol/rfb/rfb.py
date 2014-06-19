@@ -152,7 +152,7 @@ class Rfb(RawLayer):
     implements rfb protocol
     '''
 
-    def __init__(self, mode):
+    def __init__(self, mode, ordersManager):
         '''
         constructor
         '''
@@ -177,7 +177,7 @@ class Rfb(RawLayer):
         #current rectangle header
         self._currentRect = Rectangle()
         #client or server adaptor
-        self._observer = []
+        self._ordersManager = ordersManager
         
     def addObserver(self, observer):
         '''
@@ -355,9 +355,8 @@ class Rfb(RawLayer):
         '''
         read body of rect
         '''
-        for observer in self._observer:
-            observer.notifyFramebufferUpdate(self._currentRect.width.value, self._currentRect.height.value, self._currentRect.x.value, self._currentRect.y.value, self._pixelFormat, self._currentRect.encoding, data.getvalue())
-            
+        self._ordersManager.recvRectangle(self._currentRect, self._pixelFormat, data.getvalue())
+           
         self._nbRect = self._nbRect - 1
         #if there is another rect to read
         if self._nbRect == 0:
@@ -410,6 +409,33 @@ class Rfb(RawLayer):
         write client cut text event packet
         '''
         self.send((ClientToServerMessages.CUT_TEXT, ClientCutText(text)))
+        
+class RFBOrderManager(object):
+    '''
+    class use to manage rfb order and dispatch throw observers
+    '''
+    def __init__(self):
+        '''
+        ctor
+        '''
+        self._observers = []
+        
+    def addObserver(self, observer):
+        '''
+        Add new observer for this protocol
+        @param observer: new observer
+        '''
+        self._observers.append(observer)
+        
+    def recvRectangle(self, rectangle, pixelFormat, data):
+        '''
+        receive rectangle order
+        @param rectangle: Rectangle type header of packet
+        @param pixelFormat: pixelFormat struct of current session
+        @param data: image data
+        '''
+        for observer in self._observers:
+            observer.notifyFramebufferUpdate(rectangle.width.value, rectangle.height.value, rectangle.x.value, rectangle.y.value, self._pixelFormat, rectangle.encoding, data)
 
 class ClientFactory(protocol.Factory):
     '''
@@ -427,8 +453,9 @@ class ClientFactory(protocol.Factory):
         function call by twisted on connection
         @param addr: adress where client try to connect
         '''
-        protocol =  Rfb(LayerMode.CLIENT)
-        protocol.addObserver(self._observer)
+        orderManager = RFBOrderManager()
+        orderManager.addObserver(self._observer)
+        protocol =  Rfb(LayerMode.CLIENT, orderManager)
         self._observer.setProtocol(protocol)
         return protocol
         

@@ -5,7 +5,7 @@ from twisted.internet import protocol
 import tpkt, tpdu, mcs, pdu
 from rdpy.network.layer import LayerMode
 
-class RDP(object):
+class RDPOrdersManager(object):
     '''
     use to decode and dispatch to observer PDU messages and orders
     '''
@@ -48,9 +48,9 @@ class ClientFactory(protocol.Factory):
         '''
         Function call from twisted and build rdp protocol stack
         '''
-        rdp = RDP()
-        rdp.addObserver(self._observer)
-        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(pdu.PDU(LayerMode.CLIENT, rdp))));
+        rdpOrdersManager = RDPOrdersManager()
+        rdpOrdersManager.addObserver(self._observer)
+        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(pdu.PDU(LayerMode.CLIENT, rdpOrdersManager))));
         
 class RDPObserver(object):
     '''
