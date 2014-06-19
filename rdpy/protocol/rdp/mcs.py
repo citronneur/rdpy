@@ -1,5 +1,5 @@
 '''
-@author: sylvain
+@author: citronneur
 '''
 
 from rdpy.network.const import ConstAttributes, TypeAttributes

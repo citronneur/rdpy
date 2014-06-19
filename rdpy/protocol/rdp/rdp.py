@@ -7,7 +7,7 @@ from rdpy.network.layer import LayerMode
 
 class RDP(object):
     '''
-    use to decode and dispatch to observer PDU message and orders
+    use to decode and dispatch to observer PDU messages and orders
     '''
     def __init__(self):
         '''
