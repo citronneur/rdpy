@@ -10,4 +10,4 @@ Remote Desktop Protocol in Twisted Python
 * python-qt4
 * python-qt4reactor
 
-this project is still in progress. 
+this project is still in progress.
