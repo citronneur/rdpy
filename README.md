@@ -1,6 +1,6 @@
 # RDPY
 
-## Remote Desktop Protoc in Python
+Remote Desktop Protocol in Twisted Python
 
 ## Requirements
 * python2.7

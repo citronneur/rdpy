@@ -11,6 +11,7 @@ from rdpy.network.error import InvalidExpectedDataException, ErrorReportedFromPe
 import gcc
 import lic
 import caps
+import rdp
 
 @ConstAttributes
 @TypeAttributes(UInt16Le)
@@ -701,9 +702,10 @@ class PDU(LayerAutomata):
     Global channel for mcs that handle session
     identification user, licensing management, and capabilities exchange
     '''
-    def __init__(self, mode, ordersManager):
+    def __init__(self, mode):
         '''
         Constructor
+        @param mode: LayerMode
         '''
         LayerAutomata.__init__(self, mode, None)
         #logon info send from client to server
@@ -742,8 +744,15 @@ class PDU(LayerAutomata):
         #share id between client and server
         self._shareId = UInt32Le()
         
-        #rdp observer
-        self._ordersManager = ordersManager
+        #rdp controller
+        self._controller = rdp.RDPController(self)
+        
+    def getController(self):
+        '''
+        Getter for RDP controller
+        @return: return rdp controller
+        '''
+        return self._controller
         
     def connect(self):
         '''
@@ -871,7 +880,7 @@ class PDU(LayerAutomata):
         '''
         dataPDU = self.readDataPDU(data)
         if dataPDU.shareDataHeader.pduType2 == PDUType2.PDUTYPE2_UPDATE and dataPDU.pduData._value.updateType == UpdateType.UPDATETYPE_BITMAP:
-            self._ordersManager.recvBitmapUpdateDataPDU(dataPDU.pduData._value.updateData._value)
+            self._controller.recvBitmapUpdateDataPDU(dataPDU.pduData._value.updateData._value)
             
         
     def sendConfirmActivePDU(self):

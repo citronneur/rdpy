@@ -5,16 +5,18 @@ from twisted.internet import protocol
 import tpkt, tpdu, mcs, pdu
 from rdpy.network.layer import LayerMode
 
-class RDPOrdersManager(object):
+class RDPController(object):
     '''
     use to decode and dispatch to observer PDU messages and orders
     '''
-    def __init__(self):
+    def __init__(self, pduLayer):
         '''
         ctor
         '''
         #list of observer
         self._observers = []
+        #transport layer
+        self._pduLayer = pduLayer
         
     def addObserver(self, observer):
         '''
@@ -22,6 +24,7 @@ class RDPOrdersManager(object):
         @param observer: new observer to add
         '''
         self._observers.append(observer)
+        observer._controller = self
         
     def recvBitmapUpdateDataPDU(self, bitmapUpdateData):
         '''
@@ -31,32 +34,39 @@ class RDPOrdersManager(object):
         for observer in self._observers:
             #for each rectangle in update PDU
             for rectangle in bitmapUpdateData.rectangles._array:
-                observer.notifyBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, (rectangle.flags & pdu.BitmapFlag.BITMAP_COMPRESSION).value, rectangle.bitmapDataStream.value)
+                observer.onBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, (rectangle.flags & pdu.BitmapFlag.BITMAP_COMPRESSION).value, rectangle.bitmapDataStream.value)
 
 class ClientFactory(protocol.Factory):
     '''
     Factory of Client RDP protocol
     '''
-    def __init__(self, observer):
-        '''
-        ctor
-        @param observer: observer use by rdp protocol to handle events must implement RDPObserver
-        '''
-        self._observer = observer
-    
     def buildProtocol(self, addr):
         '''
         Function call from twisted and build rdp protocol stack
+        @param addr: destination address
         '''
-        rdpOrdersManager = RDPOrdersManager()
-        rdpOrdersManager.addObserver(self._observer)
-        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(pdu.PDU(LayerMode.CLIENT, rdpOrdersManager))));
+        pduLayer = pdu.PDU(LayerMode.CLIENT)
+        pduLayer.getController().addObserver(self.buildObserver())
+        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(pduLayer)));
+    
+    def buildObserver(self):
+        '''
+        build observer use for connection
+        '''
+        pass
         
-class RDPObserver(object):
+        
+class RDPClientObserver(object):
     '''
     class use to inform all rdp event handle by RDPY
     '''
-    def notifyBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+    def __init__(self):
+        '''
+        ctor
+        '''
+        self._controller = None
+        
+    def onBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         '''
         notify bitmap update
         @param destLeft: xmin position

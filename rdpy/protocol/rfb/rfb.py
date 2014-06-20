@@ -5,6 +5,7 @@ from twisted.internet import protocol
 from rdpy.network.layer import RawLayer, LayerMode
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
 from rdpy.network.const import ConstAttributes, TypeAttributes
+from rdpy.network.error import UnRegistredObject, InvalidValue
 
 @ConstAttributes
 @TypeAttributes(String)
@@ -79,7 +80,6 @@ class PixelFormat(CompositeType):
         self.GreenShift = UInt8(8)
         self.BlueShift = UInt8(0)
         self.padding = (UInt16Be(), UInt8())
-    
         
 class ServerInit(CompositeType):
     '''
@@ -121,21 +121,21 @@ class KeyEvent(CompositeType):
     '''
     key event structure message
     '''
-    def __init__(self, downFlag = False, key = 0):
+    def __init__(self):
         CompositeType.__init__(self)
-        self.downFlag = UInt8(downFlag)
+        self.downFlag = UInt8(False)
         self.padding = UInt16Be()
-        self.key = UInt32Be(key)
+        self.key = UInt32Be()
         
 class PointerEvent(CompositeType):
     '''
     pointer event structure message
     '''
-    def __init__(self, mask = 0, x = 0, y = 0):
+    def __init__(self):
         CompositeType.__init__(self)
-        self.mask = UInt8(mask)
-        self.x = UInt16Be(x)
-        self.y = UInt16Be(y)
+        self.mask = UInt8()
+        self.x = UInt16Be()
+        self.y = UInt16Be()
         
 class ClientCutText(CompositeType):
     '''
@@ -152,9 +152,10 @@ class Rfb(RawLayer):
     implements rfb protocol
     '''
 
-    def __init__(self, mode, ordersManager):
+    def __init__(self, mode):
         '''
         constructor
+        @param mode: LayerMode client or server
         '''
         RawLayer.__init__(self, mode)
         #usefull for rfb protocol
@@ -177,14 +178,14 @@ class Rfb(RawLayer):
         #current rectangle header
         self._currentRect = Rectangle()
         #client or server adaptor
-        self._ordersManager = ordersManager
+        self._controller = RFBController(self)
         
-    def addObserver(self, observer):
+    def getController(self):
         '''
-        add observer for input/ouput events
-        @param observer: RfbObserver interface implementation
+        Getter for controller
+        @return: RFBController use by rfb layer
         '''
-        self._observer.append(observer)
+        return self._controller
     
     def expectWithHeader(self, expectedHeaderLen, callbackBody):
         '''
@@ -355,7 +356,7 @@ class Rfb(RawLayer):
         '''
         read body of rect
         '''
-        self._ordersManager.recvRectangle(self._currentRect, self._pixelFormat, data.getvalue())
+        self._controller.recvRectangle(self._currentRect, self._pixelFormat, data.getvalue())
            
         self._nbRect = self._nbRect - 1
         #if there is another rect to read
@@ -392,17 +393,19 @@ class Rfb(RawLayer):
         '''
         self.send((ClientToServerMessages.FRAME_BUFFER_UPDATE_REQUEST, FrameBufferUpdateRequest(incremental, x, y, width, height)))
         
-    def sendKeyEvent(self, downFlag, key):
+    def sendKeyEvent(self, keyEvent):
         '''
         write key event packet
+        @param keyEvent: KeyEvent struct to send
         '''
-        self.send((ClientToServerMessages.KEY_EVENT, KeyEvent(downFlag, key)))
+        self.send((ClientToServerMessages.KEY_EVENT, keyEvent))
         
-    def sendPointerEvent(self, mask, x, y):
+    def sendPointerEvent(self, pointerEvent):
         '''
         write pointer event packet
+        @param pointerEvent: PointerEvent struct use
         '''
-        self.send((ClientToServerMessages.POINTER_EVENT, PointerEvent(mask, x, y)))
+        self.send((ClientToServerMessages.POINTER_EVENT, pointerEvent))
         
     def sendClientCutText(self, text):
         '''
@@ -410,15 +413,18 @@ class Rfb(RawLayer):
         '''
         self.send((ClientToServerMessages.CUT_TEXT, ClientCutText(text)))
         
-class RFBOrderManager(object):
+class RFBController(object):
     '''
     class use to manage rfb order and dispatch throw observers
     '''
-    def __init__(self):
+    def __init__(self, rfbLayer):
         '''
         ctor
+        @param rfbLayer: network layer
         '''
         self._observers = []
+        #rfb layer to send client orders
+        self._rfbLayer = rfbLayer
         
     def addObserver(self, observer):
         '''
@@ -426,44 +432,111 @@ class RFBOrderManager(object):
         @param observer: new observer
         '''
         self._observers.append(observer)
+        observer._controller = self
         
     def recvRectangle(self, rectangle, pixelFormat, data):
         '''
         receive rectangle order
+        Main update order type
         @param rectangle: Rectangle type header of packet
         @param pixelFormat: pixelFormat struct of current session
         @param data: image data
         '''
         for observer in self._observers:
-            observer.notifyFramebufferUpdate(rectangle.width.value, rectangle.height.value, rectangle.x.value, rectangle.y.value, self._pixelFormat, rectangle.encoding, data)
+            observer.onUpdate(rectangle.width.value, rectangle.height.value, rectangle.x.value, rectangle.y.value, pixelFormat, rectangle.encoding, data)
+    
+    def sendKeyEvent(self, isDown, key):
+        '''
+        send a key event throw RFB protocol
+        @param isDown: boolean notify if key is pressed or not (True if key is pressed)
+        @param key: ascii code of key
+        '''
+        try:
+            event = KeyEvent()
+            event.downFlag.value = isDown
+            event.key.value = key
+        
+            self._rfbLayer.sendKeyEvent(event)
+        except InvalidValue:
+            print "Try to send an invalid key event"
+        
+    def sendPointerEvent(self, mask, x, y):
+        '''
+        Send  an pointer event throw RFB protocol
+        @param mask: mask of button if button 1 and 3 are pressed then mask is 00000101
+        @param x: x coordinate of mouse pointer
+        @param y: y pointer of mouse pointer
+        '''
+        try:
+            event = PointerEvent()
+            event.mask.value = mask
+            event.x.value = x
+            event.y.value = y
+            
+            self._rfbLayer.sendPointerEvent(event)
+        except InvalidValue:
+            print "Try to send an invalid pointer event"
+        
 
 class ClientFactory(protocol.Factory):
     '''
     Factory of RFB protocol
     '''
-    def __init__(self, observer):
-        '''
-        save mode and adapter
-        @param adapter: graphic client adapter
-        '''
-        self._observer = observer
-    
     def buildProtocol(self, addr):
         '''
         function call by twisted on connection
-        @param addr: adress where client try to connect
+        @param addr: address where client try to connect
         '''
-        orderManager = RFBOrderManager()
-        orderManager.addObserver(self._observer)
-        protocol =  Rfb(LayerMode.CLIENT, orderManager)
-        self._observer.setProtocol(protocol)
+        protocol =  Rfb(LayerMode.CLIENT)
+        protocol.getController().addObserver(self.buildObserver())
         return protocol
+    
+    def buildObserver(self):
+        '''
+        build an RFB observer object
+        '''
+        pass
+    
         
-class RfbObserver(object):
+class RFBClientObserver(object):
     '''
-    Rfb protocol obserser
+    RFB client protocol observer
     '''
-    def notifyFramebufferUpdate(self, width, height, x, y, pixelFormat, encoding, data):
+    def __init__(self):
+        '''
+        ctor
+        '''
+        self._controller = None
+        
+    def keyEvent(self, isPressed, key):
+        '''
+        send a key event
+        @param isPressed: state of key
+        @param key: ascii code of key
+        '''
+        if self._controller is None:
+            raise UnRegistredObject("RFBClientObserver need to be registred to a RFBController object")
+        
+        self._controller.sendKeyEvent(isPressed, key)
+        
+    def mouseEvent(self, button, x, y):
+        '''
+        send a mouse event to RFB Layer
+        @param button: button number which is pressed (0,1,2,3,4,5,6,7,8)
+        @param x: x coordinate of mouse pointer
+        @param y: y coordinate of mouse pointer
+        '''
+        if self._controller is None:
+            raise UnRegistredObject("RFBClientObserver need to be registred to a RFBController object")
+        mask = 0
+        if button == 1:
+            mask = 1
+        elif button > 1:
+            mask = 1 << button - 1
+            
+        self._controller.sendPointerEvent(mask, x, y)
+        
+    def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
         '''
         recv framebuffer update
         @param width : width of image
@@ -473,12 +546,5 @@ class RfbObserver(object):
         @param pixelFormat : pixel format struct from rfb.types
         @param encoding : encoding struct from rfb.types
         @param data : in respect of dataFormat and pixelFormat
-        '''
-        pass
-    
-    def setProtocol(self, rfbLayer):
-        '''
-        call when observer is added to an rfb layer
-        @param: rfbLayer layer inform the observer
         '''
         pass
