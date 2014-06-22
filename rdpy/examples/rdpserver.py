@@ -7,9 +7,18 @@ import sys, os
 sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 
 from rdpy.protocol.rdp import rdp
-from rdpy.network.layer import LayerMode
+
+class TestServerFactory(rdp.ServerFactory):
+    def startedConnecting(self, connector):
+        pass
+    
+    def clientConnectionLost(self, connector, reason):
+        pass
+        
+    def clientConnectionFailed(self, connector, reason):
+        pass
 
 if __name__ == '__main__':
     from twisted.internet import reactor
-    reactor.listenTCP(33389, rdp.Factory(LayerMode.SERVER))
+    reactor.listenTCP(33389, TestServerFactory())
     reactor.run()

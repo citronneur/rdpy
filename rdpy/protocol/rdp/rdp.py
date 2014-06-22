@@ -47,14 +47,41 @@ class ClientFactory(protocol.Factory):
         '''
         pduLayer = pdu.PDU(LayerMode.CLIENT)
         pduLayer.getController().addObserver(self.buildObserver())
-        return tpkt.TPKT(tpdu.TPDU(mcs.MCS(pduLayer)));
+        return tpkt.TPKT(tpdu.createClient(mcs.MCS(pduLayer)));
     
     def buildObserver(self):
         '''
         build observer use for connection
         '''
         pass
+
+class ServerFactory(protocol.Factory):
+    '''
+    Factory of Serrve RDP protocol
+    '''
+    def __init__(self, privateKeyFileName, certificateFileName):
+        '''
+        ctor
+        @param privateKeyFileName: file contain server private key
+        @param certficiateFileName: file that contain publi key
+        '''
+        self._privateKeyFileName = privateKeyFileName
+        self._certificateFileName = certificateFileName
         
+    def buildProtocol(self, addr):
+        '''
+        Function call from twisted and build rdp protocol stack
+        @param addr: destination address
+        '''
+        pduLayer = pdu.PDU(LayerMode.SERVER)
+        #pduLayer.getController().addObserver(self.buildObserver())
+        return tpkt.TPKT(tpdu.createServer(mcs.MCS(pduLayer), self._privateKeyFileName, self._certificateFileName));
+    
+    def buildObserver(self):
+        '''
+        build observer use for connection
+        '''
+        pass 
         
 class RDPClientObserver(object):
     '''
