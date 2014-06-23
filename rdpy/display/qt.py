@@ -27,6 +27,9 @@ from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
 
+from rdpy.network.type import UInt16Le, Stream
+import rle
+
 class QAdaptor(object):
     '''
     adaptor model with link between protocol
@@ -148,6 +151,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         '''
         #TODO
         if isCompress:
+            #rle.decode("", Stream(data), width, height, UInt16Le)
             return
         
         imageFormat = None
