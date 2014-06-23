@@ -43,7 +43,7 @@ class RDPController(object):
             for rectangle in bitmapUpdateData.rectangles._array:
                 observer.onBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, (rectangle.flags & pdu.BitmapFlag.BITMAP_COMPRESSION).value, rectangle.bitmapDataStream.value)
 
-class Factory(protocol.Factory):
+class ClientFactory(protocol.Factory):
     '''
     Factory of Client RDP protocol
     '''
@@ -52,9 +52,11 @@ class Factory(protocol.Factory):
         Function call from twisted and build rdp protocol stack
         @param addr: destination address
         '''
-        return tpkt.TPKT(tpdu.createClient(mcs.createClient(self.buildObserver().getController())));
+        controller = RDPController(LayerMode.CLIENT)
+        self.buildObserver(controller)
+        return tpkt.TPKT(tpdu.createClient(mcs.createClient(controller)));
     
-    def buildObserver(self):
+    def buildObserver(self, controller):
         '''
         build observer use for connection
         '''
@@ -92,15 +94,12 @@ class RDPClientObserver(object):
     '''
     class use to inform all rdp event handle by RDPY
     '''
-    def __init__(self):
-        self._controller = RDPController(LayerMode.CLIENT)
+    def __init__(self, controller):
+        """
+        @param controller: RDP controller use to interact with protocol
+        """
+        self._controller = controller
         self._controller.addClientObserver(self)
-        
-    def getController(self):
-        """
-        @return: RDP controller use by observer
-        """
-        return self._controller
         
     def onBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         '''

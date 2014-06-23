@@ -35,12 +35,13 @@ class RFBClientQtFactory(rfb.Factory):
     """
     Factory create a VNC GUI client
     """
-    def buildObserver(self):
+    def buildObserver(self, controller):
         """
         Build RFB Client observer
+        @param controller: build by factory
         """
         #create client observer
-        client = RFBClientQt()
+        client = RFBClientQt(controller)
         #create qt widget
         self._w = client.getWidget()
         self._w.resize(1024, 800)

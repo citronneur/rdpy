@@ -31,16 +31,17 @@ from PyQt4 import QtGui
 from rdpy.display.qt import RDPClientQt
 from rdpy.protocol.rdp import rdp
 
-class RDPClientQtFactory(rdp.Factory):
-    '''
+class RDPClientQtFactory(rdp.ClientFactory):
+    """
     Factory create a RDP GUI client
-    '''
-    def buildObserver(self):
-        '''
-        build RFB observer
-        '''
+    """
+    def buildObserver(self, controller):
+        """
+        Build RFB observer
+        @param controller: build factory and needed by observer
+        """
         #create client observer
-        client = RDPClientQt()
+        client = RDPClientQt(controller)
         #create qt widget
         self._w = client.getWidget()
         self._w.resize(1024, 800)
@@ -52,21 +53,21 @@ class RDPClientQtFactory(rdp.Factory):
         pass
     
     def clientConnectionLost(self, connector, reason):
-        '''
-        connection lost event
+        """
+        Connection lost event
         @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
-        '''
+        """
         QtGui.QMessageBox.warning(self._w, "Warning", "Lost connection : %s"%reason)
         reactor.stop()
         app.exit()
         
     def clientConnectionFailed(self, connector, reason):
-        '''
-        connection failed event
+        """
+        Connection failed event
         @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
-        '''
+        """
         QtGui.QMessageBox.warning(self._w, "Warning", "Connection failed : %s"%reason)
         reactor.stop()
         app.exit()

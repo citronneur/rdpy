@@ -529,9 +529,11 @@ class Factory(protocol.Factory):
         Function call by twisted on connection
         @param addr: address where client try to connect
         """
-        return self.buildObserver().getController().getRFBLayer()
+        controller = RFBController(LayerMode.CLIENT)
+        self.buildObserver(controller)
+        return controller.getRFBLayer()
     
-    def buildObserver(self):
+    def buildObserver(self, controller):
         """
         Build an RFB observer object
         """
@@ -542,8 +544,8 @@ class RFBClientObserver(object):
     """
     RFB client protocol observer
     """
-    def __init__(self):
-        self._controller = RFBController(LayerMode.CLIENT)
+    def __init__(self, controller):
+        self._controller = controller
         self._controller.addClientObserver(self)
     
     def getController(self):
