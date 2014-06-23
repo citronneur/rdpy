@@ -62,9 +62,7 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
     is to an RFB observer 
     '''    
     def __init__(self):
-        '''
-        ctor
-        '''
+        RFBClientObserver.__init__(self)
         self._widget = QRemoteDesktop(self)
         
     def getWidget(self):
@@ -121,9 +119,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
     Adaptor for RDP client
     '''
     def __init__(self):
-        '''
-        constructor
-        '''
+        RDPClientObserver.__init__(self)
         self._widget = QRemoteDesktop(self)
         
     def getWidget(self):

@@ -3,7 +3,7 @@
 '''
 
 from rdpy.network.const import ConstAttributes, TypeAttributes
-from rdpy.network.layer import LayerAutomata, Layer
+from rdpy.network.layer import LayerAutomata, Layer, LayerMode
 from rdpy.network.type import sizeof, Stream, UInt8, UInt16Be
 from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
@@ -93,12 +93,13 @@ class MCS(LayerAutomata):
             return self._mcs._serverSettings
         
     
-    def __init__(self, presentation):
+    def __init__(self, mode, presentation):
         '''
         ctor call base class ctor
+        @param mode: mode of mcs layer
         @param presentation: presentation layer
         '''
-        LayerAutomata.__init__(self, presentation._mode, presentation)
+        LayerAutomata.__init__(self, mode, presentation)
         self._clientSettings = gcc.ClientSettings()
         self._serverSettings = gcc.ServerSettings()
         #default user Id
@@ -334,5 +335,18 @@ class MCS(LayerAutomata):
         max_pdu_size = ber.readInteger(s)
         ber.readInteger(s)
         return (max_channels, max_users, max_tokens, max_pdu_size)
-        
+
+def createClient(controller):
+    """
+    @param controller: RDP controller which initialized all channel layer
+    @return: MCS layer in client mode
+    """
+    return MCS(LayerMode.CLIENT, controller.getPDULayer())
+
+def createServer(controller):
+    """
+    @param controller: RDP controller which initialized all channel layer
+    @return: MCS layer in server mode
+    """
+    return MCS(LayerMode.SERVER, controller.getPDULayer())
         

@@ -31,7 +31,7 @@ from PyQt4 import QtGui
 from rdpy.display.qt import RDPClientQt
 from rdpy.protocol.rdp import rdp
 
-class RDPClientQtFactory(rdp.ClientFactory):
+class RDPClientQtFactory(rdp.Factory):
     '''
     Factory create a RDP GUI client
     '''

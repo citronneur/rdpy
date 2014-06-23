@@ -2,7 +2,7 @@
 @author: citronneur
 '''
 
-from rdpy.network.layer import LayerAutomata
+from rdpy.network.layer import LayerAutomata, LayerMode
 from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType,\
     FactoryType
 from rdpy.network.const import ConstAttributes, TypeAttributes
@@ -702,10 +702,11 @@ class PDU(LayerAutomata):
     Global channel for mcs that handle session
     identification user, licensing management, and capabilities exchange
     '''
-    def __init__(self, mode):
+    def __init__(self, mode, controller):
         '''
         Constructor
         @param mode: LayerMode
+        @param controller: controller use to inform orders 
         '''
         LayerAutomata.__init__(self, mode, None)
         #logon info send from client to server
@@ -745,14 +746,7 @@ class PDU(LayerAutomata):
         self._shareId = UInt32Le()
         
         #rdp controller
-        self._controller = rdp.RDPController(self)
-        
-    def getController(self):
-        '''
-        Getter for RDP controller
-        @return: return rdp controller
-        '''
-        return self._controller
+        self._controller = controller
         
     def connect(self):
         '''

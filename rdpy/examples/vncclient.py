@@ -18,7 +18,7 @@
 #
 
 """
-example of use rdpy as vnc client
+example of use rdpy as VNC client
 """
 
 import sys
@@ -31,14 +31,14 @@ from PyQt4 import QtGui
 from rdpy.display.qt import RFBClientQt
 from rdpy.protocol.rfb import rfb
         
-class RFBClientQtFactory(rfb.ClientFactory):
-    '''
+class RFBClientQtFactory(rfb.Factory):
+    """
     Factory create a VNC GUI client
-    '''
+    """
     def buildObserver(self):
-        '''
-        build RFB observer
-        '''
+        """
+        Build RFB Client observer
+        """
         #create client observer
         client = RFBClientQt()
         #create qt widget
@@ -52,21 +52,21 @@ class RFBClientQtFactory(rfb.ClientFactory):
         pass
         
     def clientConnectionLost(self, connector, reason):
-        '''
-        connection lost event
+        """
+        Connection lost event
         @param connector: twisted connector use for vnc connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
-        '''
+        """
         QtGui.QMessageBox.warning(self._w, "Warning", "Lost connection : %s"%reason)
         reactor.stop()
         app.exit()
         
     def clientConnectionFailed(self, connector, reason):
-        '''
-        connection failed event
+        """
+        Connection failed event
         @param connector: twisted connector use for vnc connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
-        '''
+        """
         QtGui.QMessageBox.warning(self._w, "Warning", "Connection failed : %s"%reason)
         reactor.stop()
         app.exit()
