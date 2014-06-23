@@ -31,7 +31,7 @@ from PyQt4 import QtGui
 from rdpy.display.qt import RFBClientQt
 from rdpy.protocol.rfb import rfb
         
-class RFBClientQtFactory(rfb.Factory):
+class RFBClientQtFactory(rfb.ClientFactory):
     """
     Factory create a VNC GUI client
     """

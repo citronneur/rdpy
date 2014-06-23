@@ -26,7 +26,6 @@ QRemoteDesktop is a widget use for render in rdpy
 from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
-from rdpy.network.error import UnRegistredObject
 
 class QAdaptor(object):
     '''
@@ -230,9 +229,6 @@ class QRemoteDesktop(QtGui.QWidget):
         call when button mouse is pressed
         @param event: qMouseEvent
         '''
-        if self._adaptor is None:
-            raise UnRegistredObject("No adaptor to send mouse press event")
-        
         self._adaptor.sendMouseEvent(event)
         
     def keyPressEvent(self, event):
@@ -240,8 +236,5 @@ class QRemoteDesktop(QtGui.QWidget):
         call when button key is pressed
         @param event: qKeyEvent
         '''
-        if self._adaptor is None:
-            raise UnRegistredObject("No adaptor to send key press event")
-        
         self._adaptor.sendKeyEvent(event)
         

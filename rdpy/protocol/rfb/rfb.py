@@ -30,7 +30,7 @@ from twisted.internet import protocol
 from rdpy.network.layer import RawLayer, LayerMode
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
 from rdpy.network.const import ConstAttributes, TypeAttributes
-from rdpy.network.error import UnRegistredObject, InvalidValue
+from rdpy.network.error import InvalidValue
 
 @ConstAttributes
 @TypeAttributes(String)
@@ -520,7 +520,7 @@ class RFBController(object):
             print "Try to send an invalid pointer event"
         
 
-class Factory(protocol.Factory):
+class ClientFactory(protocol.Factory):
     """
     Twisted Factory of RFB protocol
     """
@@ -560,9 +560,6 @@ class RFBClientObserver(object):
         @param isPressed: state of key
         @param key: ascii code of key
         """
-        if self._controller is None:
-            raise UnRegistredObject("RFBClientObserver need to be registred to a RFBController object")
-        
         self._controller.sendKeyEvent(isPressed, key)
         
     def mouseEvent(self, button, x, y):
@@ -572,8 +569,6 @@ class RFBClientObserver(object):
         @param x: x coordinate of mouse pointer
         @param y: y coordinate of mouse pointer
         """
-        if self._controller is None:
-            raise UnRegistredObject("RFBClientObserver need to be registred to a RFBController object")
         mask = 0
         if button == 1:
             mask = 1
