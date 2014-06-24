@@ -21,6 +21,16 @@
 All exceptions error use in RDPY
 """
 
+class CallPureVirtualFuntion(Exception):
+    """
+    Raise when a virtual function is called and not implemented
+    """
+    def __init__(self, message = ""):
+        """
+        @param message: message show when exception is raised
+        """
+        Exception.__init__(self, message)
+
 class InvalidValue(Exception):
     """
     Raise when invalid value type occurred

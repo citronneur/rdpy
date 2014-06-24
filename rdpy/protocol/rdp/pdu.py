@@ -2,16 +2,12 @@
 @author: citronneur
 '''
 
-from rdpy.network.layer import LayerAutomata, LayerMode
-from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType,\
-    FactoryType
+from rdpy.network.layer import LayerAutomata
+from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
 from rdpy.network.const import ConstAttributes, TypeAttributes
 from rdpy.network.error import InvalidExpectedDataException, ErrorReportedFromPeer
 
-import gcc
-import lic
-import caps
-import rdp
+import gcc, lic, caps
 
 @ConstAttributes
 @TypeAttributes(UInt16Le)

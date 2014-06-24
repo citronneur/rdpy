@@ -2,8 +2,8 @@
 @author: sylvain
 '''
 from twisted.internet import protocol
-import tpkt, tpdu, mcs, pdu
 from rdpy.network.layer import LayerMode
+import tpkt, tpdu, mcs, pdu
 
 class RDPController(object):
     """

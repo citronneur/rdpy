@@ -1,9 +1,32 @@
-'''
-@author: citronneur
-'''
+#
+# Copyright (c) 2014 Sylvain Peyrefitte
+#
+# This file is part of rdpy.
+#
+# rdpy is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+"""
+Implement Multi Channel Service
+
+Each channel have a particular role.
+The main channel is the graphical channel.
+It exist channel for file system order, audio channel, clipboard etc...
+"""
 
 from rdpy.network.const import ConstAttributes, TypeAttributes
-from rdpy.network.layer import LayerAutomata, Layer, LayerMode
+from rdpy.network.layer import LayerAutomata, LayerMode, StreamSender
 from rdpy.network.type import sizeof, Stream, UInt8, UInt16Be
 from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
@@ -13,18 +36,18 @@ import ber, gcc, per
 @ConstAttributes
 @TypeAttributes(UInt8)
 class Message(object):
-    '''
-    message type
-    '''
+    """
+    Message type
+    """
     MCS_TYPE_CONNECT_INITIAL = 0x65
     MCS_TYPE_CONNECT_RESPONSE = 0x66
 
 @ConstAttributes
 @TypeAttributes(UInt8)
 class DomainMCSPDU:
-    '''
-    domain mcs pdu header
-    '''
+    """
+    Domain MCS PDU header
+    """
     ERECT_DOMAIN_REQUEST = 1
     DISCONNECT_PROVIDER_ULTIMATUM = 8
     ATTACH_USER_REQUEST = 10
@@ -37,27 +60,28 @@ class DomainMCSPDU:
 @ConstAttributes
 @TypeAttributes(UInt16Be)
 class Channel:
+    """
+    Channel id of main channels use in RDP
+    """
     MCS_GLOBAL_CHANNEL = 1003
     MCS_USERCHANNEL_BASE = 1001
 
 class MCS(LayerAutomata):
-    '''
+    """
     Multi Channel Service layer
     the main layer of RDP protocol
     is why he can do everything and more!
-    '''
-    
-    class MCSProxySender(Layer):
-        '''
-        Proxy use to set as trnsport layer for upper channel
+    """
+    class MCSProxySender(StreamSender):
+        """
+        Proxy use to set as transport layer for upper channel
         use to abstract channel id for presentation layer
-        '''
+        """
         def __init__(self, mcs, channelId):
-            '''
-            ctor
-            @param mcs: mcs layer use as proxy
+            """
+            @param mcs: MCS layer use as proxy
             @param channelId: channel id for presentation layer 
-            '''
+            """
             self._mcs = mcs
             self._channelId = channelId
             
@@ -94,11 +118,10 @@ class MCS(LayerAutomata):
         
     
     def __init__(self, mode, presentation):
-        '''
-        ctor call base class ctor
-        @param mode: mode of mcs layer
+        """
+        @param mode: mode of MCS layer
         @param presentation: presentation layer
-        '''
+        """
         LayerAutomata.__init__(self, mode, presentation)
         self._clientSettings = gcc.ClientSettings()
         self._serverSettings = gcc.ServerSettings()
@@ -110,17 +133,17 @@ class MCS(LayerAutomata):
         self._channelIdsRequest = {}
     
     def connect(self):
-        '''
-        connection send for client mode
+        """
+        Connection send for client mode
         a write connect initial packet
-        '''
+        """
         self._clientSettings.core.serverSelectedProtocol = self._transport._selectedProtocol
         self.sendConnectInitial()
         
     def connectNextChannel(self):
-        '''
-        send sendChannelJoinRequest message on next unconnect channel
-        '''
+        """
+        Send sendChannelJoinRequest message on next unconnect channel
+        """
         for (channelId, layer) in self._channelIds.iteritems():
             #for each unconnect channel send a request
             if not self._channelIdsRequest.has_key(channelId):
@@ -138,9 +161,9 @@ class MCS(LayerAutomata):
                 layer.connect()
                 
     def sendConnectInitial(self):
-        '''
-        send connect initial packet
-        '''
+        """
+        Send connect initial packet
+        """
         ccReq = gcc.writeConferenceCreateRequest(self._clientSettings)
         ccReqStream = Stream()
         ccReqStream.writeType(ccReq)
@@ -155,28 +178,28 @@ class MCS(LayerAutomata):
         self.setNextState(self.recvConnectResponse)
         
     def sendErectDomainRequest(self):
-        '''
-        send a formated erect domain request for RDP connection
-        '''
+        """
+        Send a formated erect domain request for RDP connection
+        """
         self._transport.send((self.writeMCSPDUHeader(DomainMCSPDU.ERECT_DOMAIN_REQUEST), per.writeInteger(0), per.writeInteger(0)))
         
     def sendAttachUserRequest(self):
-        '''
-        send a formated attach user request for RDP connection
-        '''
+        """
+        Send a formated attach user request for RDP connection
+        """
         self._transport.send(self.writeMCSPDUHeader(DomainMCSPDU.ATTACH_USER_REQUEST))
         
     def sendChannelJoinRequest(self, channelId):
-        '''
-        send a formated Channel join request from client to server
-        '''
+        """
+        Send a formated Channel join request from client to server
+        """
         self._transport.send((self.writeMCSPDUHeader(DomainMCSPDU.CHANNEL_JOIN_REQUEST), self._userId, channelId))
         
     def recvConnectResponse(self, data):
-        '''
-        receive mcs connect response from server
+        """
+        receive MCS connect response from server
         @param data: Stream
-        '''
+        """
         ber.readApplicationTag(data, Message.MCS_TYPE_CONNECT_RESPONSE)
         ber.readEnumerated(data)
         ber.readInteger(data)
@@ -196,10 +219,10 @@ class MCS(LayerAutomata):
         self.setNextState(self.recvAttachUserConfirm)
         
     def recvAttachUserConfirm(self, data):
-        '''
-        receive an attach user confirm
+        """
+        Receive an attach user confirm
         @param data: Stream
-        '''
+        """
         opcode = UInt8()
         confirm = UInt8()
         data.readType((opcode, confirm))
@@ -217,10 +240,10 @@ class MCS(LayerAutomata):
         self.connectNextChannel()
     
     def recvChannelJoinConfirm(self, data):
-        '''
-        receive a channel join confirm from server
+        """
+        Receive a channel join confirm from server
         @param data: Stream
-        '''
+        """
         opcode = UInt8()
         confirm = UInt8()
         data.readType((opcode, confirm))
@@ -239,10 +262,10 @@ class MCS(LayerAutomata):
         self.connectNextChannel()
         
     def recvData(self, data):
-        '''
-        main receive method
+        """
+        Main receive method
         @param data: Stream 
-        '''
+        """
         opcode = UInt8()
         data.readType(opcode)
         
@@ -278,51 +301,52 @@ class MCS(LayerAutomata):
         self._channelIds[channelId].recv(data)
         
     def send(self, channelId, data):
-        '''
-        specific send function for channelId
+        """
+        Specific send function for channelId
+        @param channelId: Channel use to send
         @param data: message to send
-        '''
+        """
         self._transport.send((self.writeMCSPDUHeader(DomainMCSPDU.SEND_DATA_REQUEST), self._userId, channelId, UInt8(0x70), UInt16Be(sizeof(data)) | UInt16Be(0x8000), data))
         
     
     def writeDomainParams(self, maxChannels, maxUsers, maxTokens, maxPduSize):
-        '''
-        write a special domain param structure
+        """
+        Write a special domain parameter structure
         use in connection sequence
-        @param maxChannels: number of mcs channel use
-        @param maxUsers: number of mcs user used (1)
+        @param maxChannels: number of MCS channel use
+        @param maxUsers: number of MCS user used (1)
         @param maxTokens: unknown
         @param maxPduSize: unknown
-        @return: domain param structure
-        '''
+        @return: domain parameter structure
+        """
         domainParam = (ber.writeInteger(maxChannels), ber.writeInteger(maxUsers), ber.writeInteger(maxTokens),
                        ber.writeInteger(1), ber.writeInteger(0), ber.writeInteger(1),
                        ber.writeInteger(maxPduSize), ber.writeInteger(2))
         return (ber.writeUniversalTag(ber.Tag.BER_TAG_SEQUENCE, True), writeLength(sizeof(domainParam)), domainParam)
     
     def writeMCSPDUHeader(self, mcsPdu, options = 0):
-        '''
-        write mcs pdu header
-        @param mcsPdu: pdu code
+        """
+        Write MCS PDU header
+        @param mcsPdu: PDU code
         @param options: option contains in header
         @return: UInt8
-        '''
+        """
         return (mcsPdu << 2) | options
     
     def readMCSPDUHeader(self, opcode, mcsPdu):
-        '''
-        read mcsPdu header and return options parameter
+        """
+        Read mcsPdu header and return options parameter
         @param opcode: UInt8 opcode
         @param mcsPdu: mcsPdu will be checked
         @return: true if opcode is correct
-        '''
+        """
         return (opcode >> 2) == mcsPdu
     
     def readDomainParams(self, s):
-        '''
-        read domain params structure
+        """
+        Read domain parameters structure
         @return: (max_channels, max_users, max_tokens, max_pdu_size)
-        '''
+        """
         if not ber.readUniversalTag(s, ber.Tag.BER_TAG_SEQUENCE, True):
             raise InvalidValue("bad BER tags")
         ber.readLength(s)#length

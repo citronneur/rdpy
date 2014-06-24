@@ -24,7 +24,7 @@ This layer have main goal to negociate ssl transport
 RDP basic security is not supported by RDPY (because is not a true security layer...)
 """
 
-from rdpy.network.layer import LayerAutomata, LayerMode
+from rdpy.network.layer import LayerAutomata, LayerMode, StreamSender
 from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
 from rdpy.network.error import InvalidExpectedDataException
 from rdpy.network.const import ConstAttributes, TypeAttributes
@@ -116,7 +116,7 @@ class Negotiation(CompositeType):
         self.selectedProtocol = UInt32Le(conditional = lambda: self.code == NegociationType.TYPE_RDP_NEG_RSP)
         self.failureCode = UInt32Le(conditional = lambda: self.code == NegociationType.TYPE_RDP_NEG_FAILURE)
 
-class TPDU(LayerAutomata):
+class TPDU(LayerAutomata, StreamSender):
     """
     TPDU layer management
     there is an connection automata
@@ -223,7 +223,7 @@ class TPDU(LayerAutomata):
         """
         header = TPDUDataHeader()
         data.readType(header)
-        LayerAutomata.recv(self, data)
+        self._presentation.recv(data)
         
     def sendConnectionRequest(self):
         """

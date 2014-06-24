@@ -45,7 +45,9 @@ def decode(src, width, height, colorType):
     insertMix = False
     fom_mask = 0
     mask = 0
-    dst = Stream("\x00" * (width * height * sizeof(colorType())))
+    line = 0
+    typeSize = sizeof(colorType())
+    dst = Stream("\x00" * (width * height * typeSize))
     
     while src.dataLen() > 0:
         #compute orders
@@ -107,7 +109,10 @@ def decode(src, width, height, colorType):
                     raise InvalidExpectedDataException("In RLE decompression height must be greater than 0")
                 x = 0
                 height -= 1
-                #prevline = line
+                prevline = line
+                line = width * height * typeSize
+            
+            
     return dst
             
                 
