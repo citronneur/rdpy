@@ -35,7 +35,7 @@ def decode(src, width, height, colorType):
     """
     lastopcode = -1
     x = width
-    prevline = 0
+    prevLine = 0
     code = UInt8()
     opcode = UInt8()
     color1 = colorType()
@@ -46,8 +46,7 @@ def decode(src, width, height, colorType):
     fom_mask = 0
     mask = 0
     line = 0
-    typeSize = sizeof(colorType())
-    dst = Stream("\x00" * (width * height * typeSize))
+    dst = [colorType()] * width * height
     
     while src.dataLen() > 0:
         #compute orders
@@ -87,7 +86,7 @@ def decode(src, width, height, colorType):
         
         
         if opcode == 0:
-            if lastopcode == opcode and not (x == width and prevline == 0):
+            if lastopcode == opcode and not (x == width and prevLine == 0):
                 insertMix = True
         elif opcode == 3 or opcode == 8:
             src.readType(color2)
@@ -109,13 +108,73 @@ def decode(src, width, height, colorType):
                     raise InvalidExpectedDataException("In RLE decompression height must be greater than 0")
                 x = 0
                 height -= 1
-                prevline = line
-                line = width * height * typeSize
+                prevLine = line
+                line = width * height
             
+            #fill
             if opcode == 0:
                 if insertMix:
-                    pass
-            
-    return dst
+                    if prevLine == 0:
+                        dst[line + x] = mix
+                    else:
+                        dst[line + x] = dst[prevLine + x] ^ mix
+                insertMix = False
+                count -= 1
+                x += 1
+                
+                if prevLine == 0:
+                    while count > 0 and x < width:
+                        dst[line + x] = colorType()
+                        count -= 1
+                        x += 1
+                else:
+                    while count > 0 and x < width:
+                        dst[line + x] = dst[prevLine + x]
+                        count -= 1
+                        x += 1
+            #mix
+            elif opcode == 1:
+                if prevLine == 0:
+                    while count > 0 and x < width:
+                        dst[line + x] = mix
+                        count -= 1
+                        x += 1
+                else:
+                    while count > 0 and x < width:
+                        dst[line + x] = dst[prevLine + x] ^ mix
+                        count -= 1
+                        x += 1
+            #fill or mix
+            elif opcode == 2:
+                pass
+            #color
+            elif opcode == 3:
+                while count > 0 and x < width:
+                    dst[line + x] = color2
+                    count -= 1
+                    x += 1
+            #copy
+            elif opcode == 4:
+                while count > 0 and x < width:
+                    src.readType(dst[line + x])
+                    count -= 1
+                    x += 1
+            #bicolor
+            elif opcode == 8:
+                pass
+            #write
+            elif opcode == 0xd:
+                while count > 0 and x < width:
+                    dst[line + x] = ~colorType()
+                    count -= 1
+                    x += 1
+            elif opcode == 0xe:
+                while count > 0 and x < width:
+                    dst[line + x] = colorType()
+                    count -= 1
+                    x += 1
+    output = Stream()
+    output.writeType(dst)
+    return output
             
                 

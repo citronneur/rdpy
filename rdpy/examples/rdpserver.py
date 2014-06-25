@@ -9,6 +9,8 @@ sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 from rdpy.protocol.rdp import rdp
 
 class TestServerFactory(rdp.ServerFactory):
+    def __init__(self):
+        rdp.ServerFactory.__init__(self, "/tmp/private.pem", "/tmp/certificate.pem")
     def startedConnecting(self, connector):
         pass
     
