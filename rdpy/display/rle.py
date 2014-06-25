@@ -112,6 +112,9 @@ def decode(src, width, height, colorType):
                 prevline = line
                 line = width * height * typeSize
             
+            if opcode == 0:
+                if insertMix:
+                    pass
             
     return dst
             

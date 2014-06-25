@@ -3,6 +3,7 @@
 '''
 from twisted.internet import protocol
 from rdpy.network.layer import LayerMode
+from rdpy.network.error import CallPureVirtualFuntion
 import tpkt, tpdu, mcs, pdu
 
 class RDPController(object):
@@ -60,7 +61,7 @@ class ClientFactory(protocol.Factory):
         '''
         build observer use for connection
         '''
-        pass
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ClientFactory"))
 
 class ServerFactory(protocol.Factory):
     '''
@@ -88,7 +89,7 @@ class ServerFactory(protocol.Factory):
         '''
         build observer use for connection
         '''
-        pass 
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ServerFactory")) 
         
 class RDPClientObserver(object):
     '''
@@ -114,4 +115,4 @@ class RDPClientObserver(object):
         @param isCompress: use RLE compression
         @param data: bitmap data
         '''
-        pass
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onBitmapUpdate", "RDPClientObserver")) 

@@ -30,7 +30,7 @@ from twisted.internet import protocol
 from rdpy.network.layer import RawLayer, LayerMode
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
 from rdpy.network.const import ConstAttributes, TypeAttributes
-from rdpy.network.error import InvalidValue
+from rdpy.network.error import InvalidValue, CallPureVirtualFuntion
 
 @ConstAttributes
 @TypeAttributes(String)
@@ -537,7 +537,7 @@ class ClientFactory(protocol.Factory):
         """
         Build an RFB observer object
         """
-        pass
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ClientFactory"))
     
         
 class RFBClientObserver(object):
@@ -588,4 +588,4 @@ class RFBClientObserver(object):
         @param encoding : encoding struct from rfb.types
         @param data : in respect of dataFormat and pixelFormat
         """
-        pass
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onUpdate", "RFBClientObserver"))
