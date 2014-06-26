@@ -341,7 +341,7 @@ class SimpleType(Type, CallableValue):
     
     def __or__(self, other):
         '''
-        implement bitwise and operator
+        implement bitwise or operator
         @param other: SimpleType value or try to construct same type as self
         around other value
         @return: self.__class__ object with or result
@@ -349,6 +349,17 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__or__(other.value))
+    
+    def __xor__(self, other):
+        '''
+        implement bitwise xor operator
+        @param other: SimpleType value or try to construct same type as self
+        around other value
+        @return: self.__class__ object with or result
+        '''
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
+        return self.__class__(self.value.__xor__(other.value))
     
     def __lshift__(self, other):
         '''
@@ -376,6 +387,13 @@ class SimpleType(Type, CallableValue):
         @return: hash of inner value
         '''
         return hash(self.value)
+    
+    def __nonzero__(self):
+        '''
+        boolean conversion
+        @return: bool of inner value
+        '''
+        return bool(self.value)
 
         
 class CompositeType(Type):

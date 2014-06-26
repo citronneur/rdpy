@@ -27,7 +27,7 @@ from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
 
-from rdpy.network.type import UInt16Le, Stream
+from rdpy.network.type import UInt16Le, UInt24Le, Stream
 import rle
 
 class QAdaptor(object):
@@ -118,7 +118,8 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         @param e: qKeyEvent
         '''
         self.keyEvent(True, e.nativeVirtualKey())
-        
+
+   
 class RDPClientQt(RDPClientObserver, QAdaptor):
     '''
     Adaptor for RDP client
@@ -149,18 +150,17 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param isCompress: use RLE compression
         @param data: bitmap data
         '''
-        #TODO
-        if isCompress:
-            #rle.decode("", Stream(data), width, height, UInt16Le)
-            return
         
         imageFormat = None
         if bitsPerPixel == 16:
             imageFormat = QtGui.QImage.Format_RGB16
+            if isCompress:
+                data = rle.decode(Stream(data), width, height, UInt16Le).getvalue()
+                
         elif bitsPerPixel == 24:
             imageFormat = QtGui.QImage.Format_RGB888
-        elif bitsPerPixel == 32:
-            imageFormat = QtGui.QImage.Format_RGB32
+            if isCompress:
+                data = rle.decode(Stream(data), width, height, UInt24Le).getvalue()
         else:
             print "Receive image in bad format"
             return
