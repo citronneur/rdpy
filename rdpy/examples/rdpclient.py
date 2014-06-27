@@ -28,7 +28,7 @@ import os
 sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 
 from PyQt4 import QtGui
-from rdpy.display.qt import RDPClientQt
+from rdpy.display.qt4 import RDPClientQt
 from rdpy.protocol.rdp import rdp
 
 class RDPClientQtFactory(rdp.ClientFactory):

@@ -1,8 +1,6 @@
 #include "rle_m.h"
 
-namespace test {
-
-int decode_uint8(char* output, int width, int height, char* input, int size)
+int rle_decode_uint8(char* output, int width, int height, char* input, int size)
 {
 	char* prevline;
 	char* line;
@@ -241,7 +239,7 @@ int decode_uint8(char* output, int width, int height, char* input, int size)
 	return 1;
 }
 
-int decode_uint16(char* output, int width, int height, char* input, int size)
+int rle_decode_uint16(char* output, int width, int height, char* input, int size)
 {
 	char* prevline;
 	char* line;
@@ -526,7 +524,7 @@ int decode_uint16(char* output, int width, int height, char* input, int size)
 	return 1;
 }
 
-int decode_uint24(char* output, int width, int height, char* input, int size)
+int rle_decode_uint24(char* output, int width, int height, char* input, int size)
 {
 	char* prevline;
 	char* line;
@@ -831,6 +829,4 @@ int decode_uint24(char* output, int width, int height, char* input, int size)
 		}
 	}
 	return 1;
-}
-
 }

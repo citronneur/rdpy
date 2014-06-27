@@ -2,3 +2,7 @@
 .project
 .pydevproject
 README.md~
+lib/obj/*
+*.so
+*.os
+.sconsign.dblite

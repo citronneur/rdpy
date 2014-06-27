@@ -26,9 +26,8 @@ QRemoteDesktop is a widget use for render in rdpy
 from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
+import rdpy.fast.rle as rle
 
-from rdpy.network.type import UInt16Le, UInt24Le, Stream
-import rle
 
 class QAdaptor(object):
     '''
@@ -150,22 +149,24 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param isCompress: use RLE compression
         @param data: bitmap data
         '''
-        
-        imageFormat = None
+        image = None
         if bitsPerPixel == 16:
-            imageFormat = QtGui.QImage.Format_RGB16
             if isCompress:
-                data = rle.decode(Stream(data), width, height, UInt16Le).getvalue()
+                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB16)
+                data = rle.rle_decode_uint16(image.bits(), width, height, data, len(data))
+            else:
+                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16)
                 
         elif bitsPerPixel == 24:
-            imageFormat = QtGui.QImage.Format_RGB888
             if isCompress:
-                data = rle.decode(Stream(data), width, height, UInt24Le).getvalue()
+                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB888)
+                data = rle.rle_decode_uint24(image.bits(), width, height, data, len(data))
+            else:
+                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24)
         else:
             print "Receive image in bad format"
             return
         
-        image = QtGui.QImage(data, width, height, imageFormat)
         self._widget.notifyImage(destLeft, destTop, image)
 
         
