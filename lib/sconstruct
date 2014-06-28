@@ -14,38 +14,19 @@ def build_sip(target, source, env):
     
     # Run SIP to generate the code.
     os.system(" ".join([config.sip_bin, "-c", "src", str(source[0])]))
-    
-    # Create the Makefile.
-    #makefile = sipconfig.SIPModuleMakefile(config, str(target[0]))
-    
-    # Add the library we are wrapping.  The name doesn't include any platform
-    # specific prefixes or extensions (e.g. the "lib" prefix on UNIX, or the
-    # ".dll" extension on Windows).
-    #makefile.extra_libs = ["rle"]
-    
-    #add build directory as extra lib
-    #makefile.extra_lib_dirs = [os.path.dirname(str(target[0]))]
-    
-    # Generate the Makefile itself.
-    #makefile.generate()
-
 
 #building library
 env = Environment()
 env.Append(BUILDERS = {'Sip' : Builder(action = build_sip)})
+env.Append(CPPPATH = ["/usr/include/python2.7"]);
 env.VariantDir('build', 'src', duplicate=0)
 
-cppdefines = {}
-targetName = os.path.join(build_dir, "libfastrdpy.so")
+targetName = os.path.join(build_dir, "rle.so")
 
-sources = [Glob(os.path.join(src_dir, '*.c'))]
-    
-env.Append(CPPDEFINES = cppdefines);
+sources = [Glob(os.path.join(build_dir, '*.c')), os.path.join(build_dir, "siprlecmodule.c")]
 
-libSip = env.Sip([os.path.join(build_dir, "rle.sbf")], [os.path.join(sip_dir, "rle.sip")])
+sip = env.Sip([os.path.join(src_dir, "sipAPIrle.h"), os.path.join(src_dir, "siprlecmodule.c")], [os.path.join(sip_dir, "rle.sip")])
 
-libC = env.SharedLibrary(target = targetName, 
-                  source = sources
-                  )
+lib = env.SharedLibrary(target = targetName, source = sources, SHLIBPREFIX='')
 
-env.Depends(libSip, libC)
+env.Requires(lib, sip)
