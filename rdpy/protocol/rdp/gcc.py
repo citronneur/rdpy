@@ -209,7 +209,7 @@ class ClientCoreSettings(CompositeType):
         CompositeType.__init__(self)
         self.rdpVersion = Version.RDP_VERSION_5_PLUS
         self.desktopWidth = UInt16Le(1280)
-        self.desktopHeight = UInt16Le(1024)
+        self.desktopHeight = UInt16Le(800)
         self.colorDepth = ColorDepth.RNS_UD_COLOR_8BPP
         self.sasSequence = Sequence.RNS_UD_SAS_DEL
         self.kbdLayout = KeyboardLayout.FRENCH

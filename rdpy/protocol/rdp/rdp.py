@@ -45,9 +45,17 @@ class RDPController(object):
                 observer.onBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, (rectangle.flags & pdu.BitmapFlag.BITMAP_COMPRESSION).value, rectangle.bitmapDataStream.value)
 
 class ClientFactory(protocol.Factory):
-    '''
+    """
     Factory of Client RDP protocol
-    '''
+    """
+    def __init__(self, width = 1024, height = 800):
+        """
+        @param width: width of screen
+        @param height: height of screen
+        """
+        self._width = width
+        self._height = height
+        
     def buildProtocol(self, addr):
         '''
         Function call from twisted and build rdp protocol stack
@@ -55,7 +63,13 @@ class ClientFactory(protocol.Factory):
         '''
         controller = RDPController(LayerMode.CLIENT)
         self.buildObserver(controller)
-        return tpkt.TPKT(tpdu.createClient(mcs.createClient(controller)));
+        mcsLayer = mcs.createClient(controller)
+        
+        #set screen definition in MCS layer
+        mcsLayer._clientSettings.core.desktopHeight.value = self._height
+        mcsLayer._clientSettings.core.desktopWidth.value = self._width
+        
+        return tpkt.TPKT(tpdu.createClient(mcsLayer));
     
     def buildObserver(self, controller):
         '''

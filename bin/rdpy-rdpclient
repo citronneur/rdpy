@@ -36,6 +36,13 @@ class RDPClientQtFactory(rdp.ClientFactory):
     """
     Factory create a RDP GUI client
     """
+    def __init__(self, width, height):
+        """
+        init client with correct definition
+        """
+        rdp.ClientFactory.__init__(self, width, height)
+        self._w = None
+        
     def buildObserver(self, controller):
         """
         Build RFB observer
@@ -45,7 +52,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
         client = RDPClientQt(controller)
         #create qt widget
         self._w = client.getWidget()
-        self._w.resize(1024, 800)
+        self._w.resize(self._width, self._height)
         self._w.setWindowTitle('rdpyclient-rdp')
         self._w.show()
         return client
@@ -82,7 +89,7 @@ if __name__ == '__main__':
     qt4reactor.install()
     
     from twisted.internet import reactor
-    reactor.connectTCP(sys.argv[1], int(sys.argv[2]), RDPClientQtFactory())
+    reactor.connectTCP(sys.argv[1], int(sys.argv[2]), RDPClientQtFactory(1024, 800))
     reactor.runReturn()
     app.exec_()
     reactor.stop()
