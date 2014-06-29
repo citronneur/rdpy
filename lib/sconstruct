@@ -5,28 +5,32 @@ script_dir = os.path.dirname(os.path.realpath(Dir("#/Sconstruct").abspath))
 build_dir = os.path.join(script_dir, "build")
 src_dir = os.path.join(script_dir, "src")
 sip_dir = os.path.join(script_dir, "sip")
-#generate install dir
-install_dir = os.path.join(script_dir, "..", "rdpy", "fast")
 
 def build_sip(target, source, env):
     # Get the SIP configuration information.
     config = sipconfig.Configuration()
     
     # Run SIP to generate the code.
-    os.system(" ".join([config.sip_bin, "-c", "src", str(source[0])]))
+    os.system(" ".join([config.sip_bin, "-c", os.path.dirname(str(target[0])), str(source[0])]))
+    
+def build_module(name, install_dir, env):
+    targetName = os.path.join(build_dir, name, "%s.so"%name)
+
+    sources = [Glob(os.path.join(src_dir, name,'*.c')), os.path.join(build_dir, name, "sip%scmodule.c"%name)]
+
+    env.Sip(os.path.join(build_dir, name, "sip%scmodule.c"%name), os.path.join(sip_dir, "%s.sip"%name))
+
+    #sources.append(sip)
+    lib = env.SharedLibrary(target = targetName, source = sources, SHLIBPREFIX='')
+    
+    env.Install(install_dir, lib)
+    env.Alias("install", install_dir)
+
 
 #building library
 env = Environment()
 env.Append(BUILDERS = {'Sip' : Builder(action = build_sip)})
 env.Append(CPPPATH = ["/usr/include/python2.7"]);
 env.VariantDir('build', 'src', duplicate=0)
+build_module("rle", os.path.join(script_dir, "..", "rdpy", "ui"), env)
 
-targetName = os.path.join(build_dir, "rle.so")
-
-sources = [Glob(os.path.join(build_dir, '*.c')), os.path.join(build_dir, "siprlecmodule.c")]
-
-sip = env.Sip([os.path.join(src_dir, "sipAPIrle.h"), os.path.join(src_dir, "siprlecmodule.c")], [os.path.join(sip_dir, "rle.sip")])
-
-lib = env.SharedLibrary(target = targetName, source = sources, SHLIBPREFIX='')
-
-env.Requires(lib, sip)

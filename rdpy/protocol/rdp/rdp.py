@@ -69,7 +69,6 @@ class ServerFactory(protocol.Factory):
     '''
     def __init__(self, privateKeyFileName, certificateFileName):
         '''
-        ctor
         @param privateKeyFileName: file contain server private key
         @param certficiateFileName: file that contain publi key
         '''
