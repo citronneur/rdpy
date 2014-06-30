@@ -18,22 +18,19 @@
 #
 
 """
-Implement transport pdu layer
+Implement transport PDU layer
 
-This layer have main goal to negociate ssl transport
+This layer have main goal to negociate SSL transport
 RDP basic security is not supported by RDPY (because is not a true security layer...)
 """
 
 from rdpy.network.layer import LayerAutomata, LayerMode, StreamSender
 from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
 from rdpy.network.error import InvalidExpectedDataException
-from rdpy.network.const import ConstAttributes, TypeAttributes
 
-@ConstAttributes
-@TypeAttributes(UInt8)
 class MessageType(object):
     """
-    message type
+    Message type
     """
     X224_TPDU_CONNECTION_REQUEST = 0xE0
     X224_TPDU_CONNECTION_CONFIRM = 0xD0
@@ -41,32 +38,26 @@ class MessageType(object):
     X224_TPDU_DATA = 0xF0
     X224_TPDU_ERROR = 0x70
 
-@ConstAttributes
-@TypeAttributes(UInt8)
 class NegociationType(object):
     """
-    negotiation header
+    Negotiation header
     """
     TYPE_RDP_NEG_REQ = 0x01
     TYPE_RDP_NEG_RSP = 0x02
     TYPE_RDP_NEG_FAILURE = 0x03
 
-@ConstAttributes
-@TypeAttributes(UInt32Le)
 class Protocols(object):
     """
-    protocols available for TPDU layer
+    Protocols available for TPDU layer
     """
     PROTOCOL_RDP = 0x00000000
     PROTOCOL_SSL = 0x00000001
     PROTOCOL_HYBRID = 0x00000002
     PROTOCOL_HYBRID_EX = 0x00000008
-    
-@ConstAttributes
-@TypeAttributes(UInt32Le)    
+        
 class NegotiationFailureCode(object):
     """
-    protocol negotiation failure code
+    Protocol negotiation failure code
     """
     SSL_REQUIRED_BY_SERVER = 0x00000001
     SSL_NOT_ALLOWED_BY_SERVER = 0x00000002
@@ -77,7 +68,7 @@ class NegotiationFailureCode(object):
     
 class TPDUConnectMessage(CompositeType):
     """
-    header of TPDU connection messages 
+    Header of TPDU connection messages 
     """
     def __init__(self, code):
         """
@@ -85,24 +76,24 @@ class TPDUConnectMessage(CompositeType):
         """
         CompositeType.__init__(self)
         self.len = UInt8(lambda:sizeof(self) - 1)
-        self.code = UInt8(code.value, constant = True)
+        self.code = UInt8(code, constant = True)
         self.padding = (UInt16Be(), UInt16Be(), UInt8())
         #read if there is enough data
         self.protocolNeg = Negotiation(optional = True)
         
 class TPDUDataHeader(CompositeType):
     """
-    header send when tpdu exchange application data
+    Header send when TPDU exchange application data
     """
     def __init__(self):
         CompositeType.__init__(self)
         self.header = UInt8(2, constant = True)
-        self.messageType = UInt8(MessageType.X224_TPDU_DATA.value, constant = True)
+        self.messageType = UInt8(MessageType.X224_TPDU_DATA, constant = True)
         self.separator = UInt8(0x80, constant = True)
     
 class Negotiation(CompositeType):
     """
-    negociate request message
+    Negociate request message
     @see: request -> http://msdn.microsoft.com/en-us/library/cc240500.aspx
     @see: response -> http://msdn.microsoft.com/en-us/library/cc240506.aspx
     @see: failure ->http://msdn.microsoft.com/en-us/library/cc240507.aspx
@@ -113,8 +104,8 @@ class Negotiation(CompositeType):
         self.flag = UInt8(0)
         #always 8
         self.len = UInt16Le(0x0008, constant = True)
-        self.selectedProtocol = UInt32Le(conditional = lambda: self.code == NegociationType.TYPE_RDP_NEG_RSP)
-        self.failureCode = UInt32Le(conditional = lambda: self.code == NegociationType.TYPE_RDP_NEG_FAILURE)
+        self.selectedProtocol = UInt32Le(conditional = lambda: (self.code.value != NegociationType.TYPE_RDP_NEG_FAILURE))
+        self.failureCode = UInt32Le(conditional = lambda: (self.code.value == NegociationType.TYPE_RDP_NEG_FAILURE))
 
 class TPDU(LayerAutomata, StreamSender):
     """
@@ -134,15 +125,15 @@ class TPDU(LayerAutomata, StreamSender):
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
         
-        #Server mode informations for tls connexion
+        #Server mode informations for TLS connection
         self._serverPrivateKeyFileName = None
         self._serverCertificateFileName = None
     
     def initTLSServerInfos(self, privateKeyFileName, certificateFileName):
         """
-        Init informations for ssl server connexion
+        Initialize informations for SSL server connection
         @param privateKeyFileName: file contain server private key
-        @param certficiateFileName: file that contain publi key
+        @param certficiateFileName: file that contain public key
         """
         self._serverPrivateKeyFileName = privateKeyFileName
         self._serverCertificateFileName = certificateFileName
@@ -176,7 +167,7 @@ class TPDU(LayerAutomata, StreamSender):
         if message.protocolNeg.failureCode._is_readed:
             raise InvalidExpectedDataException("negotiation failure code %x"%message.protocolNeg.failureCode.value)
         
-        self._selectedProtocol = message.protocolNeg.selectedProtocol
+        self._selectedProtocol = message.protocolNeg.selectedProtocol.value
         
         if self._selectedProtocol != Protocols.PROTOCOL_SSL:
             raise InvalidExpectedDataException("only ssl protocol is supported in RDPY version")
@@ -190,8 +181,8 @@ class TPDU(LayerAutomata, StreamSender):
         
     def recvConnectionRequest(self, data):
         """
-        read connection confirm packet
-        next state is send connection confirm
+        Read connection confirm packet
+        Next state is send connection confirm
         @param data: Stream
         @see : http://msdn.microsoft.com/en-us/library/cc240470.aspx
         """
@@ -199,16 +190,16 @@ class TPDU(LayerAutomata, StreamSender):
         data.readType(message)
         
         if not message.protocolNeg._is_readed or message.protocolNeg.failureCode._is_readed:
-            raise InvalidExpectedDataException("Too older rdp client")
+            raise InvalidExpectedDataException("Too older RDP client")
         
-        self._requestedProtocol = message.protocolNeg.selectedProtocol
+        self._requestedProtocol = message.protocolNeg.selectedProtocol.value
         
         if not self._requestedProtocol & Protocols.PROTOCOL_SSL:
             #send error message and quit
             message = TPDUConnectMessage()
-            message.code = MessageType.X224_TPDU_CONNECTION_CONFIRM
-            message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_FAILURE
-            message.protocolNeg.failureCode = NegotiationFailureCode.SSL_REQUIRED_BY_SERVER
+            message.code.value = MessageType.X224_TPDU_CONNECTION_CONFIRM
+            message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_FAILURE
+            message.protocolNeg.failureCode.value = NegotiationFailureCode.SSL_REQUIRED_BY_SERVER
             self._transport.send(message)
             raise InvalidExpectedDataException("rdpy needs ssl client compliant")
         
@@ -217,8 +208,8 @@ class TPDU(LayerAutomata, StreamSender):
     
     def recvData(self, data):
         """
-        read data header from packet
-        and pass to presentation layer
+        Read data header from packet
+        And pass to presentation layer
         @param data: Stream
         """
         header = TPDUDataHeader()
@@ -227,25 +218,25 @@ class TPDU(LayerAutomata, StreamSender):
         
     def sendConnectionRequest(self):
         """
-        write connection request message
-        next state is recvConnectionConfirm
+        Write connection request message
+        Next state is recvConnectionConfirm
         @see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
         """
         message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_REQUEST)
-        message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_REQ
-        message.protocolNeg.selectedProtocol = self._requestedProtocol
+        message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_REQ
+        message.protocolNeg.selectedProtocol.value = self._requestedProtocol
         self._transport.send(message)
         self.setNextState(self.recvConnectionConfirm)
         
     def sendConnectionConfirm(self):
         """
-        write connection confirm message
-        next state is recvData
+        Write connection confirm message
+        Next state is recvData
         @see : http://msdn.microsoft.com/en-us/library/cc240501.aspx
         """
         message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_CONFIRM)
-        message.protocolNeg.code = NegociationType.TYPE_RDP_NEG_REQ
-        message.protocolNeg.selectedProtocol = self._selectedProtocol
+        message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_REQ
+        message.protocolNeg.selectedProtocol.value = self._selectedProtocol
         self._transport.send(message)
         #_transport is TPKT and transport is TCP layer of twisted
         self._transport.transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
@@ -254,8 +245,8 @@ class TPDU(LayerAutomata, StreamSender):
         
     def send(self, message):
         """
-        write message packet for TPDU layer
-        add TPDU header
+        Write message packet for TPDU layer
+        Add TPDU header
         @param message: network.Type message
         """
         self._transport.send((TPDUDataHeader(), message))
@@ -294,7 +285,7 @@ class ClientTLSContext(ssl.ClientContextFactory):
     
 class ServerTLSContext(ssl.DefaultOpenSSLContextFactory):
     """
-    server context factory for open ssl
+    Server context factory for open ssl
     @param privateKeyFileName: Name of a file containing a private key
     @param certificateFileName: Name of a file containing a certificate
     """

@@ -18,14 +18,12 @@
 #
 
 """
-Implement Multi Channel Service
+Implement Multi-Channel Service
 
 Each channel have a particular role.
 The main channel is the graphical channel.
 It exist channel for file system order, audio channel, clipboard etc...
 """
-
-from rdpy.network.const import ConstAttributes, TypeAttributes
 from rdpy.network.layer import LayerAutomata, LayerMode, StreamSender
 from rdpy.network.type import sizeof, Stream, UInt8, UInt16Be
 from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
@@ -33,8 +31,6 @@ from rdpy.protocol.rdp.ber import writeLength
 
 import ber, gcc, per
 
-@ConstAttributes
-@TypeAttributes(UInt8)
 class Message(object):
     """
     Message type
@@ -42,8 +38,6 @@ class Message(object):
     MCS_TYPE_CONNECT_INITIAL = 0x65
     MCS_TYPE_CONNECT_RESPONSE = 0x66
 
-@ConstAttributes
-@TypeAttributes(UInt8)
 class DomainMCSPDU:
     """
     Domain MCS PDU header
@@ -57,8 +51,6 @@ class DomainMCSPDU:
     SEND_DATA_REQUEST = 25
     SEND_DATA_INDICATION = 26
 
-@ConstAttributes
-@TypeAttributes(UInt16Be)
 class Channel:
     """
     Channel id of main channels use in RDP
@@ -126,7 +118,7 @@ class MCS(LayerAutomata):
         self._clientSettings = gcc.ClientSettings()
         self._serverSettings = gcc.ServerSettings()
         #default user Id
-        self._userId = UInt16Be(1)
+        self._userId = 1
         #list of channel use in this layer and connection state
         self._channelIds = {Channel.MCS_GLOBAL_CHANNEL: presentation}
         #use to record already requested channel
@@ -137,7 +129,7 @@ class MCS(LayerAutomata):
         Connection send for client mode
         a write connect initial packet
         """
-        self._clientSettings.core.serverSelectedProtocol = self._transport._selectedProtocol
+        self._clientSettings.core.serverSelectedProtocol.value = self._transport._selectedProtocol
         self.sendConnectInitial()
         
     def connectNextChannel(self):
@@ -173,7 +165,7 @@ class MCS(LayerAutomata):
                self.writeDomainParams(1, 1, 1, 0x420),
                self.writeDomainParams(0xffff, 0xfc17, 0xffff, 0xffff),
                ber.writeOctetstring(ccReqStream.getvalue()))
-        self._transport.send((ber.writeApplicationTag(Message.MCS_TYPE_CONNECT_INITIAL, sizeof(tmp)), tmp))
+        self._transport.send((ber.writeApplicationTag(UInt8(Message.MCS_TYPE_CONNECT_INITIAL), sizeof(tmp)), tmp))
         #we must receive a connect response
         self.setNextState(self.recvConnectResponse)
         
@@ -181,26 +173,26 @@ class MCS(LayerAutomata):
         """
         Send a formated erect domain request for RDP connection
         """
-        self._transport.send((self.writeMCSPDUHeader(DomainMCSPDU.ERECT_DOMAIN_REQUEST), per.writeInteger(0), per.writeInteger(0)))
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ERECT_DOMAIN_REQUEST)), per.writeInteger(0), per.writeInteger(0)))
         
     def sendAttachUserRequest(self):
         """
         Send a formated attach user request for RDP connection
         """
-        self._transport.send(self.writeMCSPDUHeader(DomainMCSPDU.ATTACH_USER_REQUEST))
+        self._transport.send(self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ATTACH_USER_REQUEST)))
         
     def sendChannelJoinRequest(self, channelId):
         """
         Send a formated Channel join request from client to server
         """
-        self._transport.send((self.writeMCSPDUHeader(DomainMCSPDU.CHANNEL_JOIN_REQUEST), self._userId, channelId))
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_REQUEST)), UInt16Be(self._userId), UInt16Be(channelId)))
         
     def recvConnectResponse(self, data):
         """
         receive MCS connect response from server
         @param data: Stream
         """
-        ber.readApplicationTag(data, Message.MCS_TYPE_CONNECT_RESPONSE)
+        ber.readApplicationTag(data, UInt8(Message.MCS_TYPE_CONNECT_RESPONSE))
         ber.readEnumerated(data)
         ber.readInteger(data)
         self.readDomainParams(data)
@@ -225,13 +217,15 @@ class MCS(LayerAutomata):
         """
         opcode = UInt8()
         confirm = UInt8()
+        userId = UInt16Be()
         data.readType((opcode, confirm))
-        if not self.readMCSPDUHeader(opcode, DomainMCSPDU.ATTACH_USER_CONFIRM):
+        if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.ATTACH_USER_CONFIRM):
             raise InvalidExpectedDataException("invalid MCS PDU")
         if confirm != 0:
             raise Exception("server reject user")
         if opcode & UInt8(2) == UInt8(2):
-            data.readType(self._userId)
+            data.readType(userId)
+            self._userId = userId.value
             
         #build channel list because we have user id
         #add default channel + channels accepted by gcc connection sequence
@@ -247,7 +241,7 @@ class MCS(LayerAutomata):
         opcode = UInt8()
         confirm = UInt8()
         data.readType((opcode, confirm))
-        if not self.readMCSPDUHeader(opcode, DomainMCSPDU.CHANNEL_JOIN_CONFIRM):
+        if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.CHANNEL_JOIN_CONFIRM):
             raise InvalidExpectedDataException("invalid MCS PDU")
         userId = UInt16Be()
         channelId = UInt16Be()
@@ -269,11 +263,11 @@ class MCS(LayerAutomata):
         opcode = UInt8()
         data.readType(opcode)
         
-        if self.readMCSPDUHeader(opcode, DomainMCSPDU.DISCONNECT_PROVIDER_ULTIMATUM):
+        if self.readMCSPDUHeader(opcode.value, DomainMCSPDU.DISCONNECT_PROVIDER_ULTIMATUM):
             print "receive DISCONNECT_PROVIDER_ULTIMATUM"
             self.close()
             
-        elif not self.readMCSPDUHeader(opcode, DomainMCSPDU.SEND_DATA_INDICATION):
+        elif not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.SEND_DATA_INDICATION):
             raise InvalidExpectedDataException("invalid expected mcs opcode")
         
         userId = UInt16Be()
@@ -306,7 +300,7 @@ class MCS(LayerAutomata):
         @param channelId: Channel use to send
         @param data: message to send
         """
-        self._transport.send((self.writeMCSPDUHeader(DomainMCSPDU.SEND_DATA_REQUEST), self._userId, channelId, UInt8(0x70), UInt16Be(sizeof(data)) | UInt16Be(0x8000), data))
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.SEND_DATA_REQUEST)), UInt16Be(self._userId), UInt16Be(channelId), UInt8(0x70), UInt16Be(sizeof(data)) | UInt16Be(0x8000), data))
         
     
     def writeDomainParams(self, maxChannels, maxUsers, maxTokens, maxPduSize):
@@ -336,7 +330,7 @@ class MCS(LayerAutomata):
     def readMCSPDUHeader(self, opcode, mcsPdu):
         """
         Read mcsPdu header and return options parameter
-        @param opcode: UInt8 opcode
+        @param opcode: opcode
         @param mcsPdu: mcsPdu will be checked
         @return: true if opcode is correct
         """

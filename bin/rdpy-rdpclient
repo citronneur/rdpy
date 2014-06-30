@@ -53,7 +53,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
         #create qt widget
         self._w = client.getWidget()
         self._w.resize(self._width, self._height)
-        self._w.setWindowTitle('rdpyclient-rdp')
+        self._w.setWindowTitle('rdpy-rdpclient')
         self._w.show()
         return client
         

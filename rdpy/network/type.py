@@ -28,17 +28,15 @@ import struct
 from copy import deepcopy
 from StringIO import StringIO
 from error import InvalidValue
-from rdpy.network.error import InvalidExpectedDataException, InvalidSize
+from rdpy.network.error import InvalidExpectedDataException, InvalidSize, CallPureVirtualFuntion
 
 def sizeof(element):
-    '''
-    byte size of type
-    sum sizeof of tuple element
-    and count only element that condition
-    is true at sizeof call
+    """
+    Byte size of type sum sizeof of tuple element
+    And count only element that condition is true at sizeof call
     @param element: Type or Tuple(Type | Tuple,)
     @return: size of element in byte
-    '''
+    """
     if isinstance(element, tuple) or isinstance(element, list):
         size = 0
         for i in element:
@@ -50,18 +48,16 @@ def sizeof(element):
             
 
 class Type(object):
-    '''
-    root type object inheritance
-    record conditional optional of constant
-    mechanism
-    '''
+    """
+    Root type object inheritance
+    Record conditional optional of constant mechanism
+    """
     def __init__(self, conditional = lambda:True, optional = False, constant = False):
-        '''
-        constructor of any type object
+        """
         @param conditional : function call before read or write type
         @param optional: boolean check before read if there is still data in stream
-        @param constant: if true check any changement of object during reading
-        '''
+        @param constant: if true check any modification of object during reading
+        """
         self._conditional = conditional
         self._optional = optional
         self._constant = constant
@@ -73,22 +69,22 @@ class Type(object):
         self._is_writed = False
         
     def write(self, s):
-        '''
-        write type into stream if conditional is true
-        and call private 
+        """
+        Write type into stream if conditional is true 
+        Call virtual __write__ method 
         @param s: Stream which will be written
-        '''
+        """
         self._is_writed = self._conditional()
         if not self._is_writed:
             return
         self.__write__(s)
     
     def read(self, s):
-        '''
-        read type from stream s if conditional
-        is true and check constantness
+        """
+        Read type from stream s if conditional is true
+        Check constantness
         @param s: Stream
-        '''
+        """
         self._is_readed = self._conditional()
         if not self._is_readed:
             return
@@ -108,56 +104,54 @@ class Type(object):
             raise InvalidExpectedDataException("%s const value expected %s != %s"%(self.__class__, old.value, self.value))
         
     def __read__(self, s):
-        '''
-        interface definition of private read funtion
+        """
+        Interface definition of private read function
         @param s: Stream 
-        '''
-        pass
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "__read__", "Type"))
     
     def __write__(self, s):
-        '''
-        interface definition of private write funtion
+        """
+        Interface definition of private write function
         @param s: Stream 
-        '''
-        pass
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "__write__", "Type"))
     
     def __sizeof__(self):
-        '''
-        return size of type use for sizeof function
+        """
+        Return size of type use for sizeof function
         @return: size in byte of type
-        '''
-        pass
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "__sizeof__", "Type"))
         
 class CallableValue(object):
-    '''
-    wrap access of callable value.
+    """
+    Wrap access of callable value.
     When use getter value is call.
-    Constant value can also be wrap 
-    and will be transformed into callable value(lambda function)
-    '''
+    Constant value can also be wrap and will be transformed into callable value(lambda function)
+    """
     def __init__(self, value):
-        '''
-        construtor
+        """
         @param value: value will be wrapped (constant | lambda | function)
-        '''
+        """
         self._value = None
         self.value = value
     
     def __getValue__(self):
-        '''
-        can be overwritten to add specific check before
+        """
+        Can be overwritten to add specific check before
         self.value is call
-        @return: result of callbale value
-        '''
+        @return: result of callable value
+        """
         return self._value()
     
     def __setValue__(self, value):
-        '''
-        can be overwritten to add specific check before
+        """
+        Can be overwritten to add specific check before
         self.value = value is call
-        check if value is callable and if not transform it
+        Check if value is callable and if not transform it
         @param value: new value wrapped if constant -> lambda function
-        '''
+        """
         value_callable = lambda:value
         if callable(value):
             value_callable = value
@@ -166,37 +160,34 @@ class CallableValue(object):
     
     @property
     def value(self):
-        '''
-        shortcut to access inner value
-        main getter of value
+        """
+        Shortcut to access inner value main getter of value
         @return: result of callable value
-        '''
+        """
         return self.__getValue__()
     
     @value.setter
     def value(self, value):
-        '''
-        setter of value after check it
-        main setter of value
-        @param value: new value encompass in valuetype object
-        '''
+        """
+        Setter of value after check it main setter of value
+        @param value: new value encompass in value type object
+        """
         self.__setValue__(value)
 
 class SimpleType(Type, CallableValue):
-    '''
-    simple type
-    '''
+    """
+    Simple type
+    """
     def __init__(self, structFormat, typeSize, signed, value, conditional = lambda:True, optional = False, constant = False):
-        '''
-        constructor of simple type
+        """
         @param structFormat: letter that represent type in struct package
         @param typeSize: size in byte of type
         @param signed: true if type represent a signed type
-        @param value: value recorded in this object (can be callable value which be call when is acces usefull with closure)
+        @param value: value recorded in this object (can be callable value which be call when is access useful with closure)
         @param conditional : function call before read or write type
         @param optional: boolean check before read if there is still data in stream
-        @param constant: if true check any changement of object during reading
-        '''
+        @param constant: if true check any modification of object during reading
+        """
         self._signed = signed
         self._typeSize = typeSize
         self._structFormat = structFormat
@@ -204,13 +195,12 @@ class SimpleType(Type, CallableValue):
         CallableValue.__init__(self, value)
         
     def __getValue__(self):
-        '''
-        CallableValue overwrite
-        check mask type of value
+        """
+        CallableValue overwrite check mask type of value
         use CallableValue access
-        @return: python value wrap into type
+        @return: Python value wrap into type
         @raise InvalidValue: if value doesn't respect type range
-        '''
+        """
         value = CallableValue.__getValue__(self)
         if not self.isInRange(value):
             raise InvalidValue("value is out of range for %s"%self.__class__)
@@ -221,12 +211,12 @@ class SimpleType(Type, CallableValue):
             return value & self.mask()
 
     def __setValue__(self, value):
-        '''
+        """
         CallableValue overwrite
-        check mask type of value
-        @param value: new value encompass in object (respect python type | lambda | function)
+        Check mask type of value
+        @param value: new value encompass in object (respect Python type | lambda | function)
         @raise InvalidValue: if value doesn't respect type range
-        '''
+        """
         #check static value range
         if not callable(value) and not self.isInRange(value):
             raise InvalidValue("value is out of range for %s"%self.__class__)
@@ -235,40 +225,40 @@ class SimpleType(Type, CallableValue):
             
     
     def __cmp__(self, other):
-        '''
-        compare inner value
-        magic function of python use for any compare operators
+        """
+        Compare inner value
+        Magic function of Python use for any compare operators
         @param other: SimpleType value which will be compared with self value
         or try to construct same type as self around other value
-        @return: python value compare
-        '''
+        @return: Python value compare
+        """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.value.__cmp__(other.value)
         
     def __write__(self, s):
-        '''
-        write value in stream s
-        use struct package to pack value
+        """
+        Write value in stream s
+        Use Struct package to pack value
         @param s: Stream which will be written
-        '''
+        """
         s.write(struct.pack(self._structFormat, self.value))
         
     def __read__(self, s):
-        '''
-        read inner value from stream
-        use struct package
+        """
+        Read inner value from stream
+        Use struct package
         @param s: Stream
-        '''
+        """
         if s.dataLen() < self._typeSize:
             raise InvalidSize("Stream is too small to read expected data")
         self.value = struct.unpack(self._structFormat, s.read(self._typeSize))[0]
       
     def mask(self):
-        '''
-        compute bit mask for type
-        because in python all numbers are int long or float
-        '''
+        """
+        Compute bit mask for type
+        Because in Python all numbers are Int long or float
+        """
         if not self.__dict__.has_key("_mask"):
             mask = 0xff
             for i in range(1, self._typeSize):
@@ -277,106 +267,106 @@ class SimpleType(Type, CallableValue):
         return self._mask
     
     def isInRange(self, value):
-        '''
-        check if value is in mask range
-        @param value: python value
+        """
+        Check if value is in mask range
+        @param value: Python value
         @return: true if value is in type range
-        '''
+        """
         if self._signed:
             return not (value < -(self.mask() >> 1) or value > (self.mask() >> 1))
         else:
             return not (value < 0 or value > self.mask())
         
     def __sizeof__(self):
-        '''
-        return size of type
+        """
+        Return size of type
         @return: typeSize pass in constructor
-        '''
+        """
         return self._typeSize
     
     def __invert__(self):
-        '''
-        implement not operator
+        """
+        Implement not operator
         @return: __class__ value
-        '''
+        """
         invert = ~self.value
         if not self._signed:
             invert &= self.mask()
         return self.__class__(invert)
     
     def __add__(self, other):
-        '''
-        implement addition operator
+        """
+        Implement addition operator
         @param other: SimpleType value or try to construct same type as self
         around other value
         @return: self.__class__ object with add result
         @raise InvalidValue: if new value is out of bound
-        '''
+        """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__add__(other.value))
     
     def __sub__(self, other):
-        '''
-        implement sub operator
+        """
+        Implement sub operator
         @param other: SimpleType value or try to construct same type as self
         around other value
         @return: self.__class__ object with sub result
         @raise InvalidValue: if new value is out of bound
-        '''
+        """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__sub__(other.value))
     
     def __and__(self, other):
-        '''
-        implement bitwise and operator
+        """
+        Implement bitwise and operator
         @param other: SimpleType value or try to construct same type as self
         around other value
         @return: self.__class__ object with and result
-        '''
+        """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__and__(other.value))
     
     def __or__(self, other):
-        '''
+        """
         implement bitwise or operator
         @param other: SimpleType value or try to construct same type as self
         around other value
         @return: self.__class__ object with or result
-        '''
+        """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__or__(other.value))
     
     def __xor__(self, other):
-        '''
-        implement bitwise xor operator
+        """
+        Implement bitwise xor operator
         @param other: SimpleType value or try to construct same type as self
         around other value
         @return: self.__class__ object with or result
-        '''
+        """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__xor__(other.value))
     
     def __lshift__(self, other):
-        '''
-        left shift operator
-        @param other: python int
+        """
+        Left shift operator
+        @param other: Python Int
         @return: self.__class__ object with or result
-        '''
+        """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__lshift__(other.value))
     
     def __rshift__(self, other):
-        '''
-        left shift operator
+        """
+        Left shift operator
         @param other: python int
         @return: self.__class__ object with or result
-        '''
+        """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__rshift__(other.value))

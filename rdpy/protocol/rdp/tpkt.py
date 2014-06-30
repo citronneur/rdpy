@@ -32,7 +32,7 @@ class TPKT(RawLayer):
     and determine if is a fast path packet
     """
     #first byte of classic tpkt header
-    TPKT_PACKET = UInt8(3)
+    TPKT_PACKET = 3
     
     def __init__(self, presentation):
         """
@@ -64,7 +64,7 @@ class TPKT(RawLayer):
         #first read packet version
         data.readType(self._lastPacketVersion)
         #classic packet
-        if self._lastPacketVersion == TPKT.TPKT_PACKET:
+        if self._lastPacketVersion.value == TPKT.TPKT_PACKET:
             #padding
             data.readType(UInt8())
             #read end header
@@ -122,4 +122,4 @@ class TPKT(RawLayer):
         send encompassed data
         @param message: network.Type message to send
         """
-        RawLayer.send(self, (TPKT.TPKT_PACKET, UInt8(0), UInt16Be(sizeof(message) + 4), message))
+        RawLayer.send(self, (UInt8(TPKT.TPKT_PACKET), UInt8(0), UInt16Be(sizeof(message) + 4), message))

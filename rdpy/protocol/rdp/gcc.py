@@ -1,7 +1,7 @@
 '''
 @author sylvain
 @summary gcc language
-@see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
+@see: http://msdn.microsoft.com/en-us/library/cc240508.aspx
 '''
 from rdpy.network.const import ConstAttributes, TypeAttributes
 from rdpy.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, UniString, Stream, sizeof

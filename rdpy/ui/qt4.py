@@ -153,16 +153,23 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         if bitsPerPixel == 16:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB16)
-                data = rle.rle_decode_uint16(image.bits(), width, height, data, len(data))
+                data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
             else:
                 image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16)
                 
         elif bitsPerPixel == 24:
             if isCompress:
-                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB888)
-                data = rle.rle_decode_uint24(image.bits(), width, height, data, len(data))
+                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB24)
+                data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 3)
             else:
                 image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24)
+                
+        elif bitsPerPixel == 32:
+            if isCompress:
+                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
+                data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 4)
+            else:
+                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32)
         else:
             print "Receive image in bad format"
             return
