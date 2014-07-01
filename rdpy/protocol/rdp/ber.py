@@ -23,27 +23,20 @@ ASN.1 standard
 """
 
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, String
-from rdpy.network.const import ConstAttributes, TypeAttributes
 from rdpy.network.error import InvalidExpectedDataException, InvalidSize
 
-@ConstAttributes
-@TypeAttributes(UInt8)
 class BerPc(object):
     BER_PC_MASK = 0x20
     BER_PRIMITIVE = 0x00
     BER_CONSTRUCT = 0x20
 
-@ConstAttributes
-@TypeAttributes(UInt8)
 class Class(object):
     BER_CLASS_MASK = 0xC0
     BER_CLASS_UNIV = 0x00
     BER_CLASS_APPL = 0x40
     BER_CLASS_CTXT = 0x80
     BER_CLASS_PRIV = 0xC0
-    
-@ConstAttributes
-@TypeAttributes(UInt8)     
+        
 class Tag(object):
     BER_TAG_MASK = 0x1F
     BER_TAG_BOOLEAN = 0x01
@@ -111,7 +104,7 @@ def readUniversalTag(s, tag, pc):
     """
     byte = UInt8()
     s.readType(byte)
-    return byte == ((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
+    return byte.value == ((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
 
 def writeUniversalTag(tag, pc):
     """
@@ -120,7 +113,7 @@ def writeUniversalTag(tag, pc):
     @param pc: boolean
     @return: UInt8 
     """
-    return ((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
+    return UInt8((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
 
 def readApplicationTag(s, tag):
     """
@@ -131,14 +124,14 @@ def readApplicationTag(s, tag):
     """
     byte = UInt8()
     s.readType(byte)
-    if tag > UInt8(30):
-        if byte != ((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | Tag.BER_TAG_MASK):
+    if tag.value > 30:
+        if byte.value != ((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | Tag.BER_TAG_MASK):
             raise InvalidExpectedDataException()
         s.readType(byte)
-        if byte != tag:
+        if byte.value != tag.value:
             raise InvalidExpectedDataException("bad tag")
     else:
-        if byte != ((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | (Tag.BER_TAG_MASK & tag)):
+        if byte.value != ((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | (Tag.BER_TAG_MASK & tag)):
             raise InvalidExpectedDataException()
         
     return readLength(s)
@@ -146,13 +139,13 @@ def readApplicationTag(s, tag):
 def writeApplicationTag(tag, size):
     """
     Return structure that represent BER application tag
-    @param tag: UINt8
+    @param tag: int python that match an uint8(0xff)
     @param size: size to rest of packet  
     """
-    if tag > UInt8(30):
-        return (((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | Tag.BER_TAG_MASK), tag, writeLength(size))
+    if tag > 30:
+        return (UInt8((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | Tag.BER_TAG_MASK), UInt8(tag), writeLength(size))
     else:
-        return (((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | (Tag.BER_TAG_MASK & tag)), writeLength(size))
+        return (UInt8((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | (Tag.BER_TAG_MASK & tag)), writeLength(size))
     
 def readBoolean(s):
     """
@@ -215,7 +208,7 @@ def readInteger(s):
 def writeInteger(value):
     """
     Write integer value
-    @param param: int or python long
+    @param param: INT or Python long
     @return: BER integer structure 
     """
     if value <= 0xff:
@@ -229,18 +222,18 @@ def readOctetString(s):
     """
     Read BER string structure
     @param s: stream
-    @return: String
+    @return: string python
     """
     if not readUniversalTag(s, Tag.BER_TAG_OCTET_STRING, False):
         raise InvalidExpectedDataException("Unexpected BER tag")
     size = readLength(s)
-    return String(s.read(size.value))
+    return s.read(size.value)
 
 def writeOctetstring(value):
     """
-    Write string in ber representation
+    Write string in BER representation
     @param value: string
-    @return: string ber structure 
+    @return: string BER structure 
     """
     return (writeUniversalTag(Tag.BER_TAG_OCTET_STRING, False), writeLength(len(value)), String(value))
 

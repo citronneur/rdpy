@@ -1,16 +1,34 @@
-'''
-@author: citronneur
-'''
-from rdpy.network.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
-from rdpy.network.const import ConstAttributes, TypeAttributes
+#
+# Copyright (c) 2014 Sylvain Peyrefitte
+#
+# This file is part of rdpy.
+#
+# rdpy is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
 
-@ConstAttributes
-@TypeAttributes(UInt16Le)     
+"""
+Definition of structure use for capabilities nego
+Use in PDU layer
+"""
+
+from rdpy.network.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+    
 class CapsType(object):
-    '''
-    different type of capabilities
+    """
+    Different type of capabilities
     @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
-    '''
+    """
     CAPSTYPE_GENERAL = 0x0001
     CAPSTYPE_BITMAP = 0x0002
     CAPSTYPE_ORDER = 0x0003
@@ -40,13 +58,11 @@ class CapsType(object):
     CAPSETTYPE_BITMAP_CODECS = 0x001D
     CAPSSETTYPE_FRAME_ACKNOWLEDGE = 0x001E
     
-@ConstAttributes
-@TypeAttributes(UInt16Le)  
 class MajorType(object):
-    '''
-    use in general capability
+    """
+    Use in general capability
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
-    '''
+    """
     OSMAJORTYPE_UNSPECIFIED = 0x0000
     OSMAJORTYPE_WINDOWS = 0x0001
     OSMAJORTYPE_OS2 = 0x0002
@@ -55,14 +71,12 @@ class MajorType(object):
     OSMAJORTYPE_IOS = 0x0005
     OSMAJORTYPE_OSX = 0x0006
     OSMAJORTYPE_ANDROID = 0x0007
-    
-@ConstAttributes
-@TypeAttributes(UInt16Le)    
+        
 class MinorType(object):
-    '''
-    use in general capability
+    """
+    Use in general capability
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
-    '''
+    """
     OSMINORTYPE_UNSPECIFIED = 0x0000
     OSMINORTYPE_WINDOWS_31X = 0x0001
     OSMINORTYPE_WINDOWS_95 = 0x0002
@@ -73,47 +87,39 @@ class MinorType(object):
     OSMINORTYPE_NATIVE_XSERVER = 0x0007
     OSMINORTYPE_PSEUDO_XSERVER = 0x0008
     OSMINORTYPE_WINDOWS_RT = 0x0009
-
-@ConstAttributes
-@TypeAttributes(UInt16Le)  
+ 
 class GeneralExtraFlag(object):
-    '''
-    use in general capability
+    """
+    Use in general capability
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
-    '''
+    """
     FASTPATH_OUTPUT_SUPPORTED = 0x0001
     NO_BITMAP_COMPRESSION_HDR = 0x0400
     LONG_CREDENTIALS_SUPPORTED = 0x0004
     AUTORECONNECT_SUPPORTED = 0x0008
     ENC_SALTED_CHECKSUM = 0x0010
-    
-@ConstAttributes
-@TypeAttributes(UInt8)   
+      
 class Boolean(object):
     FALSE = 0x00
     TRUE = 0x01
-
-@ConstAttributes
-@TypeAttributes(UInt16Le)  
+ 
 class OrderFlag(object):
-    '''
-    use in order capability
+    """
+    Use in order capability
     @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
-    '''
+    """
     NEGOTIATEORDERSUPPORT = 0x0002
     ZEROBOUNDSDELTASSUPPORT = 0x0008
     COLORINDEXSUPPORT = 0x0020
     SOLIDPATTERNBRUSHONLY = 0x0040
     ORDERFLAGS_EXTRA_FLAGS = 0x0080
-    
-@ConstAttributes
-@TypeAttributes(UInt8) 
+     
 class Order(object):
-    '''
-    drawing orders supported
-    use in order capability
+    """
+    Drawing orders supported
+    Use in order capability
     @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
-    '''
+    """
     TS_NEG_DSTBLT_INDEX = 0x00
     TS_NEG_PATBLT_INDEX = 0x01
     TS_NEG_SCRBLT_INDEX = 0x02
@@ -135,25 +141,20 @@ class Order(object):
     TS_NEG_ELLIPSE_SC_INDEX = 0x19
     TS_NEG_ELLIPSE_CB_INDEX = 0x1A
     TS_NEG_INDEX_INDEX = 0x1B
-    
-@ConstAttributes
-@TypeAttributes(UInt16Le)     
+        
 class OrderEx(object):
-    '''
-    extension orders
-    use in order capability
-    '''
+    """
+    Extension orders
+    Use in order capability
+    """
     ORDERFLAGS_EX_CACHE_BITMAP_REV3_SUPPORT = 0x0002
     ORDERFLAGS_EX_ALTSEC_FRAME_MARKER_SUPPORT = 0x0004
 
-
-@ConstAttributes
-@TypeAttributes(UInt16Le) 
 class InputFlags(object):
-    '''
+    """
     Input flag use in input capability
     @see:  http://msdn.microsoft.com/en-us/library/cc240563.aspx
-    '''
+    """
     INPUT_FLAG_SCANCODES = 0x0001
     INPUT_FLAG_MOUSEX = 0x0004
     INPUT_FLAG_FASTPATH_INPUT = 0x0008
@@ -163,65 +164,55 @@ class InputFlags(object):
     INPUT_FLAG_UNUSED2 = 0x0080
     TS_INPUT_FLAG_MOUSE_HWHEEL = 0x0100
 
-@ConstAttributes
-@TypeAttributes(UInt32Le)
 class BrushSupport(object):
-    '''
+    """
     Brush support of client
     @see: http://msdn.microsoft.com/en-us/library/cc240564.aspx
-    '''
+    """
     BRUSH_DEFAULT = 0x00000000
     BRUSH_COLOR_8x8 = 0x00000001
     BRUSH_COLOR_FULL = 0x00000002
 
-@ConstAttributes
-@TypeAttributes(UInt16Le)  
 class GlyphSupport(object):
-    '''
+    """
     Use by glyph order
     @see: http://msdn.microsoft.com/en-us/library/cc240565.aspx
-    '''
+    """
     GLYPH_SUPPORT_NONE = 0x0000
     GLYPH_SUPPORT_PARTIAL = 0x0001
     GLYPH_SUPPORT_FULL = 0x0002
     GLYPH_SUPPORT_ENCODE = 0x0003
-
-@ConstAttributes
-@TypeAttributes(UInt32Le)    
+   
 class OffscreenSupportLevel(object):
-    '''
+    """
     Use to determine offscreen cache level supported
     @see: http://msdn.microsoft.com/en-us/library/cc240550.aspx
-    '''
+    """
     FALSE = 0x00000000
     TRUE = 0x00000001
-
-@ConstAttributes
-@TypeAttributes(UInt32Le) 
+ 
 class VirtualChannelCompressionFlag(object):
-    '''
+    """
     Use to determine virtual channel compression
     @see: http://msdn.microsoft.com/en-us/library/cc240551.aspx
-    '''
+    """
     VCCAPS_NO_COMPR = 0x00000000
     VCCAPS_COMPR_SC = 0x00000001
     VCCAPS_COMPR_CS_8K = 0x00000002
-
-@ConstAttributes
-@TypeAttributes(UInt16Le)   
+  
 class SoundFlag(object):
-    '''
+    """
     Use in sound capability to inform it
     @see: http://msdn.microsoft.com/en-us/library/cc240552.aspx
-    '''
+    """
     NONE = 0x0000
     SOUND_BEEPS_FLAG = 0x0001
 
 class CacheEntry(CompositeType):
-    '''
+    """
     Use in capability cache exchange
     @see: http://msdn.microsoft.com/en-us/library/cc240566.aspx
-    '''
+    """
     def __init__(self):
         CompositeType.__init__(self)
         self.cacheEntries = UInt16Le()
@@ -229,50 +220,50 @@ class CacheEntry(CompositeType):
     
     
 class Capability(CompositeType):
-    '''
+    """
     A capability
     @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
-    '''
-    def __init__(self, capabilitySetType = UInt16Le(), capability = None):
+    """
+    def __init__(self, capabilitySetType = 0, capability = None):
         CompositeType.__init__(self)
-        self.capabilitySetType = UInt16Le(capabilitySetType.value, constant = (not capability is None))
+        self.capabilitySetType = UInt16Le(capabilitySetType, constant = (not capability is None))
         self.lengthCapability = UInt16Le(lambda:sizeof(self))
         
         def CapabilityFactory():
             '''
             closure for capability factory
             '''
-            if self.capabilitySetType == CapsType.CAPSTYPE_GENERAL:
+            if self.capabilitySetType.value == CapsType.CAPSTYPE_GENERAL:
                 return GeneralCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_BITMAP:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_BITMAP:
                 return BitmapCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_ORDER:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_ORDER:
                 return OrderCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_BITMAPCACHE:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_BITMAPCACHE:
                 return BitmapCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_POINTER:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_POINTER:
                 return PointerCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_INPUT:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_INPUT:
                 return InputCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_BRUSH:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_BRUSH:
                 return BrushCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_GLYPHCACHE:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_GLYPHCACHE:
                 return GlyphCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_OFFSCREENCACHE:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_OFFSCREENCACHE:
                 return OffscreenBitmapCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_VIRTUALCHANNEL:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_VIRTUALCHANNEL:
                 return VirtualChannelCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_SOUND:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_SOUND:
                 return SoundCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_CONTROL:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_CONTROL:
                 return ControlCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_ACTIVATION:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_ACTIVATION:
                 return WindowActivationCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_FONT:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_FONT:
                 return FontCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_COLORCACHE:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_COLORCACHE:
                 return ColorCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType == CapsType.CAPSTYPE_SHARE:
+            elif self.capabilitySetType.value == CapsType.CAPSTYPE_SHARE:
                 return ShareCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
             else:
                 return String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
@@ -283,12 +274,12 @@ class Capability(CompositeType):
         self.capability = FactoryType(capability)
 
 class GeneralCapability(CompositeType):
-    '''
+    """
     General capability (protocol version and compression mode)
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.osMajorType = UInt16Le()
@@ -304,12 +295,12 @@ class GeneralCapability(CompositeType):
         self.suppressOutputSupport = UInt8()
         
 class BitmapCapability(CompositeType):
-    '''
+    """
     Bitmap format Capability
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240554.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.preferredBitsPerPixel = UInt16Le()
@@ -327,12 +318,12 @@ class BitmapCapability(CompositeType):
         self.pad2octetsB = UInt16Le()
         
 class OrderCapability(CompositeType):
-    '''
+    """
     Order capability list all drawing order supported
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.terminalDescriptor = String("\x00" * 16, readLen = UInt8(16))
@@ -342,8 +333,8 @@ class OrderCapability(CompositeType):
         self.pad2octetsA = UInt16Le(0)
         self.maximumOrderLevel = UInt16Le(1)
         self.numberFonts = UInt16Le()
-        self.orderFlags = OrderFlag.NEGOTIATEORDERSUPPORT
-        self.orderSupport = ArrayType(UInt8, init = [UInt8(0) for i in range (0, 32)],  readLen = UInt8(32))
+        self.orderFlags = UInt16Le(OrderFlag.NEGOTIATEORDERSUPPORT)
+        self.orderSupport = ArrayType(UInt8, init = [UInt8(0) for _ in range (0, 32)],  readLen = UInt8(32))
         self.textFlags = UInt16Le()
         self.orderSupportExFlags = UInt16Le()
         self.pad4octetsB = UInt32Le()
@@ -354,11 +345,11 @@ class OrderCapability(CompositeType):
         self.pad2octetsE = UInt16Le()
         
 class BitmapCacheCapability(CompositeType):
-    '''
-    Order use to cache bitmap very usefull
+    """
+    Order use to cache bitmap very useful
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240559.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.pad1 = UInt32Le()
@@ -375,13 +366,13 @@ class BitmapCacheCapability(CompositeType):
         self.cache2MaximumCellSize = UInt16Le()
         
 class PointerCapability(CompositeType):
-    '''
+    """
     Use to indicate pointer handle of client
     Paint by server or per client
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240562.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.colorPointerFlag = UInt16Le()
@@ -389,12 +380,12 @@ class PointerCapability(CompositeType):
         self.pointerCacheSize = UInt16Le()
         
 class InputCapability(CompositeType):
-    '''
+    """
     Use to indicate input capabilities
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240563.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.inputFlags = UInt16Le()
@@ -411,69 +402,69 @@ class InputCapability(CompositeType):
         self.imeFileName = String("\x00" * 64, readLen = UInt8(64))
         
 class BrushCapability(CompositeType):
-    '''
+    """
     Use to indicate brush capability
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240564.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.brushSupportLevel = BrushSupport.BRUSH_DEFAULT
+        self.brushSupportLevel = UInt32Le(BrushSupport.BRUSH_DEFAULT)
         
 class GlyphCapability(CompositeType):
-    '''
+    """
     Use in font order
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240565.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.glyphCache = ArrayType(CacheEntry, init = [CacheEntry() for i in range(0,10)], readLen = UInt8(10))
+        self.glyphCache = ArrayType(CacheEntry, init = [CacheEntry() for _ in range(0,10)], readLen = UInt8(10))
         self.fragCache = UInt32Le()
         #all fonts are sent with bitmap format (very expensive)
-        self.glyphSupportLevel = GlyphSupport.GLYPH_SUPPORT_NONE
+        self.glyphSupportLevel = UInt16Le(GlyphSupport.GLYPH_SUPPORT_NONE)
         self.pad2octets = UInt16Le()
         
 class OffscreenBitmapCacheCapability(CompositeType):
-    '''
+    """
     use to cached bitmap in offscreen area
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240550.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.offscreenSupportLevel = OffscreenSupportLevel.FALSE
+        self.offscreenSupportLevel = UInt32Le(OffscreenSupportLevel.FALSE)
         self.offscreenCacheSize = UInt16Le()
         self.offscreenCacheEntries = UInt16Le()
         
 class VirtualChannelCapability(CompositeType):
-    '''
+    """
     use to determine virtual channel compression
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240551.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.flags = VirtualChannelCompressionFlag.VCCAPS_NO_COMPR
+        self.flags = UInt32Le(VirtualChannelCompressionFlag.VCCAPS_NO_COMPR)
         self.VCChunkSize = UInt32Le(optional = True)
         
 class SoundCapability(CompositeType):
-    '''
-    use to exchange sound capability
+    """
+    Use to exchange sound capability
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240552.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.soundFlags = SoundFlag.NONE
+        self.soundFlags = UInt16Le(SoundFlag.NONE)
         self.pad2octetsA = UInt16Le()
         
 class ControlCapability(CompositeType):
-    '''
+    """
     client -> server but server ignore contents! Thanks krosoft for brandwidth
     @see: http://msdn.microsoft.com/en-us/library/cc240568.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.controlFlags = UInt16Le()
@@ -482,10 +473,10 @@ class ControlCapability(CompositeType):
         self.detachInterest = UInt16Le(0x0002)
     
 class WindowActivationCapability(CompositeType):
-    '''
+    """
     client -> server but server ignore contents! Thanks krosoft for brandwidth
     @see: http://msdn.microsoft.com/en-us/library/cc240569.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.helpKeyFlag = UInt16Le()
@@ -494,35 +485,35 @@ class WindowActivationCapability(CompositeType):
         self.windowManagerKeyFlag = UInt16Le()
         
 class FontCapability(CompositeType):
-    '''
-    use to indicate font support
+    """
+    Use to indicate font support
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240571.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.fontSupportFlags = UInt16Le(0x0001)
         self.pad2octets = UInt16Le()
         
 class ColorCacheCapability(CompositeType):
-    '''
+    """
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc241564.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.colorTableCacheSize = UInt16Le(0x0006)
         self.pad2octets = UInt16Le()
         
 class ShareCapability(CompositeType):
-    '''
-    use to advertise channel id of server
+    """
+    Use to advertise channel id of server
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240570.aspx
-    '''
+    """
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.nodeId = UInt16Le()

@@ -1,9 +1,27 @@
-'''
-@author sylvain
-@summary gcc language
-@see: http://msdn.microsoft.com/en-us/library/cc240508.aspx
-'''
-from rdpy.network.const import ConstAttributes, TypeAttributes
+#
+# Copyright (c) 2014 Sylvain Peyrefitte
+#
+# This file is part of rdpy.
+#
+# rdpy is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+"""
+Implement GCC structure use in RDP protocol
+http://msdn.microsoft.com/en-us/library/cc240508.aspx
+"""
+
 from rdpy.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, UniString, Stream, sizeof
 import per
 from rdpy.network.error import InvalidExpectedDataException
@@ -12,76 +30,64 @@ t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
 h221_cs_key = "Duca";
 h221_sc_key = "McDn";
 
-@ConstAttributes
-@TypeAttributes(UInt16Le)
 class ServerToClientMessage(object):
-    '''
+    """
     Server to Client block 
-    gcc conference messages
+    GCC conference messages
     @see: http://msdn.microsoft.com/en-us/library/cc240509.aspx
-    '''
+    """
     SC_CORE = 0x0C01
     SC_SECURITY = 0x0C02
     SC_NET = 0x0C03
 
-@ConstAttributes
-@TypeAttributes(UInt16Le)
 class ClientToServerMessage(object):
-    '''
+    """
     Client to Server block 
-    gcc conference messages
+    GCC conference messages
     @see: http://msdn.microsoft.com/en-us/library/cc240509.aspx
-    '''
+    """
     CS_CORE = 0xC001
     CS_SECURITY = 0xC002
     CS_NET = 0xC003
     CS_CLUSTER = 0xC004
     CS_MONITOR = 0xC005
 
-@ConstAttributes
-@TypeAttributes(UInt16Le)
 class ColorDepth(object):
-    '''
-    depth color
+    """
+    Depth color
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
-    '''
+    """
     RNS_UD_COLOR_8BPP = 0xCA01
     RNS_UD_COLOR_16BPP_555 = 0xCA02
     RNS_UD_COLOR_16BPP_565 = 0xCA03
     RNS_UD_COLOR_24BPP = 0xCA04
     
-@ConstAttributes
-@TypeAttributes(UInt16Le)
 class HighColor(object):
-    '''
-    high color of client
+    """
+    High color of client
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
-    '''
+    """
     HIGH_COLOR_4BPP = 0x0004
     HIGH_COLOR_8BPP = 0x0008
     HIGH_COLOR_15BPP = 0x000f
     HIGH_COLOR_16BPP = 0x0010
     HIGH_COLOR_24BPP = 0x0018
 
-@ConstAttributes
-@TypeAttributes(UInt16Le)
 class Support(object):
-    '''
-    support depth flag
+    """
+    Supported depth flag
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
-    '''
+    """
     RNS_UD_24BPP_SUPPORT = 0x0001
     RNS_UD_16BPP_SUPPORT = 0x0002
     RNS_UD_15BPP_SUPPORT = 0x0004
     RNS_UD_32BPP_SUPPORT = 0x0008
 
-@ConstAttributes
-@TypeAttributes(UInt16Le)
 class CapabilityFlags(object):
-    '''
-    for more details on each flags click above
+    """
+    For more details on each flags click above
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
-    '''
+    """
     RNS_UD_CS_SUPPORT_ERRINFO_PDU = 0x0001
     RNS_UD_CS_WANT_32BPP_SESSION = 0x0002
     RNS_UD_CS_SUPPORT_STATUSINFO_PDU = 0x0004
@@ -94,14 +100,12 @@ class CapabilityFlags(object):
     RNS_UD_CS_SUPPORT_DYNAMIC_TIME_ZONE = 0x0200
     RNS_UD_CS_SUPPORT_HEARTBEAT_PDU = 0x0400
 
-@ConstAttributes 
-@TypeAttributes(UInt8)
 class ConnectionType(object):
-    '''
-    this information is correct if 
+    """
+    This information is correct if 
     RNS_UD_CS_VALID_CONNECTION_TYPE flag is set on capabilityFlag
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
-    '''
+    """
     CONNECTION_TYPE_MODEM = 0x01
     CONNECTION_TYPE_BROADBAND_LOW = 0x02
     CONNECTION_TYPE_SATELLITE = 0x03
@@ -110,41 +114,33 @@ class ConnectionType(object):
     CONNECTION_TYPE_LAN = 0x06
     CONNECTION_TYPE_AUTODETECT = 0x07
 
-@ConstAttributes
-@TypeAttributes(UInt32Le)
 class Version(object):
-    '''
-    supported version of RDP
+    """
+    Supported version of RDP
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
-    '''
+    """
     RDP_VERSION_4 = 0x00080001
     RDP_VERSION_5_PLUS = 0x00080004
 
-@ConstAttributes
-@TypeAttributes(UInt16Le)
 class Sequence(object):
     RNS_UD_SAS_DEL = 0xAA03
-    
-@ConstAttributes
-@TypeAttributes(UInt32Le) 
+     
 class Encryption(object):
-    '''
-    encryption method supported
-    @deprecated: because rdpy use ssl but need to send to server...
+    """
+    Encryption methods supported
+    @deprecated: because rdpy use SSL but need to send to server...
     @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
-    '''
+    """
     ENCRYPTION_FLAG_40BIT = 0x00000001
     ENCRYPTION_FLAG_128BIT = 0x00000002
     ENCRYPTION_FLAG_56BIT = 0x00000008
     FIPS_ENCRYPTION_FLAG = 0x00000010
-    
-@ConstAttributes
-@TypeAttributes(UInt32Le)    
+       
 class ChannelOptions(object):
-    '''
-    channel options
+    """
+    Channel options
     @see: http://msdn.microsoft.com/en-us/library/cc240513.aspx
-    '''
+    """
     CHANNEL_OPTION_INITIALIZED = 0x80000000
     CHANNEL_OPTION_ENCRYPT_RDP = 0x40000000
     CHANNEL_OPTION_ENCRYPT_SC = 0x20000000
@@ -156,14 +152,12 @@ class ChannelOptions(object):
     CHANNEL_OPTION_COMPRESS = 0x00400000
     CHANNEL_OPTION_SHOW_PROTOCOL = 0x00200000
     REMOTE_CONTROL_PERSISTENT = 0x00100000
-
-@ConstAttributes
-@TypeAttributes(UInt32Le) 
+ 
 class KeyboardType(object):
-    '''
+    """
     Keyboard type
     IBM_101_102_KEYS is the most common keyboard type
-    '''
+    """
     IBM_PC_XT_83_KEY = 0x00000001
     OLIVETTI = 0x00000002
     IBM_PC_AT_84_KEY = 0x00000003
@@ -171,14 +165,12 @@ class KeyboardType(object):
     NOKIA_1050 = 0x00000005
     NOKIA_9140 = 0x00000006
     JAPANESE = 0x00000007
-
-@ConstAttributes
-@TypeAttributes(UInt32Le)  
+  
 class KeyboardLayout(object):
-    '''
+    """
     Keyboard layout definition
     @see: http://technet.microsoft.com/en-us/library/cc766503%28WS.10%29.aspx
-    '''
+    """
     ARABIC = 0x00000401
     BULGARIAN = 0x00000402
     CHINESE_US_KEYBOARD = 0x00000404
@@ -201,64 +193,64 @@ class KeyboardLayout(object):
     
 
 class ClientCoreSettings(CompositeType):
-    '''
-    class that represent core setting of client
+    """
+    Class that represent core setting of client
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
-    '''
+    """
     def __init__(self):
         CompositeType.__init__(self)
-        self.rdpVersion = Version.RDP_VERSION_5_PLUS
+        self.rdpVersion = UInt32Le(Version.RDP_VERSION_5_PLUS)
         self.desktopWidth = UInt16Le(1280)
         self.desktopHeight = UInt16Le(800)
-        self.colorDepth = ColorDepth.RNS_UD_COLOR_8BPP
-        self.sasSequence = Sequence.RNS_UD_SAS_DEL
-        self.kbdLayout = KeyboardLayout.FRENCH
+        self.colorDepth = UInt16Le(ColorDepth.RNS_UD_COLOR_8BPP)
+        self.sasSequence = UInt16Le(Sequence.RNS_UD_SAS_DEL)
+        self.kbdLayout = UInt32Le(KeyboardLayout.FRENCH)
         self.clientBuild = UInt32Le(3790)
         self.clientName = UniString("rdpy" + "\x00"*11, readLen = UInt8(30))
-        self.keyboardType = KeyboardType.IBM_101_102_KEYS
+        self.keyboardType = UInt32Le(KeyboardType.IBM_101_102_KEYS)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
         self.imeFileName = String("\x00"*64, readLen = UInt8(64))
-        self.postBeta2ColorDepth = ColorDepth.RNS_UD_COLOR_8BPP
+        self.postBeta2ColorDepth = UInt16Le(ColorDepth.RNS_UD_COLOR_8BPP)
         self.clientProductId = UInt16Le(1)
         self.serialNumber = UInt32Le(0)
-        self.highColorDepth = HighColor.HIGH_COLOR_24BPP
-        self.supportedColorDepths = Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT | Support.RNS_UD_15BPP_SUPPORT
-        self.earlyCapabilityFlags = CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU
+        self.highColorDepth = UInt16Le(HighColor.HIGH_COLOR_24BPP)
+        self.supportedColorDepths = UInt16Le(Support.RNS_UD_32BPP_SUPPORT | Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT)
+        self.earlyCapabilityFlags = UInt16Le(CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU)
         self.clientDigProductId = String("\x00"*64, readLen = UInt8(64))
         self.connectionType = UInt8()
         self.pad1octet = UInt8()
         self.serverSelectedProtocol = UInt32Le()
     
 class ServerCoreSettings(CompositeType):
-    '''
-    server side core settings structure
+    """
+    Server side core settings structure
     @see: http://msdn.microsoft.com/en-us/library/cc240517.aspx
-    '''
+    """
     def __init__(self):
         CompositeType.__init__(self)
-        self.rdpVersion = Version.RDP_VERSION_5_PLUS
+        self.rdpVersion = UInt32Le(Version.RDP_VERSION_5_PLUS)
         self.clientRequestedProtocol = UInt32Le()
         
 class ClientSecuritySettings(CompositeType):
-    '''
-    client security setting
+    """
+    Client security setting
     @deprecated: because we use ssl
     @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
-    '''
+    """
     def __init__(self):
         CompositeType.__init__(self)
         self.encryptionMethods = UInt32Le()
         self.extEncryptionMethods = UInt32Le()
         
 class ServerSecuritySettings(CompositeType):
-    '''
-    server security settings
-    may be ignore because rdpy don't use 
+    """
+    Server security settings
+    May be ignored because rdpy don't use 
     RDP security level
-    @deprecated: because we use ssl
+    @deprecated: because we use SSL
     @see: http://msdn.microsoft.com/en-us/library/cc240518.aspx
-    '''
+    """
     def __init__(self):
         CompositeType.__init__(self)
         self.encryptionMethod = UInt32Le()
@@ -266,12 +258,11 @@ class ServerSecuritySettings(CompositeType):
         
 
 class ClientRequestedChannel(CompositeType):
-    '''
-    channels structure share between
-    client and server
+    """
+    Channels structure share between client and server
     @see: http://msdn.microsoft.com/en-us/library/cc240512.aspx
     @see: http://msdn.microsoft.com/en-us/library/cc240513.aspx
-    '''
+    """
     def __init__(self, name = "", options = UInt32Le()):
         CompositeType.__init__(self)
         #name of channel
@@ -280,9 +271,9 @@ class ClientRequestedChannel(CompositeType):
         self.options = options
         
 class ClientSettings(object):
-    '''
-    class which group all client settings supported by RDPY
-    '''
+    """
+    Class which group all client settings supported by RDPY
+    """
     def __init__(self):
         self.core = ClientCoreSettings()
         #list of ClientRequestedChannel read network gcc packet
@@ -290,9 +281,9 @@ class ClientSettings(object):
         self.security = ClientSecuritySettings()
         
 class ServerSettings(object):
-    '''
-    server settings
-    '''
+    """
+    Server settings
+    """
     def __init__(self):
         #core settings of server
         self.core = ServerCoreSettings()
@@ -302,11 +293,11 @@ class ServerSettings(object):
         self.channelsId = []
         
 def writeConferenceCreateRequest(settings):
-    '''
-    write conference create request structure
+    """
+    Write conference create request structure
     @param settings: ClientSettings
-    @return: struct that represent
-    '''
+    @return: structure that represent
+    """
     userData = writeClientDataBlocks(settings)
     userDataStream = Stream()
     userDataStream.writeType(userData)
@@ -318,12 +309,12 @@ def writeConferenceCreateRequest(settings):
             per.writeOctetStream(h221_cs_key, 4), per.writeOctetStream(userDataStream.getvalue()))
     
 def readConferenceCreateResponse(s):
-    '''
-    read response from server
+    """
+    Read response from server
     and return server settings read from this response
     @param s: Stream
     @return: ServerSettings 
-    '''
+    """
     per.readChoice(s)
     per.readObjectIdentifier(s, t124_02_98_oid)
     per.readLength(s)
@@ -339,22 +330,22 @@ def readConferenceCreateResponse(s):
     
     
 def writeClientDataBlocks(settings):
-    '''
-    write all blocks for client
-    and return gcc valid structure
+    """
+    Write all blocks for client
+    and return GCC valid structure
     @param settings: ClientSettings
-    '''
+    """
     return (writeClientCoreData(settings.core), 
             writeClientSecurityData(settings.security),
             writeClientNetworkData(settings.networkChannels))
     
 def readServerDataBlocks(s):
-    '''
-    read gcc server data blocks
-    and return result in Server Settings object
+    """
+    Read GCC server data blocks
+    And return result in Server Settings object
     @param s: Stream
     @return: ServerSettings
-    '''
+    """
     settings = ServerSettings()
     length = per.readLength(s)
     while length > 0:
@@ -363,61 +354,61 @@ def readServerDataBlocks(s):
         blockLength = UInt16Le()
         s.readType((blockType, blockLength))
         #read core block
-        if blockType == ServerToClientMessage.SC_CORE:
+        if blockType.value == ServerToClientMessage.SC_CORE:
             s.readType(settings.core)
         #read network block
-        elif blockType == ServerToClientMessage.SC_NET:
+        elif blockType.value == ServerToClientMessage.SC_NET:
             settings.channelsId = readServerSecurityData(s)
         #read security block
         #unused in rdpy because use SSL layer
-        elif blockType == ServerToClientMessage.SC_SECURITY:
+        elif blockType.value == ServerToClientMessage.SC_SECURITY:
             s.readType(settings.security)
         else:
-            print "Unknow server block %s"%hex(type)
+            print "Unknown server block %s"%hex(type)
         length -= blockLength.value
         s.seek(marker + blockLength.value)
         
     return settings
 
 def writeClientCoreData(core):
-    '''
-    write client settings in GCC language
+    """
+    Write client settings in GCC language
     @param settings: ClientSettings structure
     @return: structure that represent client data blocks
-    '''
-    return (ClientToServerMessage.CS_CORE, UInt16Le(sizeof(core) + 4), core)
+    """
+    return (UInt16Le(ClientToServerMessage.CS_CORE), UInt16Le(sizeof(core) + 4), core)
 
 def writeClientSecurityData(security):
-    '''
-    write security header block and security structure
+    """
+    Write security header block and security structure
     @param security: ClientSecuritySettings
-    @return: gcc client security data
-    '''
-    return (ClientToServerMessage.CS_SECURITY, UInt16Le(sizeof(security) + 4), security)
+    @return: GCC client security data
+    """
+    return (UInt16Le(ClientToServerMessage.CS_SECURITY), UInt16Le(sizeof(security) + 4), security)
 
 def writeClientNetworkData(channels):
-    '''
-    write network packet whith channels infos
+    """
+    Write network packet with channels infos
     @param channels: list of ClientRequestedChannel
-    @return: gcc network packet
-    '''
+    @return: GCC network packet
+    """
     if len(channels) == 0:
         return ()
-    return (ClientToServerMessage.CS_NET, UInt16Le(len(channels) * sizeof(ClientRequestedChannel()) + 8), UInt32Le(len(channels)), tuple(channels))
+    return (UInt16Le(ClientToServerMessage.CS_NET), UInt16Le(len(channels) * sizeof(ClientRequestedChannel()) + 8), UInt32Le(len(channels)), tuple(channels))
 
 def readServerSecurityData(s):
-    '''
-    read server security and fill it in settings
-    read all channels accepted by server by server
+    """
+    Read server security and fill it in settings
+    Read all channels accepted by server by server
     @param s: Stream
     @return: list of channel id selected by server
     @see: http://msdn.microsoft.com/en-us/library/cc240522.aspx
-    '''
+    """
     channelsId = []
     channelId = UInt16Le()
     numberOfChannels = UInt16Le()
     s.readType((channelId, numberOfChannels))
-    for i in range(0, numberOfChannels.value):
+    for _ in range(0, numberOfChannels.value):
         channelId = UInt16Le()
         s.readType(channelId)
         channelsId.append(channelId)

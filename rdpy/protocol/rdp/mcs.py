@@ -165,7 +165,7 @@ class MCS(LayerAutomata):
                self.writeDomainParams(1, 1, 1, 0x420),
                self.writeDomainParams(0xffff, 0xfc17, 0xffff, 0xffff),
                ber.writeOctetstring(ccReqStream.getvalue()))
-        self._transport.send((ber.writeApplicationTag(UInt8(Message.MCS_TYPE_CONNECT_INITIAL), sizeof(tmp)), tmp))
+        self._transport.send((ber.writeApplicationTag(Message.MCS_TYPE_CONNECT_INITIAL, sizeof(tmp)), tmp))
         #we must receive a connect response
         self.setNextState(self.recvConnectResponse)
         

@@ -29,11 +29,8 @@ Implement Remote FrameBuffer protocol use in VNC client and server
 from twisted.internet import protocol
 from rdpy.network.layer import RawLayer, LayerMode
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
-from rdpy.network.const import ConstAttributes, TypeAttributes
-from rdpy.network.error import InvalidValue, CallPureVirtualFuntion
+from rdpy.network.error import InvalidValue, CallPureVirtualFuntion, InvalidType
 
-@ConstAttributes
-@TypeAttributes(String)
 class ProtocolVersion(object):
     """
     Different protocol version
@@ -43,8 +40,6 @@ class ProtocolVersion(object):
     RFB003007 = "RFB 003.007\n"
     RFB003008 = "RFB 003.008\n"
 
-@ConstAttributes 
-@TypeAttributes(UInt8)
 class SecurityType(object):
     """
     Security type supported 
@@ -53,8 +48,6 @@ class SecurityType(object):
     NONE = 1
     VNC = 2
 
-@ConstAttributes
-@TypeAttributes(UInt32Be)
 class Pointer(object):
     """
     Mouse event code (which button)
@@ -64,17 +57,13 @@ class Pointer(object):
     BUTTON1 = 0x1
     BUTTON2 = 0x2
     BUTTON3 = 0x4
-
-@ConstAttributes
-@TypeAttributes(SInt32Be)  
+  
 class Encoding(object):
     """
     Encoding types of FrameBuffer update
     """
     RAW = 0
 
-@ConstAttributes
-@TypeAttributes(UInt8)
 class ClientToServerMessages(object):
     """
     Client to server messages types
@@ -179,18 +168,24 @@ class RFB(RawLayer):
     """
     Implement RFB protocol
     """
-    def __init__(self, mode, controller):
+    def __init__(self, listener):
         """
         @param mode: LayerMode client or server
         @param controller: controller use to inform new orders
         """
+        mode = None
+        if isinstance(listener, RFBClientListener):
+            mode = LayerMode.CLIENT
+        else:
+            raise InvalidType("RFB Layer expect RFBClientListener as listener")
+        
         RawLayer.__init__(self, mode)
         #useful for RFB protocol
         self._callbackBody = None
         #protocol version negotiated
-        self._version = ProtocolVersion.RFB003008
+        self._version = String(ProtocolVersion.RFB003008)
         #number security launch by server
-        self._securityLevel = SecurityType.INVALID
+        self._securityLevel = UInt8(SecurityType.INVALID)
         #shared FrameBuffer client init message
         self._sharedFlag = UInt8(False)
         #server init message
@@ -205,7 +200,9 @@ class RFB(RawLayer):
         #current rectangle header
         self._currentRect = Rectangle()
         #client or server adaptor
-        self._controller = controller
+        self._listener = listener
+        #ready to send events
+        self._ready = False
     
     def expectWithHeader(self, expectedHeaderLen, callbackBody):
         """
@@ -255,8 +252,8 @@ class RFB(RawLayer):
         @param data: Stream may contain protocol version string (ProtocolVersion)
         """
         data.readType(self._version)
-        if not self._version in [ProtocolVersion.RFB003003, ProtocolVersion.RFB003007, ProtocolVersion.RFB003008]:
-            self._version = ProtocolVersion.UNKNOWN
+        if not self._version.value in [ProtocolVersion.RFB003003, ProtocolVersion.RFB003007, ProtocolVersion.RFB003008]:
+            self._version.value = ProtocolVersion.UNKNOWN
     
     def recvProtocolVersion(self, data):
         """
@@ -266,15 +263,15 @@ class RFB(RawLayer):
         @param data: Stream
         """
         self.readProtocolVersion(data)
-        if self._version == ProtocolVersion.UNKNOWN:
+        if self._version.value == ProtocolVersion.UNKNOWN:
             print "Unknown protocol version %s send 003.008"%data.getvalue()
             #protocol version is unknown try best version we can handle
-            self._version = ProtocolVersion.RFB003008
+            self._version.value = ProtocolVersion.RFB003008
         #send same version of 
         self.send(self._version)
         
         #next state read security
-        if self._version == ProtocolVersion.RFB003003:
+        if self._version.value == ProtocolVersion.RFB003003:
             self.expect(4, self.recvSecurityServer)
         else:
             self.expectWithHeader(1, self.recvSecurityList)
@@ -300,7 +297,7 @@ class RFB(RawLayer):
             securityList.append(securityElement)
         #select high security level
         for s in securityList:
-            if s in [SecurityType.NONE, SecurityType.VNC] and s > self._securityLevel:
+            if s.value in [SecurityType.NONE, SecurityType.VNC] and s > self._securityLevel:
                 self._securityLevel = s
                 break
         #send back security level choosen
@@ -317,7 +314,7 @@ class RFB(RawLayer):
         data.readType(result)
         if result == UInt32Be(1):
             print "Authentification failed"
-            if self._version == ProtocolVersion.RFB003008:
+            if self._version.value == ProtocolVersion.RFB003008:
                 self.expectWithHeader(4, self.recvSecurityFailed)
         else:
             print "Authentification OK"
@@ -352,6 +349,9 @@ class RFB(RawLayer):
         self.sendSetEncoding()
         #request entire zone
         self.sendFramebufferUpdateRequest(False, 0, 0, self._serverInit.width.value, self._serverInit.height.value)
+        #now i'm ready to send event
+        self._ready = True;
+        
         self.expect(1, self.recvServerOrder)
         
     def recvServerOrder(self, data):
@@ -382,7 +382,7 @@ class RFB(RawLayer):
         @param data: Stream that contains well formed packet
         """
         data.readType(self._currentRect)
-        if self._currentRect.encoding == Encoding.RAW:
+        if self._currentRect.encoding.value == Encoding.RAW:
             self.expect(self._currentRect.width.value * self._currentRect.height.value * (self._pixelFormat.BitsPerPixel.value / 8), self.recvRectBody)
     
     def recvRectBody(self, data):
@@ -390,7 +390,7 @@ class RFB(RawLayer):
         Read body of rectangle update
         @param data: Stream that contains well formed packet
         """
-        self._controller.recvRectangle(self._currentRect, self._pixelFormat, data.getvalue())
+        self._listener.recvRectangle(self._currentRect, self._pixelFormat, data.getvalue())
            
         self._nbRect = self._nbRect - 1
         #if there is another rect to read
@@ -414,43 +414,58 @@ class RFB(RawLayer):
         Very important packet that inform the image struct supported by the client
         @param pixelFormat: PixelFormat struct
         """
-        self.send((ClientToServerMessages.PIXEL_FORMAT, UInt16Be(), UInt8(), pixelFormat))
+        self.send((UInt8(ClientToServerMessages.PIXEL_FORMAT), UInt16Be(), UInt8(), pixelFormat))
         
     def sendSetEncoding(self):
         """
         Send set encoding packet
         Actually only RAW bitmap encoding are used
         """
-        self.send((ClientToServerMessages.ENCODING, UInt8(), UInt16Be(1), Encoding.RAW))
+        self.send((UInt8(ClientToServerMessages.ENCODING), UInt8(), UInt16Be(1), SInt32Be(Encoding.RAW)))
         
     def sendFramebufferUpdateRequest(self, incremental, x, y, width, height):
         """
         Request server the specified zone
         incremental means request only change before last update
         """
-        self.send((ClientToServerMessages.FRAME_BUFFER_UPDATE_REQUEST, FrameBufferUpdateRequest(incremental, x, y, width, height)))
+        self.send((UInt8(ClientToServerMessages.FRAME_BUFFER_UPDATE_REQUEST), FrameBufferUpdateRequest(incremental, x, y, width, height)))
         
     def sendKeyEvent(self, keyEvent):
         """
         Write key event packet
         @param keyEvent: KeyEvent struct to send
         """
-        self.send((ClientToServerMessages.KEY_EVENT, keyEvent))
+        self.send((UInt8(ClientToServerMessages.KEY_EVENT), keyEvent))
         
     def sendPointerEvent(self, pointerEvent):
         """
         Write pointer event packet
         @param pointerEvent: PointerEvent struct use
         """
-        self.send((ClientToServerMessages.POINTER_EVENT, pointerEvent))
+        self.send((UInt8(ClientToServerMessages.POINTER_EVENT), pointerEvent))
         
     def sendClientCutText(self, text):
         """
         write client cut text event packet
         """
-        self.send((ClientToServerMessages.CUT_TEXT, ClientCutText(text)))
+        self.send((UInt8(ClientToServerMessages.CUT_TEXT), ClientCutText(text)))
         
-class RFBController(object):
+class RFBClientListener(object):
+    """
+    Interface use to expose event receive from RFB layer
+    """
+    def recvRectangle(self, rectangle, pixelFormat, data):
+        """
+        Receive rectangle order
+        Main update order type
+        @param rectangle: Rectangle type header of packet
+        @param pixelFormat: pixelFormat struct of current session
+        @param data: image data
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recvRectangle", "RFBListener"))
+    
+        
+class RFBController(RFBClientListener):
     """
     Class use to manage RFB order and dispatch throw observers
     """
@@ -460,7 +475,7 @@ class RFBController(object):
         """
         self._clientObservers = []
         #rfb layer to send client orders
-        self._rfbLayer = RFB(mode, self)
+        self._rfbLayer = RFB(self)
         
     def getRFBLayer(self):
         """
@@ -493,6 +508,9 @@ class RFBController(object):
         @param isDown: boolean notify if key is pressed or not (True if key is pressed)
         @param key: ASCII code of key
         """
+        if not self._rfbLayer._ready:
+            print "Try to send key event on non ready layer"
+            return
         try:
             event = KeyEvent()
             event.downFlag.value = isDown
@@ -509,6 +527,9 @@ class RFBController(object):
         @param x: x coordinate of mouse pointer
         @param y: y pointer of mouse pointer
         """
+        if not self._rfbLayer._ready:
+            print "Try to send pointer event on non ready layer"
+            return
         try:
             event = PointerEvent()
             event.mask.value = mask

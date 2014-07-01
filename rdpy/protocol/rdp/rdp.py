@@ -42,7 +42,7 @@ class RDPController(object):
         for observer in self._clientObserver:
             #for each rectangle in update PDU
             for rectangle in bitmapUpdateData.rectangles._array:
-                observer.onBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, (rectangle.flags & pdu.BitmapFlag.BITMAP_COMPRESSION).value, rectangle.bitmapDataStream.value)
+                observer.onBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, rectangle.flags.value & pdu.BitmapFlag.BITMAP_COMPRESSION, rectangle.bitmapDataStream.value)
 
 class ClientFactory(protocol.Factory):
     """
@@ -106,7 +106,7 @@ class ServerFactory(protocol.Factory):
         
 class RDPClientObserver(object):
     '''
-    class use to inform all rdp event handle by RDPY
+    class use to inform all RDP event handle by RDPY
     '''
     def __init__(self, controller):
         """

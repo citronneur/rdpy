@@ -261,7 +261,7 @@ class SimpleType(Type, CallableValue):
         """
         if not self.__dict__.has_key("_mask"):
             mask = 0xff
-            for i in range(1, self._typeSize):
+            for _ in range(1, self._typeSize):
                 mask = mask << 8 | 0xff
             self._mask = mask
         return self._mask
@@ -844,7 +844,7 @@ class ArrayType(Type):
         @param s: Stream
         '''
         self._array = []
-        for i in range(0, self._readLen.value):
+        for _ in range(0, self._readLen.value):
             element = self._typeFactory()
             s.readType(element)
             self._array.append(element)
