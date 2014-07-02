@@ -187,6 +187,18 @@ class UpdateType(object):
     UPDATETYPE_PALETTE = 0x0002
     UPDATETYPE_SYNCHRONIZE = 0x0003
     
+class InputMessageType(object):
+    """
+    Use in slowpath input PDU
+    @see: http://msdn.microsoft.com/en-us/library/cc240583.aspx
+    """
+    INPUT_EVENT_SYNC = 0x0000
+    INPUT_EVENT_UNUSED = 0x0002
+    INPUT_EVENT_SCANCODE = 0x0004
+    INPUT_EVENT_UNICODE = 0x0005
+    INPUT_EVENT_MOUSE = 0x8001
+    INPUT_EVENT_MOUSEX = 0x8002
+    
 class ErrorInfo(object):
     """
     Error code use in Error info PDU
@@ -667,6 +679,15 @@ class ClientInputEventPDU(CompositeType):
         self.numEvents = UInt16Le()
         self.pad2Octets = UInt16Le()
         
+class SlowPathInputData(CompositeType):
+    """
+    PDU use in slowpath sending client inputs
+    @see: http://msdn.microsoft.com/en-us/library/cc240583.aspx
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.eventTime = UInt32Le()
+        self.messageType = UInt16Le()        
 
 class BitmapCompressedDataHeader(CompositeType):
     """
@@ -854,7 +875,7 @@ class PDU(LayerAutomata):
         
     def recvServerControlGrantedPDU(self, data):
         """
-        Receive last control pdu the granted control pdu
+        Receive last control PDU the granted control PDU
         @param data: Stream from transport layer
         """
         dataPDU = self.readDataPDU(data)

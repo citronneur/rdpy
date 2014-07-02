@@ -230,9 +230,9 @@ class Capability(CompositeType):
         self.lengthCapability = UInt16Le(lambda:sizeof(self))
         
         def CapabilityFactory():
-            '''
-            closure for capability factory
-            '''
+            """
+            Closure for capability factory
+            """
             if self.capabilitySetType.value == CapsType.CAPSTYPE_GENERAL:
                 return GeneralCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
             elif self.capabilitySetType.value == CapsType.CAPSTYPE_BITMAP:
