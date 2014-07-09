@@ -10,9 +10,8 @@ class RDPController(pdu.PDUClientListener):
     """
     use to decode and dispatch to observer PDU messages and orders
     """
-    def __init__(self, mode):
+    def __init__(self):
         """
-        @param mode: mode of generate layer by listener
         @param observer: observer
         """
         #list of observer
@@ -141,7 +140,7 @@ class ClientFactory(protocol.Factory):
         Function call from twisted and build rdp protocol stack
         @param addr: destination address
         '''
-        controller = RDPController(LayerMode.CLIENT)
+        controller = RDPController()
         self.buildObserver(controller)
         mcsLayer = mcs.createClient(controller)
         
@@ -174,8 +173,7 @@ class ServerFactory(protocol.Factory):
         Function call from twisted and build rdp protocol stack
         @param addr: destination address
         """
-        pduLayer = pdu.PDU(LayerMode.SERVER)
-        #pduLayer.getController().addObserver(self.buildObserver())
+        pduLayer = pdu.PDU(pdu.PDUServerListener())
         return tpkt.TPKT(tpdu.createServer(mcs.createServer(pduLayer), self._privateKeyFileName, self._certificateFileName));
     
     def buildObserver(self):

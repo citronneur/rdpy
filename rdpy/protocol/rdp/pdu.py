@@ -813,7 +813,13 @@ class PDUClientListener(object):
         @param rectangles: [pdu.BitmapData] struct
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onUpdate", "PDUClientListener"))
-      
+
+class PDUServerListener(object):
+    """
+    Interface for PDU server automata listener
+    """
+    pass
+    
 class PDU(LayerAutomata):
     """
     Global channel for mcs that handle session
@@ -828,8 +834,10 @@ class PDU(LayerAutomata):
             mode = LayerMode.CLIENT
             #set client listener
             self._clientListener = listener
+        elif isinstance(listener, PDUServerListener):
+            mode = LayerMode.SERVER
         else:
-            raise InvalidType("PDU Layer expect PDUClientListener as listener")
+            raise InvalidType("PDU Layer expect PDU(Client|Server)Listener as listener")
         
         LayerAutomata.__init__(self, mode, None)
         #logon info send from client to server
