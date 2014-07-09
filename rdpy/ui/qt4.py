@@ -26,58 +26,58 @@ QRemoteDesktop is a widget use for render in rdpy
 from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
+from rdpy.network.error import CallPureVirtualFuntion
 import rle
 
 
 class QAdaptor(object):
-    '''
-    adaptor model with link between protocol
-    and qt widget 
-    '''
-
-    def sendMouseEvent(self, e):
-        '''
-        interface to send mouse event
-        to protocol stack
-        @param e: qEvent
-        '''
-        pass
-    
-    def sendKeyEvent(self, e):
-        '''
-        interface to send key event
-        to protocol stack
-        @param e: qEvent
-        '''
-        pass
+    """
+    Adaptor model with link between protocol
+    And Qt widget 
+    """
+    def sendMouseEvent(self, e, isPressed):
+        """
+        Interface to send mouse event to protocol stack
+        @param e: QMouseEvent
+        @param isPressed: event come from press or release action
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendMouseEvent", "QAdaptor")) 
+        
+    def sendKeyEvent(self, e, isPressed):
+        """
+        Interface to send key event to protocol stack
+        @param e: QEvent
+        @param isPressed: event come from press or release action
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendKeyEvent", "QAdaptor")) 
     
     def getWidget(self):
-        '''
+        """
         @return: widget use for render
-        '''
-        pass
-
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getWidget", "QAdaptor")) 
+    
 class RFBClientQt(RFBClientObserver, QAdaptor):
-    '''
+    """
     QAdaptor for specific RFB protocol stack
     is to an RFB observer 
-    '''    
+    """   
     def __init__(self, controller):
         """
-        @param controller: controller for obser
+        @param controller: controller for observer
         """
         RFBClientObserver.__init__(self, controller)
         self._widget = QRemoteDesktop(self)
         
     def getWidget(self):
-        '''
+        """
         @return: widget use for render
-        '''
+        """
         return self._widget
     
     def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
-        '''
-        implement RFBClientObserver interface
+        """
+        Implement RFBClientObserver interface
         @param width: width of new image
         @param height: height of new image
         @param x: x position of new image
@@ -85,7 +85,7 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         @param pixelFormat: pixefFormat structure in rfb.message.PixelFormat
         @param encoding: encoding type rfb.message.Encoding
         @param data: image data in accordance with pixel format and encoding
-        '''
+        """
         imageFormat = None
         if pixelFormat.BitsPerPixel.value == 32 and pixelFormat.RedShift.value == 16:
             imageFormat = QtGui.QImage.Format_RGB32
@@ -96,11 +96,12 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         image = QtGui.QImage(data, width, height, imageFormat)
         self._widget.notifyImage(x, y, image)
         
-    def sendMouseEvent(self, e):
-        '''
-        convert qt mouse event to RFB mouse event
+    def sendMouseEvent(self, e, isPressed):
+        """
+        Convert Qt mouse event to RFB mouse event
         @param e: qMouseEvent
-        '''
+        @param isPressed: event come from press or release action
+        """
         button = e.button()
         buttonNumber = 0
         if button == QtCore.Qt.LeftButton:
@@ -111,18 +112,19 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
             buttonNumber = 3  
         self.mouseEvent(buttonNumber, e.pos().x(), e.pos().y())
         
-    def sendKeyEvent(self, e):
-        '''
-        convert Qt key press event to RFB press event
+    def sendKeyEvent(self, e, isPressed):
+        """
+        Convert Qt key press event to RFB press event
         @param e: qKeyEvent
-        '''
-        self.keyEvent(True, e.nativeVirtualKey())
+        @param isPressed: event come from press or release action
+        """
+        self.keyEvent(isPressed, e.nativeVirtualKey())
 
    
 class RDPClientQt(RDPClientObserver, QAdaptor):
-    '''
+    """
     Adaptor for RDP client
-    '''
+    """
     def __init__(self, controller):
         """
         @param controller: RDP controller
@@ -131,14 +133,38 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         self._widget = QRemoteDesktop(self)
         
     def getWidget(self):
-        '''
+        """
         @return: widget use for render
-        '''
+        """
         return self._widget
     
+    def sendMouseEvent(self, e, isPressed):
+        """
+        Convert Qt mouse event to RDP mouse event
+        @param e: qMouseEvent
+        @param isPressed: event come from press(true) or release(false) action
+        """
+        button = e.button()
+        buttonNumber = 0
+        if button == QtCore.Qt.LeftButton:
+            buttonNumber = 1
+        elif button == QtCore.Qt.MidButton:
+            buttonNumber = 2
+        elif button == QtCore.Qt.RightButton:
+            buttonNumber = 3  
+        self._controller.sendPointerEvent(e.pos().x(), e.pos().y(), buttonNumber, isPressed)
+        
+    def sendKeyEvent(self, e, isPressed):
+        """
+        Convert Qt key press event to RFB press event
+        @param e: QKeyEvent
+        @param isPressed: event come from press or release action
+        """
+        self._controller.sendKeyEventUnicode(ord(unicode(e.text().toUtf8(), encoding="UTF-8")), isPressed)
+    
     def onBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
-        '''
-        notify bitmap update
+        """
+        Notify bitmap update
         @param destLeft: xmin position
         @param destTop: ymin position
         @param destRight: xmax position because RDP can send bitmap with padding
@@ -148,7 +174,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param bitsPerPixel: number of bit per pixel
         @param isCompress: use RLE compression
         @param data: bitmap data
-        '''
+        """
         image = None
         if bitsPerPixel == 16:
             if isCompress:
@@ -178,13 +204,13 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
 
         
 class QRemoteDesktop(QtGui.QWidget):
-    '''
-    qt display widget
-    '''
+    """
+    Qt display widget
+    """
     def __init__(self, adaptor):
-        '''
-        constructor
-        '''
+        """
+        @param adaptor: QAdaptor
+        """
         super(QRemoteDesktop, self).__init__()
         #adaptor use to send
         self._adaptor = adaptor
@@ -198,22 +224,22 @@ class QRemoteDesktop(QtGui.QWidget):
         self.setMouseTracking(True)
     
     def notifyImage(self, x, y, qimage):
-        '''
-        function call from Qadaptor
+        """
+        Function call from QAdaptor
         @param x: x position of new image
         @param y: y position of new image
-        @param qimage: new qimage
-        '''
+        @param qimage: new QImage
+        """
         #save in refresh list (order is important)
         self._refresh.append({"x" : x, "y" : y, "image" : qimage})
         #force update
         self.update()
         
     def paintEvent(self, e):
-        '''
-        call when QT renderer engine estimate that is needed
-        @param e: qevent
-        '''
+        """
+        Call when Qt renderer engine estimate that is needed
+        @param e: QEvent
+        """
         #if there is no refresh -> done
         if self._refresh == []:
             return
@@ -228,25 +254,39 @@ class QRemoteDesktop(QtGui.QWidget):
         self._lastReceive = []
         
     def mouseMoveEvent(self, event):
-        '''
-        call when mouse move
-        @param event: qMouseEvent
-        '''
+        """
+        Call when mouse move
+        @param event: QMouseEvent
+        """
         if self._adaptor is None:
             print "No adaptor to send mouse move event"
-        self._adaptor.sendMouseEvent(event)
+        self._adaptor.sendMouseEvent(event, False)
         
     def mousePressEvent(self, event):
-        '''
-        call when button mouse is pressed
-        @param event: qMouseEvent
-        '''
-        self._adaptor.sendMouseEvent(event)
+        """
+        Call when button mouse is pressed
+        @param event: QMouseEvent
+        """
+        self._adaptor.sendMouseEvent(event, True)
+        
+    def mouseReleaseEvent(self, event):
+        """
+        Call when button mouse is released
+        @param event: QMouseEvent
+        """
+        self._adaptor.sendMouseEvent(event, False)
         
     def keyPressEvent(self, event):
-        '''
-        call when button key is pressed
-        @param event: qKeyEvent
-        '''
-        self._adaptor.sendKeyEvent(event)
+        """
+        Call when button key is pressed
+        @param event: QKeyEvent
+        """
+        self._adaptor.sendKeyEvent(event, True)
+        
+    def keyReleaseEvent(self, event):
+        """
+        Call when button key is released
+        @param event: QKeyEvent
+        """
+        self._adaptor.sendKeyEvent(event, False)
         

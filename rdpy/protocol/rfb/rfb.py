@@ -171,11 +171,13 @@ class RFB(RawLayer):
     def __init__(self, listener):
         """
         @param mode: LayerMode client or server
-        @param controller: controller use to inform new orders
+        @param listener: listener use to inform new orders
         """
         mode = None
         if isinstance(listener, RFBClientListener):
             mode = LayerMode.CLIENT
+            #set client listener
+            self._clientListener = listener
         else:
             raise InvalidType("RFB Layer expect RFBClientListener as listener")
         
@@ -199,8 +201,6 @@ class RFB(RawLayer):
         self._nbRect = 0
         #current rectangle header
         self._currentRect = Rectangle()
-        #client or server adaptor
-        self._listener = listener
         #ready to send events
         self._ready = False
     
@@ -390,7 +390,7 @@ class RFB(RawLayer):
         Read body of rectangle update
         @param data: Stream that contains well formed packet
         """
-        self._listener.recvRectangle(self._currentRect, self._pixelFormat, data.getvalue())
+        self._clientListener.recvRectangle(self._currentRect, self._pixelFormat, data.getvalue())
            
         self._nbRect = self._nbRect - 1
         #if there is another rect to read
@@ -489,7 +489,7 @@ class RFBController(RFBClientListener):
         @param observer: new observer
         """
         self._clientObservers.append(observer)
-        observer._controller = self
+        observer._clientListener = self
         
     def recvRectangle(self, rectangle, pixelFormat, data):
         """
@@ -579,7 +579,7 @@ class RFBClientObserver(object):
         """
         Send a key event
         @param isPressed: state of key
-        @param key: ascii code of key
+        @param key: ASCII code of key
         """
         self._controller.sendKeyEvent(isPressed, key)
         
