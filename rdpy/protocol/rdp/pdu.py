@@ -458,13 +458,12 @@ class RDPInfo(CompositeType):
         #shell execute at start of session
         self.alternateShell = UniString(readLen = UInt16Le(lambda:self.cbAlternateShell.value - 2))
         #working directory for session
-        self.workingDir = UniString(readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2))
+        self.workingDir = UniString("toto", readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2))
         self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
         
 class RDPExtendedInfo(CompositeType):
     """
     Add more client informations
-    Use for performance flag!!!
     """
     def __init__(self, conditional):
         CompositeType.__init__(self, conditional = conditional)
@@ -474,7 +473,9 @@ class RDPExtendedInfo(CompositeType):
         self.cbClientDir = UInt16Le(lambda:sizeof(self.clientDir))
         self.clientDir = UniString(readLen = self.cbClientDir)
         #TODO make tiomezone
-        #self.performanceFlags = UInt32Le(PerfFlag.PERF_DISABLE_WALLPAPER | PerfFlag.PERF_DISABLE_MENUANIMATIONS | PerfFlag.PERF_DISABLE_CURSOR_SHADOW)
+        self.clientTimeZone = String("\x00" * 172)
+        self.clientSessionId = UInt32Le()
+        self.performanceFlags = UInt32Le()
 
 class ShareControlHeader(CompositeType):
     """
@@ -578,7 +579,7 @@ class PersistentListPDU(CompositeType):
         
 class DataPDU(CompositeType):
     """
-    Generic pdu packet use after connection sequence
+    Generic PDU packet use after connection sequence
     """
     def __init__(self, pduType = None, pduData = None, userId = 0, shareId = 0):
         CompositeType.__init__(self)
@@ -691,6 +692,29 @@ class BitmapUpdateDataPDU(CompositeType):
         CompositeType.__init__(self)
         self.numberRectangles = UInt16Le(lambda:len(self.rectangles._array))
         self.rectangles = ArrayType(BitmapData, readLen = self.numberRectangles)
+        
+class OrderUpdateDataPDU(CompositeType):
+    """
+    PDU type use to communicate Accelerated order (GDI)
+    @see: http://msdn.microsoft.com/en-us/library/cc241571.aspx
+    @todo: not implemented yet but need it
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.pad2OctetsA = UInt16Le()
+        self.numberOrders = UInt16Le(lambda:len(self.orderData._array))
+        self.pad2OctetsB = UInt16Le()
+        self.orderData = ArrayType(DrawingOrder, readLen = self.numberOrders)
+        
+class DrawingOrder(CompositeType):
+    """
+    GDI drawing orders
+    @see: http://msdn.microsoft.com/en-us/library/cc241574.aspx
+    @todo: not implemented yet but need it
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.controlFlags = UInt8()
 
 class BitmapCompressedDataHeader(CompositeType):
     """
@@ -813,6 +837,13 @@ class PDUClientListener(object):
         @param rectangles: [pdu.BitmapData] struct
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onUpdate", "PDUClientListener"))
+    
+    def recvDstBltOrder(self, order):
+        """
+        Override this function to enable rectangle order
+        @param order: rectangle order
+        """
+        pass
 
 class PDUServerListener(object):
     """
@@ -822,26 +853,15 @@ class PDUServerListener(object):
     
 class PDU(LayerAutomata):
     """
-    Global channel for mcs that handle session
+    Global channel for MCS that handle session
     identification user, licensing management, and capabilities exchange
     """
     def __init__(self, listener):
         """
         @param listener: listener use to inform orders 
         """
-        mode = None
-        if isinstance(listener, PDUClientListener):
-            mode = LayerMode.CLIENT
-            #set client listener
-            self._clientListener = listener
-        elif isinstance(listener, PDUServerListener):
-            mode = LayerMode.SERVER
-        else:
-            raise InvalidType("PDU Layer expect PDU(Client|Server)Listener as listener")
-        
-        LayerAutomata.__init__(self, mode, None)
         #logon info send from client to server
-        self._info = RDPInfo(extendedInfoConditional = lambda:self._transport.getGCCServerSettings().core.rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS)
+        self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().core.rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
         #server capabilities
         self._serverCapabilities = {
             caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.CapsType.CAPSTYPE_GENERAL, caps.GeneralCapability()),
@@ -867,24 +887,47 @@ class PDU(LayerAutomata):
             caps.CapsType.CAPSTYPE_OFFSCREENCACHE : caps.Capability(caps.CapsType.CAPSTYPE_OFFSCREENCACHE, caps.OffscreenBitmapCacheCapability()),
             caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.CapsType.CAPSTYPE_VIRTUALCHANNEL, caps.VirtualChannelCapability()),
             caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.CapsType.CAPSTYPE_SOUND, caps.SoundCapability()),
-            #caps.CapsType.CAPSTYPE_CONTROL : caps.Capability(CapsType.CAPSTYPE_CONTROL, caps.ControlCapability()),
-            #caps.CapsType.CAPSTYPE_ACTIVATION : caps.Capability(CapsType.CAPSTYPE_ACTIVATION, caps.WindowActivationCapability()),
-            #caps.CapsType.CAPSTYPE_FONT : caps.Capability(CapsType.CAPSTYPE_FONT, caps.FontCapability()),
-            #caps.CapsType.CAPSTYPE_COLORCACHE : caps.Capability(CapsType.CAPSTYPE_COLORCACHE, caps.ColorCacheCapability()),
-            #caps.CapsType.CAPSTYPE_SHARE : caps.Capability(CapsType.CAPSTYPE_SHARE, caps.ShareCapability())
+            #caps.CapsType.CAPSTYPE_CONTROL : caps.Capability(caps.CapsType.CAPSTYPE_CONTROL, caps.ControlCapability()),
+            #caps.CapsType.CAPSTYPE_ACTIVATION : caps.Capability(caps.CapsType.CAPSTYPE_ACTIVATION, caps.WindowActivationCapability()),
+            #caps.CapsType.CAPSTYPE_FONT : caps.Capability(caps.CapsType.CAPSTYPE_FONT, caps.FontCapability()),
+            #caps.CapsType.CAPSTYPE_COLORCACHE : caps.Capability(caps.CapsType.CAPSTYPE_COLORCACHE, caps.ColorCacheCapability()),
+            #caps.CapsType.CAPSTYPE_SHARE : caps.Capability(caps.CapsType.CAPSTYPE_SHARE, caps.ShareCapability())
         }
         #share id between client and server
         self._shareId = 0
         
+        #determine if layer is connected
         self._isConnected = False
+        
+        mode = None
+        if isinstance(listener, PDUClientListener):
+            mode = LayerMode.CLIENT
+            #set client listener
+            self._clientListener = listener
+            self.initClientOrder()
+        elif isinstance(listener, PDUServerListener):
+            mode = LayerMode.SERVER
+        else:
+            raise InvalidType("PDU Layer expect PDU(Client|Server)Listener as listener")
+        
+        LayerAutomata.__init__(self, mode, None)
+        
+    def initClientOrder(self):
+        """
+        Enable order in accordance of override function of _clientListener
+        """
+        #enable rectangle order
+        orderCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_ORDER].capability._value
+        if id(PDUClientListener.recvDstBltOrder.im_func) != id(self._clientListener.recvDstBltOrder.im_func):
+            orderCapability.orderSupport._array[caps.Order.TS_NEG_DSTBLT_INDEX].value = 1
         
     def connect(self):
         """
         Connect event in client mode send logon info
-        Next state recv licence pdu
+        Next state receive license PDU
         """        
         self.sendInfoPkt()
-        #next state is licence info PDU
+        #next state is license info PDU
         self.setNextState(self.recvLicenceInfo)
         
     def close(self):
@@ -1011,7 +1054,6 @@ class PDU(LayerAutomata):
         dataPDU = self.readDataPDU(data)
         if dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE and dataPDU.pduData._value.updateType.value == UpdateType.UPDATETYPE_BITMAP:
             self._clientListener.recvBitmapUpdateDataPDU(dataPDU.pduData._value.updateData._value.rectangles._array)
-            
         
     def sendConfirmActivePDU(self):
         """
@@ -1065,10 +1107,11 @@ class PDU(LayerAutomata):
         controlRequestPDU = DataPDU(PDUType2.PDUTYPE2_CONTROL, ControlDataPDU(Action.CTRLACTION_REQUEST_CONTROL), self._transport.getUserId(), self._shareId)
         self._transport.send(controlRequestPDU)
         
-        #send persistent list pdu I don't know why this packet is rejected maybe because we made a 0 size bitmapcache capability
+        #send persistent list PDU I don't know why this packet is rejected maybe because we made a 0 size bitmapcache capability
         #persistentListPDU = PersistentListPDU(self._transport.getUserId(), self._shareId)
         #persistentListPDU.bitMask = UInt16Le(PersistentKeyListFlag.PERSIST_FIRST_PDU | PersistentKeyListFlag.PERSIST_LAST_PDU)
         #self._transport.send(persistentListPDU)
+        
         #deprecated font list pdu
         fontListPDU = DataPDU(PDUType2.PDUTYPE2_FONTLIST, FontListDataPDU(), self._transport.getUserId(), self._shareId)
         self._transport.send(fontListPDU)

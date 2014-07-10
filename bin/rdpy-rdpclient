@@ -55,6 +55,9 @@ class RDPClientQtFactory(rdp.ClientFactory):
         self._w.resize(self._width, self._height)
         self._w.setWindowTitle('rdpy-rdpclient')
         self._w.show()
+        
+        #enable perf
+        controller.enablePerformanceSession()
         return client
         
     def startedConnecting(self, connector):

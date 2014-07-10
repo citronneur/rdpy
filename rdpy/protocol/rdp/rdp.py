@@ -2,11 +2,10 @@
 @author: sylvain
 '''
 from twisted.internet import protocol
-from rdpy.network.layer import LayerMode
 from rdpy.network.error import CallPureVirtualFuntion, InvalidValue
 import tpkt, tpdu, mcs, pdu
 
-class RDPController(pdu.PDUClientListener):
+class RDPClientController(pdu.PDUClientListener):
     """
     use to decode and dispatch to observer PDU messages and orders
     """
@@ -25,6 +24,12 @@ class RDPController(pdu.PDUClientListener):
         """
         return self._pduLayer
         
+    def enablePerformanceSession(self):
+        """
+        Set particular flag in RDP stack to avoid wallpaper, theming, menu animation etc...
+        """
+        self._pduLayer._info.extendedInfo.performanceFlags.value = pdu.PerfFlag.PERF_DISABLE_WALLPAPER | pdu.PerfFlag.PERF_DISABLE_MENUANIMATIONS | pdu.PerfFlag.PERF_DISABLE_CURSOR_SHADOW | pdu.PerfFlag.PERF_DISABLE_THEMING
+        
     def addClientObserver(self, observer):
         """
         add observer to RDP protocol
@@ -42,7 +47,7 @@ class RDPController(pdu.PDUClientListener):
             #for each rectangle in update PDU
             for rectangle in rectangles:
                 observer.onBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, rectangle.flags.value & pdu.BitmapFlag.BITMAP_COMPRESSION, rectangle.bitmapDataStream.value)
-        
+    
     def sendPointerEvent(self, x, y, button, isPressed):
         """
         send pointer events
@@ -140,7 +145,7 @@ class ClientFactory(protocol.Factory):
         Function call from twisted and build rdp protocol stack
         @param addr: destination address
         '''
-        controller = RDPController()
+        controller = RDPClientController()
         self.buildObserver(controller)
         mcsLayer = mcs.createClient(controller)
         
