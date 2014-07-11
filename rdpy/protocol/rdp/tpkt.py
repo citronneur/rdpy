@@ -24,19 +24,30 @@ Use to build correct size packet and handle slow path and fast path mode
 """
 from rdpy.network.layer import RawLayer, LayerMode
 from rdpy.network.type import UInt8, UInt16Be, sizeof
+from rdpy.network.error import CallPureVirtualFuntion
+
+class FastPathListener(object):
+    """
+    Fast path packet listener
+    Usually PDU layer
+    """
+    def recvFastPath(self, fastPathData):
+        """
+        Call when fast path packet is received
+        @param fastPathData: Stream
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "StreamListener"))
 
 class TPKT(RawLayer):
     """
     TPKT layer in RDP protocol stack
-    this layer only handle size of packet
-    and determine if is a fast path packet
+    This layer only handle size of packet and determine if is a fast path packet
     """
     #first byte of classic tpkt header
     TPKT_PACKET = 3
     
-    def __init__(self, presentation):
+    def __init__(self, presentation, fastPathListener):
         """
-        Constructor
         @param presentation: presentation layer, in RDP case is TPDU layer
         """
         RawLayer.__init__(self, LayerMode.NONE, presentation)
@@ -44,10 +55,12 @@ class TPKT(RawLayer):
         self._lastPacketVersion = UInt8()
         #length may be coded on more than 1 bytes
         self._lastShortLength = UInt8()
+        #fast path listener
+        self._fastPathListener = fastPathListener
         
     def connect(self):
         """
-        call when transport layer connection
+        Call when transport layer connection
         is made (inherit from RawLayer)
         """
         #header is on two bytes
@@ -58,7 +71,7 @@ class TPKT(RawLayer):
         
     def readHeader(self, data):
         """
-        read header of TPKT packet
+        Read header of TPKT packet
         @param data: Stream received from twisted layer
         """
         #first read packet version
@@ -81,7 +94,7 @@ class TPKT(RawLayer):
         
     def readExtendedHeader(self, data):
         """
-        header may be on 4 bytes
+        Header may be on 4 bytes
         @param data: Stream from twisted layer
         """
         #next state is read data
@@ -91,26 +104,27 @@ class TPKT(RawLayer):
     
     def readExtendedFastPathHeader(self, data):
         """
-        fast path header may be on 1 byte more
+        Fast path header may be on 1 byte more
         @param data: Stream from twisted layer
         """
         leftPart = UInt8()
         data.readType(leftPart)
         self._lastShortLength.value &= ~0x80
-        self._lastShortLength.value = (self._lastShortLength.value << 8) + leftPart.value
+        packetSize = (self._lastShortLength.value << 8) + leftPart.value
         #next state is fast patn data
-        self.expect(self._lastShortLength.value - 3, self.readFastPath)
+        self.expect(packetSize - 3, self.readFastPath)
     
     def readFastPath(self, data):
         """
-        fast path data
+        Fast path data
         @param data: Stream from twisted layer
         """
-        pass
+        self._fastPathListener.recvFastPath(data)
+        self.expect(2, self.readHeader)
     
     def readData(self, data):
         """
-        read classic TPKT packet, last state in tpkt automata
+        Read classic TPKT packet, last state in tpkt automata
         @param data: Stream with correct size
         """
         #next state is pass to 
@@ -119,7 +133,7 @@ class TPKT(RawLayer):
         
     def send(self, message):
         """
-        send encompassed data
+        Send encompassed data
         @param message: network.Type message to send
         """
         RawLayer.send(self, (UInt8(TPKT.TPKT_PACKET), UInt8(0), UInt16Be(sizeof(message) + 4), message))

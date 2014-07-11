@@ -116,7 +116,7 @@ class LayerAutomata(Layer, StreamListener):
         
         self.recv = callback
 
-#twitsed layer concept
+#twisted layer concept
 from twisted.internet import protocol
 #first that handle stream     
 from type import Stream

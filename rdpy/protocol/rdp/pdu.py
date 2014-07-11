@@ -27,7 +27,7 @@ from rdpy.network.layer import LayerAutomata, LayerMode
 from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
 from rdpy.network.error import InvalidExpectedDataException, ErrorReportedFromPeer, CallPureVirtualFuntion, InvalidType
 
-import gcc, lic, caps
+import gcc, lic, caps, tpkt
 
 class SecurityFlag(object):
     """
@@ -222,6 +222,30 @@ class KeyboardFlag(object):
     KBDFLAGS_EXTENDED = 0x0100
     KBDFLAGS_DOWN = 0x4000
     KBDFLAGS_RELEASE = 0x8000
+    
+class FastPathUpdateType(object):
+    """
+    Use in Fast Path update packet
+    @see: http://msdn.microsoft.com/en-us/library/cc240622.aspx
+    """
+    FASTPATH_UPDATETYPE_ORDERS = 0x0
+    FASTPATH_UPDATETYPE_BITMAP = 0x1
+    FASTPATH_UPDATETYPE_PALETTE = 0x2
+    FASTPATH_UPDATETYPE_SYNCHRONIZE = 0x3
+    FASTPATH_UPDATETYPE_SURFCMDS = 0x4
+    FASTPATH_UPDATETYPE_PTR_NULL = 0x5
+    FASTPATH_UPDATETYPE_PTR_DEFAULT = 0x6
+    FASTPATH_UPDATETYPE_PTR_POSITION = 0x8
+    FASTPATH_UPDATETYPE_COLOR = 0x9
+    FASTPATH_UPDATETYPE_CACHED = 0xA
+    FASTPATH_UPDATETYPE_POINTER = 0xB
+    
+class FastPathOutputCompression(object):
+    """
+    Flag for compression
+    @see: http://msdn.microsoft.com/en-us/library/cc240622.aspx
+    """
+    FASTPATH_OUTPUT_COMPRESSION_USED = 0x2
     
 class ErrorInfo(object):
     """
@@ -586,18 +610,26 @@ class DataPDU(CompositeType):
         self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), pduType, userId, shareId)
         
         def PDUDataFactory():
+            """
+            Create object in accordance self.shareDataHeader.pduType2 value
+            """
             if self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE:
-                return UpdateDataPDU()
+                return UpdateDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+            
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SYNCHRONIZE:
-                return SynchronizeDataPDU()
+                return SynchronizeDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+            
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_CONTROL:
-                return ControlDataPDU()
+                return ControlDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+            
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
-                return ErrorInfoDataPDU()
+                return ErrorInfoDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+            
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_FONTLIST:
-                return FontListDataPDU()
+                return FontListDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+            
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_FONTMAP:
-                return FontMapDataPDU()
+                return FontMapDataPDU(readLen = self.shareDataHeader.uncompressedLength)
             else:
                 #read all value
                 return String()
@@ -611,17 +643,24 @@ class SynchronizeDataPDU(CompositeType):
     """
     @see http://msdn.microsoft.com/en-us/library/cc240490.aspx
     """
-    def __init__(self, targetUser = UInt16Le()):
-        CompositeType.__init__(self)
+    def __init__(self, targetUser = 0, readLen = None):
+        """
+        @param targetUser: MCS Channel ID
+        """
+        CompositeType.__init__(self, readLen = readLen)
         self.messageType = UInt16Le(1, constant = True)
-        self.targetUser = targetUser
+        self.targetUser = UInt16Le(targetUser)
         
 class ControlDataPDU(CompositeType):
     """
     @see http://msdn.microsoft.com/en-us/library/cc240492.aspx
     """
-    def __init__(self, action = None):
-        CompositeType.__init__(self)
+    def __init__(self, action = None, readLen = None):
+        """
+        @param action: Action macro
+        @param readLen: Max length to read
+        """
+        CompositeType.__init__(self, readLen = readLen)
         self.action = UInt16Le(action, constant = True) if not action is None else UInt16Le()
         self.grantId = UInt16Le()
         self.controlId = UInt32Le()
@@ -631,10 +670,14 @@ class ErrorInfoDataPDU(CompositeType):
     Use to inform error in PDU layer
     @see: http://msdn.microsoft.com/en-us/library/cc240544.aspx
     """
-    def __init__(self, errorInfo = UInt32Le()):
-        CompositeType.__init__(self)
-        #use to collect error info pdu
-        self.errorInfo = errorInfo
+    def __init__(self, errorInfo = 0, readLen = None):
+        """
+        @param errorInfo: ErrorInfo macro
+        @param readLen: Max length to read
+        """
+        CompositeType.__init__(self, readLen = readLen)
+        #use to collect error info PDU
+        self.errorInfo = UInt32Le(errorInfo)
         
 class FontListDataPDU(CompositeType):
     """
@@ -642,8 +685,11 @@ class FontListDataPDU(CompositeType):
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240498.aspx
     """
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        """
+        @param readLen: Max read length
+        """
+        CompositeType.__init__(self, readLen = readLen)
         self.numberFonts = UInt16Le()
         self.totalNumFonts = UInt16Le()
         self.listFlags = UInt16Le(0x0003)
@@ -655,8 +701,11 @@ class FontMapDataPDU(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240498.aspx
     """
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        """
+        @param readLen: Max read length
+        """
+        CompositeType.__init__(self, readLen = readLen)
         self.numberEntries = UInt16Le()
         self.totalNumEntries = UInt16Le()
         self.mapFlags = UInt16Le(0x0003)
@@ -664,32 +713,84 @@ class FontMapDataPDU(CompositeType):
 
 class UpdateDataPDU(CompositeType):
     """
-    Update data PDU use by server to inform update img or palette
+    Update data PDU use by server to inform update image or palet
     for example
     @see: http://msdn.microsoft.com/en-us/library/cc240608.aspx
     """
-    def __init__(self, updateType = 0, updateData = None):
-        CompositeType.__init__(self)
+    def __init__(self, updateType = 0, updateData = None, readLen = None):
+        """
+        @param updateType: UpdateType macro
+        @param updateData: Update data PDU in accordance with updateType (BitmapUpdateDataPDU)
+        @param readLen: Max length to read
+        """
+        CompositeType.__init__(self, readLen = readLen)
         self.updateType = UInt16Le(updateType)
         
         def UpdateDataFactory():
             if self.updateType.value == UpdateType.UPDATETYPE_BITMAP:
                 return BitmapUpdateDataPDU()
+            
+            elif self.updateType.value == UpdateType.UPDATETYPE_SYNCHRONIZE:
+                return SynchronizeUpdatePDU()
+            
             else:
-                String()
+                return String()
             
         if updateData is None:
             updateData = UpdateDataFactory
             
         self.updateData = FactoryType(updateData, conditional = lambda:(self.updateType.value != UpdateType.UPDATETYPE_SYNCHRONIZE))
+
+class FastPathUpdatePDU(CompositeType):
+    """
+    Fast path update PDU packet
+    @see: http://msdn.microsoft.com/en-us/library/cc240622.aspx
+    """
+    def __init__(self, updateType = 0, updateData = None):
+        CompositeType.__init__(self)
+        self.updateHeader = UInt8(updateType)
+        self.compressionFlags = UInt8(conditional = lambda:(self.updateHeader.value & FastPathOutputCompression.FASTPATH_OUTPUT_COMPRESSION_USED))
+        self.size = UInt16Le()
         
+        def UpdateDataFactory():
+            """
+            Create correct object in accordance to self.updateHeader field
+            """
+            if (self.updateHeader.value & 0xf) == FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
+                return (UInt16Le(FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP, constant = True), BitmapUpdateDataPDU(readLen = self.size))
+            
+            elif (self.updateHeader.value & 0xf) == FastPathUpdateType.FASTPATH_UPDATETYPE_SYNCHRONIZE:
+                return SynchronizeUpdatePDU(readLen = self.size)
+            
+            else:
+                return String()
+            
+        if updateData is None:
+            updateData = UpdateDataFactory
+            
+        self.updateData = FactoryType(updateData)
+
+class SynchronizeUpdatePDU(CompositeType): 
+    """
+    PDU is ignored, artefact of T.125
+    """
+    def __init__(self, readLen = None):
+        """
+        @param readLen: Max size of packet
+        """
+        CompositeType.__init__(self, readLen = readLen)
+        self.pad2Octets = UInt16Le()
+  
 class BitmapUpdateDataPDU(CompositeType):
     """
     PDU use to send raw bitmap compressed or not
     @see: http://msdn.microsoft.com/en-us/library/dd306368.aspx
     """
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        """
+        @param readLen: Max size of packet
+        """
+        CompositeType.__init__(self, readLen = readLen)
         self.numberRectangles = UInt16Le(lambda:len(self.rectangles._array))
         self.rectangles = ArrayType(BitmapData, readLen = self.numberRectangles)
         
@@ -775,10 +876,13 @@ class SlowPathInputEvent(CompositeType):
             """
             if isinstance(event, PointerEvent):
                 return InputMessageType.INPUT_EVENT_MOUSE
+            
             elif isinstance(event, ScancodeKeyEvent):
                 return InputMessageType.INPUT_EVENT_SCANCODE
+            
             elif isinstance(event, UnicodeKeyEvent):
                 return InputMessageType.INPUT_EVENT_UNICODE
+            
             else:
                 return None
         
@@ -851,7 +955,7 @@ class PDUServerListener(object):
     """
     pass
     
-class PDU(LayerAutomata):
+class PDU(LayerAutomata, tpkt.FastPathListener):
     """
     Global channel for MCS that handle session
     identification user, licensing management, and capabilities exchange
@@ -860,6 +964,18 @@ class PDU(LayerAutomata):
         """
         @param listener: listener use to inform orders 
         """
+        mode = None
+        if isinstance(listener, PDUClientListener):
+            mode = LayerMode.CLIENT
+            #set client listener
+            self._clientListener = listener
+        elif isinstance(listener, PDUServerListener):
+            mode = LayerMode.SERVER
+        else:
+            raise InvalidType("PDU Layer expect PDU(Client|Server)Listener as listener")
+        
+        LayerAutomata.__init__(self, mode, None)
+        
         #logon info send from client to server
         self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().core.rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
         #server capabilities
@@ -898,29 +1014,7 @@ class PDU(LayerAutomata):
         
         #determine if layer is connected
         self._isConnected = False
-        
-        mode = None
-        if isinstance(listener, PDUClientListener):
-            mode = LayerMode.CLIENT
-            #set client listener
-            self._clientListener = listener
-            self.initClientOrder()
-        elif isinstance(listener, PDUServerListener):
-            mode = LayerMode.SERVER
-        else:
-            raise InvalidType("PDU Layer expect PDU(Client|Server)Listener as listener")
-        
-        LayerAutomata.__init__(self, mode, None)
-        
-    def initClientOrder(self):
-        """
-        Enable order in accordance of override function of _clientListener
-        """
-        #enable rectangle order
-        orderCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_ORDER].capability._value
-        if id(PDUClientListener.recvDstBltOrder.im_func) != id(self._clientListener.recvDstBltOrder.im_func):
-            orderCapability.orderSupport._array[caps.Order.TS_NEG_DSTBLT_INDEX].value = 1
-        
+  
     def connect(self):
         """
         Connect event in client mode send logon info
@@ -935,6 +1029,7 @@ class PDU(LayerAutomata):
         Send PDU close packet and call close method on transport method
         """
         self._transport.send(ShareDataHeader(PDUType2.PDUTYPE2_SHUTDOWN_REQUEST, self._transport.getUserId(), self._shareId))
+        self._transport.close()
         
     def sendInfoPkt(self):
         """
@@ -968,7 +1063,7 @@ class PDU(LayerAutomata):
         
     def readDataPDU(self, data):
         """
-        Read a DataPdu struct. If is an error pdu log and close layer
+        Read a DataPdu struct. If is an error PDU log and close layer
         @param data: Stream from transport layer
         @return:
         """
@@ -1054,6 +1149,17 @@ class PDU(LayerAutomata):
         dataPDU = self.readDataPDU(data)
         if dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE and dataPDU.pduData._value.updateType.value == UpdateType.UPDATETYPE_BITMAP:
             self._clientListener.recvBitmapUpdateDataPDU(dataPDU.pduData._value.updateData._value.rectangles._array)
+            
+    def recvFastPath(self, fastPathData):
+        """
+        Implement FastPathListener interface
+        Fast path is needed by RDP 8.0
+        @param fastPathData: Stream that contain fast path data
+        """
+        fastPathPDU = FastPathUpdatePDU()
+        fastPathData.readType(fastPathPDU)
+        if fastPathPDU.updateHeader.value == FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
+            self._clientListener.recvBitmapUpdateDataPDU(fastPathPDU.updateData._value[1].rectangles._array)
         
     def sendConfirmActivePDU(self):
         """
@@ -1063,7 +1169,7 @@ class PDU(LayerAutomata):
         generalCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability._value
         generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
         generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR
+        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
         
         #init bitmap capability
         bitmapCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability._value
@@ -1096,7 +1202,7 @@ class PDU(LayerAutomata):
         """
         send a synchronize PDU from client to server
         """
-        synchronizePDU = DataPDU(PDUType2.PDUTYPE2_SYNCHRONIZE, SynchronizeDataPDU(UInt16Le(self._transport.getChannelId())), self._transport.getUserId(), self._shareId)
+        synchronizePDU = DataPDU(PDUType2.PDUTYPE2_SYNCHRONIZE, SynchronizeDataPDU(self._transport.getChannelId()), self._transport.getUserId(), self._shareId)
         self._transport.send(synchronizePDU)
         
         #ask for cooperation
@@ -1126,5 +1232,3 @@ class PDU(LayerAutomata):
         pdu = ClientInputEventPDU(self._transport.getUserId(), self._shareId)
         pdu.slowPathInputEvents._array = [SlowPathInputEvent(x) for x in pointerEvents]
         self._transport.send(pdu)
-
-    

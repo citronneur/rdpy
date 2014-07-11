@@ -40,7 +40,8 @@ class RDPClientQtFactory(rdp.ClientFactory):
         """
         init client with correct definition
         """
-        rdp.ClientFactory.__init__(self, width, height)
+        self._width = width
+        self._height = height
         self._w = None
         
     def buildObserver(self, controller):
@@ -56,8 +57,10 @@ class RDPClientQtFactory(rdp.ClientFactory):
         self._w.setWindowTitle('rdpy-rdpclient')
         self._w.show()
         
-        #enable perf
-        controller.enablePerformanceSession()
+        #resize session
+        controller.setScreen(self._width, self._height)
+        controller.setPerformanceSession()
+        
         return client
         
     def startedConnecting(self, connector):

@@ -24,7 +24,7 @@ Each channel have a particular role.
 The main channel is the graphical channel.
 It exist channel for file system order, audio channel, clipboard etc...
 """
-from rdpy.network.layer import LayerAutomata, LayerMode, StreamSender
+from rdpy.network.layer import LayerAutomata, StreamSender, Layer
 from rdpy.network.type import sizeof, Stream, UInt8, UInt16Be
 from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
@@ -64,7 +64,7 @@ class MCS(LayerAutomata):
     the main layer of RDP protocol
     is why he can do everything and more!
     """
-    class MCSProxySender(StreamSender):
+    class MCSProxySender(Layer, StreamSender):
         """
         Proxy use to set as transport layer for upper channel
         use to abstract channel id for presentation layer
@@ -78,34 +78,40 @@ class MCS(LayerAutomata):
             self._channelId = channelId
             
         def send(self, data):
-            '''
-            a send proxy function, use channel id and specific 
-            send function of mcs layer
-            '''
+            """
+            A send proxy function, use channel id and specific 
+            send function of MCS layer
+            """
             self._mcs.send(self._channelId, data)
             
+        def close(self):
+            """
+            Close wrapped layer
+            """
+            self._mcs.close()
+            
         def getUserId(self):
-            '''
+            """
             @return: mcs user id
-            '''
+            """
             return self._mcs._userId
         
         def getChannelId(self):
-            '''
+            """
             @return: return channel id of proxy
-            '''
+            """
             return self._channelId
             
         def getGCCClientSettings(self):
-            '''
+            """
             @return: mcs layer gcc client settings
-            '''
+            """
             return self._mcs._clientSettings
         
         def getGCCServerSettings(self):
-            '''
+            """
             @return: mcs layer gcc server settings
-            '''
+            """
             return self._mcs._serverSettings
         
     
@@ -353,18 +359,4 @@ class MCS(LayerAutomata):
         max_pdu_size = ber.readInteger(s)
         ber.readInteger(s)
         return (max_channels, max_users, max_tokens, max_pdu_size)
-
-def createClient(controller):
-    """
-    @param controller: RDP controller which initialized all channel layer
-    @return: MCS layer in client mode
-    """
-    return MCS(LayerMode.CLIENT, controller.getPDULayer())
-
-def createServer(controller):
-    """
-    @param controller: RDP controller which initialized all channel layer
-    @return: MCS layer in server mode
-    """
-    return MCS(LayerMode.SERVER, controller.getPDULayer())
         

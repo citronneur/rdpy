@@ -372,66 +372,68 @@ class SimpleType(Type, CallableValue):
         return self.__class__(self.value.__rshift__(other.value))
     
     def __hash__(self):
-        '''
-        hash function to treat simple type in hash collection
+        """
+        Hash function to treat simple type in hash collection
         @return: hash of inner value
-        '''
+        """
         return hash(self.value)
     
     def __nonzero__(self):
-        '''
-        boolean conversion
+        """
+        Boolean conversion
         @return: bool of inner value
-        '''
+        """
         return bool(self.value)
 
         
 class CompositeType(Type):
-    '''
-    keep ordering declaration of simple type
-    in list and transparent for other type
-    @param conditional : function call before read or write type
-    @param optional: boolean check before read if there is still data in stream
-    @param constant: if true check any changement of object during reading
-    @param readLen: max length to read
-    '''
+    """
+    Type node of other sub type
+    """
     def __init__(self, conditional = lambda:True, optional = False, constant = False, readLen = None):
-        '''
-        init list of simple value
-        '''
+        """
+        Keep ordering declaration of simple type
+        in list and transparent for other type
+        @param conditional : function call before read or write type
+        @param optional: boolean check before read if there is still data in stream
+        @param constant: if true check any changing of object during reading
+        @param readLen: max length to read
+        """
         Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
         #list of ordoned type
         self._typeName = []
         self._readLen = readLen
     
     def __setattr__(self, name, value):
-        '''
-        magic function to update type list
+        """
+        Magic function to update type list
         @param name: name of new attribute
         @param value: value of new attribute
-        '''
+        """
         if name[0] != '_' and (isinstance(value, Type) or isinstance(value, tuple)) and not name in self._typeName:
             self._typeName.append(name)
         self.__dict__[name] = value
             
     def __read__(self, s):
-        '''
-        call read on each ordered subtype
+        """
+        Call read on each ordered sub-type
         @param s: Stream
-        '''
+        """
         readLen = 0
-        for name in self._typeName:
-            if not self._readLen is None and readLen + sizeof(self.__dict__[name]) > self._readLen.value:
-                #optional maybe be unread
-                if self.__dict__[name]._optional:
-                    continue
-                else:
-                    raise InvalidSize("Impossible to read type %s::%s : read size is too small"%(self.__class__, name))
+        for name in self._typeName:            
             try:
                 s.readType(self.__dict__[name])
+                
+                #read is ok but read out of bound
+                if not self._readLen is None and readLen > self._readLen.value:
+                    #roll back
+                    s.pos -= sizeof(self.__dict__[name])
+                    #and notify
+                    raise InvalidSize("Impossible to read type %s : read length is too small"%(self.__class__))
+                
             except Exception as e:
                 print "Error during read %s::%s"%(self.__class__, name)
-                #rollback already readed
+                #roll back already read
                 for tmpName in self._typeName:
                     if tmpName == name:
                         break
@@ -863,17 +865,16 @@ class ArrayType(Type):
         return sizeof(self._array)
     
 class FactoryType(Type):
-    '''
+    """
     Call factory function on read or write
-    '''
+    """
     def __init__(self, factory, conditional = lambda:True, optional = False, constant = False):
-        '''
-        ctor of factory type
+        """
         @param factory: factory
         @param conditional : function call before read or write type
         @param optional: boolean check before read if there is still data in stream
         @param constant: if true check any changes of object during reading
-        '''
+        """
         Type.__init__(self, conditional, optional, constant)
         self._factory = factory
         if not callable(factory):

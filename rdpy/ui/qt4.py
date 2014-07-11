@@ -176,13 +176,20 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param data: bitmap data
         """
         image = None
-        if bitsPerPixel == 16:
+        if bitsPerPixel == 15:
+            if isCompress:
+                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB555)
+                data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
+            else:
+                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB555)
+        
+        elif bitsPerPixel == 16:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB16)
                 data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
             else:
                 image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16)
-                
+        
         elif bitsPerPixel == 24:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB24)

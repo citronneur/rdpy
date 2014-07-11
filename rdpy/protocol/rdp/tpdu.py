@@ -250,23 +250,6 @@ class TPDU(LayerAutomata, StreamSender):
         @param message: network.Type message
         """
         self._transport.send((TPDUDataHeader(), message))
-        
-def createClient(presentation):
-    """
-    Factory of TPDU layer in Client mode
-    @param presentation: presentation layer, in RDP mode is MCS layer
-    """
-    return TPDU(LayerMode.CLIENT, presentation)
-
-def createServer(presentation, privateKeyFileName, certificateFileName):
-    """
-    Factory of TPDU layer in Server mode
-    @param privateKeyFileName: file contain server private key
-    @param certficiateFileName: file that contain publi key
-    """
-    tpdu = TPDU(LayerMode.SERVER, presentation)
-    tpdu.initTLSServerInfos(privateKeyFileName, certificateFileName)
-    return tpdu
 
 #open ssl needed
 from twisted.internet import ssl
