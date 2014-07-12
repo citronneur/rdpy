@@ -36,12 +36,12 @@ class RDPClientController(pdu.PDUClientListener):
         """
         #list of observer
         self._clientObserver = []
-        #transport layer
+        #PDU layer
         self._pduLayer = pdu.PDU(self)
         #multi channel service
         self._mcsLayer = mcs.MCS(LayerMode.CLIENT, self._pduLayer)
         #transport pdu layer
-        self._tpduLayer = tpdu.TPDU(LayerMode.CLIENT, self._mcsLayer)
+        self._tpduLayer = tpdu.createClient(self._mcsLayer)
         #transport packet (protocol layer)
         self._tpktLayer = tpkt.TPKT(self._tpduLayer, self._pduLayer)
         
@@ -186,7 +186,30 @@ class RDPClientController(pdu.PDUClientListener):
             
         except InvalidValue:
             print "try send bad key event"
-                
+
+class RDPServerController(pdu.PDUServerListener):
+    """
+    Controller use in server side mode
+    """               
+    def __init__(self, privateKeyFileName, certificateFileName):
+        """
+        @param privateKeyFileName: file contain server private key
+        @param certficiateFileName: file that contain public key
+        """
+        self._pduLayer = pdu.PDU(self)
+        #multi channel service
+        self._mcsLayer = mcs.MCS(LayerMode.SERVER, self._pduLayer)
+        #transport pdu layer
+        self._tpduLayer = tpdu.createServer(self._mcsLayer, privateKeyFileName, certificateFileName)
+        #transport packet (protocol layer)
+        self._tpktLayer = tpkt.TPKT(self._tpduLayer, self._pduLayer)
+        
+    def getProtocol(self):
+        """
+        @return: the twisted protocol layer
+        in RDP case is TPKT layer
+        """
+        return self._tpktLayer;
 
 class ClientFactory(protocol.Factory):
     """
@@ -225,12 +248,15 @@ class ServerFactory(protocol.Factory):
         Function call from twisted and build rdp protocol stack
         @param addr: destination address
         """
+        controller = RDPServerController(self._privateKeyFileName, self._certificateFileName)
+        return controller.getProtocol()
         #pduLayer = pdu.PDU(pdu.PDUServerListener())
         #return tpkt.TPKT(tpdu.createServer(mcs.createServer(pduLayer), self._privateKeyFileName, self._certificateFileName));
     
-    def buildObserver(self):
+    def buildObserver(self, controller):
         """
         Build observer use for connection
+        @param controller: RDP stack controller
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ServerFactory")) 
         

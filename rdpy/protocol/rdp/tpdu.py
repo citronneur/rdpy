@@ -177,7 +177,7 @@ class TPDU(LayerAutomata, StreamSender):
         
         self.setNextState(self.recvData)
         #connection is done send to presentation
-        LayerAutomata.connect(self)
+        self._presentation.connect(self)
         
     def recvConnectionRequest(self, data):
         """
@@ -231,17 +231,19 @@ class TPDU(LayerAutomata, StreamSender):
     def sendConnectionConfirm(self):
         """
         Write connection confirm message
+        Start TLS connection
         Next state is recvData
         @see : http://msdn.microsoft.com/en-us/library/cc240501.aspx
         """
         message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_CONFIRM)
-        message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_REQ
+        message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_RSP
         message.protocolNeg.selectedProtocol.value = self._selectedProtocol
         self._transport.send(message)
         #_transport is TPKT and transport is TCP layer of twisted
         self._transport.transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
         #connection is done send to presentation
-        LayerAutomata.connect(self)
+        self.setNextState(self.recvData)
+        self._presentation.connect()
         
     def send(self, message):
         """
@@ -250,6 +252,24 @@ class TPDU(LayerAutomata, StreamSender):
         @param message: network.Type message
         """
         self._transport.send((TPDUDataHeader(), message))
+        
+def createClient(mcsLayer):
+    """
+    Factory for client TPDU automata
+    @param mcsLayer: presentation layer of TPDU
+    """
+    return TPDU(LayerMode.CLIENT, mcsLayer)
+
+def createServer(mcsLayer, privateKeyFileName, certificateFileName):
+    """
+    Factory for server TPDU automata
+    @param mcsLayer: presentation layer of TPDU
+    @param privateKeyFileName: file contain server private key
+    @param certficiateFileName: file that contain public key
+    """
+    tpduLayer = TPDU(LayerMode.SERVER, mcsLayer)
+    tpduLayer.initTLSServerInfos(privateKeyFileName, certificateFileName)
+    return tpduLayer
 
 #open ssl needed
 from twisted.internet import ssl
