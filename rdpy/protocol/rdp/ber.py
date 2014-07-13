@@ -72,7 +72,7 @@ def readLength(s):
     s.readType(length)
     byte = length.value
     if (byte & 0x80):
-        byte &= 0x80
+        byte &= ~0x80
         if byte == 1:
             size = UInt8()
         elif byte == 2:
@@ -227,7 +227,7 @@ def readOctetString(s):
     if not readUniversalTag(s, Tag.BER_TAG_OCTET_STRING, False):
         raise InvalidExpectedDataException("Unexpected BER tag")
     size = readLength(s)
-    return s.read(size.value)
+    return s.read(size)
 
 def writeOctetstring(value):
     """

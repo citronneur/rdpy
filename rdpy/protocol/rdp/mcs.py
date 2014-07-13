@@ -24,7 +24,7 @@ Each channel have a particular role.
 The main channel is the graphical channel.
 It exist channel for file system order, audio channel, clipboard etc...
 """
-from rdpy.network.layer import LayerAutomata, StreamSender, Layer
+from rdpy.network.layer import LayerAutomata, StreamSender, Layer, LayerMode
 from rdpy.network.type import sizeof, Stream, UInt8, UInt16Be
 from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
@@ -135,8 +135,11 @@ class MCS(LayerAutomata):
         Connection send for client mode
         a write connect initial packet
         """
-        self._clientSettings.core.serverSelectedProtocol.value = self._transport._selectedProtocol
-        self.sendConnectInitial()
+        if self._mode == LayerMode.CLIENT:
+            self._clientSettings.core.serverSelectedProtocol.value = self._transport._selectedProtocol
+            self.sendConnectInitial()
+        else:
+            self.setNextState(self.recvConnectInitial)
         
     def connectNextChannel(self):
         """
@@ -192,10 +195,27 @@ class MCS(LayerAutomata):
         Send a formated Channel join request from client to server
         """
         self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_REQUEST)), UInt16Be(self._userId), UInt16Be(channelId)))
+    
+    def recvConnectInitial(self, data):
+        """
+        Receive MCS connect initial from client
+        @param data: Stream
+        """
+        ber.readApplicationTag(data, UInt8(Message.MCS_TYPE_CONNECT_INITIAL))
+        ber.readOctetString(data)
+        ber.readOctetString(data)
         
+        if not ber.readBoolean(data):
+            raise InvalidExpectedDataException("invalid expected BER boolean tag")
+        
+        self.readDomainParams(data)
+        self.readDomainParams(data)
+        self.readDomainParams(data)
+        gcc.readConferenceCreateRequest(Stream(ber.readOctetString(data)))
+    
     def recvConnectResponse(self, data):
         """
-        receive MCS connect response from server
+        Receive MCS connect response from server
         @param data: Stream
         """
         ber.readApplicationTag(data, UInt8(Message.MCS_TYPE_CONNECT_RESPONSE))
@@ -203,7 +223,7 @@ class MCS(LayerAutomata):
         ber.readInteger(data)
         self.readDomainParams(data)
         if not ber.readUniversalTag(data, ber.Tag.BER_TAG_OCTET_STRING, False):
-            raise InvalidExpectedDataException("invalid expected ber tag")
+            raise InvalidExpectedDataException("invalid expected BER tag")
         gccRequestLength = ber.readLength(data)
         if data.dataLen() != gccRequestLength:
             raise InvalidSize("bad size of gcc request")

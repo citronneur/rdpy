@@ -13,15 +13,15 @@ def readLength(s):
     '''
     byte = UInt8()
     s.readType(byte)
-    size = None
-    if (byte & UInt8(0x80)) == UInt8(0x80):
-        byte &= ~UInt8(0x80)
-        size = UInt16Be(byte.value << 8)
+    size = 0
+    if byte.value & 0x80:
+        byte.value &= 0x80
+        size = byte.value << 8
         s.readType(byte)
-        size += s.value + byte
+        size += byte.value
     else:
-        size = UInt16Be(byte.value)
-    return size.value
+        size = byte.value
+    return size
 
 def writeLength(value):
     '''
@@ -187,12 +187,22 @@ def readObjectIdentifier(s, oid):
         raise InvalidExpectedDataException("invalid object identifier")
 
 def writeObjectIdentifier(oid):
-    '''
-    create tuble of 6 UInt8 with oid values
+    """
+    Create tuple of 6 UInt8 with oid values
     @param oid: tuple of 6 int
     @return: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
-    '''
+    """
     return (UInt8(5), UInt8((oid[0] << 4) & (oid[1] & 0x0f)), UInt8(oid[2]), UInt8(oid[3]), UInt8(oid[4]), UInt8(oid[5]))
+
+def readNumericString(s, minValue):
+    """
+    Read numeric string
+    @param s: Stream
+    @param minValue: offset
+    """
+    length = readLength(s)
+    length = (length + minValue + 1) / 2
+    s.read(length)
 
 def writeNumericString(nStr, minValue):
     '''

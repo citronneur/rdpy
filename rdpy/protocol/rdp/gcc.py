@@ -27,6 +27,7 @@ import per
 from rdpy.network.error import InvalidExpectedDataException
 
 t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
+
 h221_cs_key = "Duca";
 h221_sc_key = "McDn";
 
@@ -292,21 +293,27 @@ class ServerSettings(object):
         #channel id accepted by server
         self.channelsId = []
         
-def writeConferenceCreateRequest(settings):
+def readConferenceCreateRequest(s):
     """
-    Write conference create request structure
-    @param settings: ClientSettings
-    @return: structure that represent
+    Read a response from client
+    GCC create request
+    @param s: Stream
     """
-    userData = writeClientDataBlocks(settings)
-    userDataStream = Stream()
-    userDataStream.writeType(userData)
+    per.readChoice(s)
+    per.readObjectIdentifier(s, t124_02_98_oid)
+    per.readLength(s)
+    per.readChoice(s)
+    per.readSelection(s)
+    per.readNumericString(s, 1)
+    per.readPadding(s, 1)
     
-    return (per.writeChoice(0), per.writeObjectIdentifier(t124_02_98_oid),
-            per.writeLength(len(userDataStream.getvalue()) + 14), per.writeChoice(0),
-            per.writeSelection(0x08), per.writeNumericString("1", 1), per.writePadding(1),
-            per.writeNumberOfSet(1), per.writeChoice(0xc0),
-            per.writeOctetStream(h221_cs_key, 4), per.writeOctetStream(userDataStream.getvalue()))
+    if per.readNumberOfSet(s) != 1:
+        raise InvalidExpectedDataException("Invalid number of set in readConferenceCreateRequest")
+    
+    if per.readChoice(s) != 0xc0:
+        raise InvalidExpectedDataException("Invalid choice in readConferenceCreateRequest")
+    
+    per.readOctetStream(s, h221_cs_key, 4)
     
 def readConferenceCreateResponse(s):
     """
@@ -327,17 +334,6 @@ def readConferenceCreateResponse(s):
     if not per.readOctetStream(s, h221_sc_key, 4):
         raise InvalidExpectedDataException("cannot read h221_sc_key")
     return readServerDataBlocks(s)
-    
-    
-def writeClientDataBlocks(settings):
-    """
-    Write all blocks for client
-    and return GCC valid structure
-    @param settings: ClientSettings
-    """
-    return (writeClientCoreData(settings.core), 
-            writeClientSecurityData(settings.security),
-            writeClientNetworkData(settings.networkChannels))
     
 def readServerDataBlocks(s):
     """
@@ -370,6 +366,50 @@ def readServerDataBlocks(s):
         
     return settings
 
+def readServerSecurityData(s):
+    """
+    Read server security and fill it in settings
+    Read all channels accepted by server by server
+    @param s: Stream
+    @return: list of channel id selected by server
+    @see: http://msdn.microsoft.com/en-us/library/cc240522.aspx
+    """
+    channelsId = []
+    channelId = UInt16Le()
+    numberOfChannels = UInt16Le()
+    s.readType((channelId, numberOfChannels))
+    for _ in range(0, numberOfChannels.value):
+        channelId = UInt16Le()
+        s.readType(channelId)
+        channelsId.append(channelId)
+    return channelsId
+
+def writeConferenceCreateRequest(settings):
+    """
+    Write conference create request structure
+    @param settings: ClientSettings
+    @return: structure that represent
+    """
+    userData = writeClientDataBlocks(settings)
+    userDataStream = Stream()
+    userDataStream.writeType(userData)
+    
+    return (per.writeChoice(0), per.writeObjectIdentifier(t124_02_98_oid),
+            per.writeLength(len(userDataStream.getvalue()) + 14), per.writeChoice(0),
+            per.writeSelection(0x08), per.writeNumericString("1", 1), per.writePadding(1),
+            per.writeNumberOfSet(1), per.writeChoice(0xc0),
+            per.writeOctetStream(h221_cs_key, 4), per.writeOctetStream(userDataStream.getvalue()))
+    
+def writeClientDataBlocks(settings):
+    """
+    Write all blocks for client
+    and return GCC valid structure
+    @param settings: ClientSettings
+    """
+    return (writeClientCoreData(settings.core), 
+            writeClientSecurityData(settings.security),
+            writeClientNetworkData(settings.networkChannels))
+
 def writeClientCoreData(core):
     """
     Write client settings in GCC language
@@ -395,22 +435,4 @@ def writeClientNetworkData(channels):
     if len(channels) == 0:
         return ()
     return (UInt16Le(ClientToServerMessage.CS_NET), UInt16Le(len(channels) * sizeof(ClientRequestedChannel()) + 8), UInt32Le(len(channels)), tuple(channels))
-
-def readServerSecurityData(s):
-    """
-    Read server security and fill it in settings
-    Read all channels accepted by server by server
-    @param s: Stream
-    @return: list of channel id selected by server
-    @see: http://msdn.microsoft.com/en-us/library/cc240522.aspx
-    """
-    channelsId = []
-    channelId = UInt16Le()
-    numberOfChannels = UInt16Le()
-    s.readType((channelId, numberOfChannels))
-    for _ in range(0, numberOfChannels.value):
-        channelId = UInt16Le()
-        s.readType(channelId)
-        channelsId.append(channelId)
-    return channelsId
     
