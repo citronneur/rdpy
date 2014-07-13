@@ -388,7 +388,7 @@ def writeConferenceCreateRequest(settings):
     """
     Write conference create request structure
     @param settings: ClientSettings
-    @return: structure that represent
+    @return: gcc packet
     """
     userData = writeClientDataBlocks(settings)
     userDataStream = Stream()
@@ -399,6 +399,14 @@ def writeConferenceCreateRequest(settings):
             per.writeSelection(0x08), per.writeNumericString("1", 1), per.writePadding(1),
             per.writeNumberOfSet(1), per.writeChoice(0xc0),
             per.writeOctetStream(h221_cs_key, 4), per.writeOctetStream(userDataStream.getvalue()))
+    
+def writeConferenceCreateResponse(settings):
+    """
+    Write a conference create response packet
+    @param settings: ServerSettings
+    @return: gcc packet
+    """
+    pass
     
 def writeClientDataBlocks(settings):
     """

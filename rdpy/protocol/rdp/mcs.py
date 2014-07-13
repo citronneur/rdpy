@@ -178,6 +178,9 @@ class MCS(LayerAutomata):
         #we must receive a connect response
         self.setNextState(self.recvConnectResponse)
         
+    def sendConnectResponse(self):
+        pass
+        
     def sendErectDomainRequest(self):
         """
         Send a formated erect domain request for RDP connection
@@ -195,6 +198,14 @@ class MCS(LayerAutomata):
         Send a formated Channel join request from client to server
         """
         self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_REQUEST)), UInt16Be(self._userId), UInt16Be(channelId)))
+    
+    def send(self, channelId, data):
+        """
+        Specific send function for channelId
+        @param channelId: Channel use to send
+        @param data: message to send
+        """
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.SEND_DATA_REQUEST)), UInt16Be(self._userId), UInt16Be(channelId), UInt8(0x70), UInt16Be(sizeof(data)) | UInt16Be(0x8000), data))
     
     def recvConnectInitial(self, data):
         """
@@ -318,16 +329,7 @@ class MCS(LayerAutomata):
             print "receive data for an unconnected layer"
             return
         
-        self._channelIds[channelId].recv(data)
-        
-    def send(self, channelId, data):
-        """
-        Specific send function for channelId
-        @param channelId: Channel use to send
-        @param data: message to send
-        """
-        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.SEND_DATA_REQUEST)), UInt16Be(self._userId), UInt16Be(channelId), UInt8(0x70), UInt16Be(sizeof(data)) | UInt16Be(0x8000), data))
-        
+        self._channelIds[channelId].recv(data) 
     
     def writeDomainParams(self, maxChannels, maxUsers, maxTokens, maxPduSize):
         """
