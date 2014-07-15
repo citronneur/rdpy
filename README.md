@@ -2,12 +2,11 @@
 
 Remote Desktop Protocol in Twisted Python.
 
-RDPY is ful python except the bitmap decompression in RDP client for performance. RDPY has no ambition to be as faster as freerdp, rdesktop or mstsc, is made to play with microsoft protocol. There are some limitations essentially due to price of license (Packet redirection and License extesion in RDP protocol).
-
+RDPY is full python implementation of RDP and VNC protocol, except the bitmap uncompress for performance. The main goal of RDPY is not to be as faster as freerdp, rdesktop or mstsc, but is made to play with microsoft protocol. There are some limitations essentially due to price of license of some Microsoft products (Packet redirection and License extension in RDP protocol).
 
 ## Requirements
 
-### twisted lib requirements
+### twisted library requirements
 
 * python2.7
 * python-twisted
@@ -26,8 +25,8 @@ $ git clone https://github.com/citronneur/rdpy.git rdpy
 $ scons -C rdpy/lib install
 ```
 
-## Examples
-To create an RDP client (this example doesn't need build step of project because it doesn't call bitmap uncompress):
+## Library
+To create an RDP client:
 ```
 from rdpy.protocol.rdp import rdp
 class MyRDPFactory(rdp.ClientFactory):
@@ -60,6 +59,8 @@ reactor.run()
 For more details on client rdp see rdpy/bin/rdpy-rdpclient binaries.
 
 ## Binaries
+RDPY is delivered with 3 binaries : 
+
 RDP Client
 ```
 $ rdpy/bin/rdpy-rdpclient XXX.XXX.XXX.XXX 3389
@@ -78,9 +79,10 @@ $ rdpy/bin/rdpy-rdpproxy
 ##Limitations
 * CreedSSP
 * Packet redirection
-* License
-* Most common orders
-* Des VNC (using pyDes)
+* License (in progress)
+* Most common orders (in progress)
+* DES VNC (using pyDes) (in progress)
 * VNC server side
+* RDP server side (in progress)
 
 this project is still in progress.
