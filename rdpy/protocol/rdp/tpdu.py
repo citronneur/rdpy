@@ -140,8 +140,7 @@ class TPDU(LayerAutomata, StreamSender):
     
     def connect(self):
         """
-        connection request
-        for client send a connection request packet
+        Connection request for client send a connection request packet
         """
         if self._mode == LayerMode.CLIENT:
             self.sendConnectionRequest()
@@ -150,9 +149,9 @@ class TPDU(LayerAutomata, StreamSender):
     
     def recvConnectionConfirm(self, data):
         """
-        receive connection confirm message
-        next state is recvData 
-        call connect on presentation layer if all is good
+        Receive connection confirm message
+        Next state is recvData 
+        Call connect on presentation layer if all is good
         @param data: Stream that contain connection confirm
         @see: response -> http://msdn.microsoft.com/en-us/library/cc240506.aspx
         @see: failure ->http://msdn.microsoft.com/en-us/library/cc240507.aspx
@@ -170,14 +169,16 @@ class TPDU(LayerAutomata, StreamSender):
         self._selectedProtocol = message.protocolNeg.selectedProtocol.value
         
         if self._selectedProtocol != Protocols.PROTOCOL_SSL:
-            raise InvalidExpectedDataException("only ssl protocol is supported in RDPY version")
+            raise InvalidExpectedDataException("only SSL protocol is supported in RDPY version")
         
         #_transport is TPKT and transport is TCP layer of twisted
         self._transport.transport.startTLS(ClientTLSContext())
         
+        #now i'm ready to receive data
         self.setNextState(self.recvData)
+        
         #connection is done send to presentation
-        self._presentation.connect(self)
+        self._presentation.connect()
         
     def recvConnectionRequest(self, data):
         """

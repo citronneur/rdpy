@@ -162,7 +162,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         """
         self._controller.sendKeyEventUnicode(ord(unicode(e.text().toUtf8(), encoding="UTF-8")), isPressed)
     
-    def onBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+    def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
         Notify bitmap update
         @param destLeft: xmin position
@@ -207,7 +207,18 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
             print "Receive image in bad format"
             return
         
+        #if image need to be cut
+        #For bit alignement server may send more than image pixel
+        if width != destRight - destLeft + 1 or height != destBottom - destTop + 1:
+            image = image.copy(0, 0, destRight - destLeft + 1, destBottom - destTop + 1)
         self._widget.notifyImage(destLeft, destTop, image)
+    
+    def onReady(self):
+        """
+        Call when stack is ready
+        """
+        #do something maybe a loader
+        pass
 
         
 class QRemoteDesktop(QtGui.QWidget):
@@ -225,7 +236,7 @@ class QRemoteDesktop(QtGui.QWidget):
         #because we can update image only in paint
         #event function. When protocol receive image
         #we will stock into refresh list
-        #and in paiont event paint list of all refresh images
+        #and in paint event paint list of all refresh images
         self._refresh = []
         #bind mouse event
         self.setMouseTracking(True)

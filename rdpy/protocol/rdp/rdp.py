@@ -45,6 +45,9 @@ class RDPClientController(pdu.PDUClientListener):
         #transport packet (protocol layer)
         self._tpktLayer = tpkt.TPKT(self._tpduLayer, self._pduLayer)
         
+        #is pdu layer is ready to send
+        self._isReady = False
+        
     def getProtocol(self):
         """
         @return: return Protocol layer for twisted
@@ -92,21 +95,30 @@ class RDPClientController(pdu.PDUClientListener):
         
     def addClientObserver(self, observer):
         """
-        add observer to RDP protocol
+        Add observer to RDP protocol
         @param observer: new observer to add
         """
         self._clientObserver.append(observer)
         observer._clientListener = self
         
-    def recvBitmapUpdateDataPDU(self, rectangles):
+    def onUpdate(self, rectangles):
         """
-        call when a bitmap data is received from update PDU
+        Call when a bitmap data is received from update PDU
         @param rectangles: [pdu.BitmapData] struct
         """
         for observer in self._clientObserver:
             #for each rectangle in update PDU
             for rectangle in rectangles:
-                observer.onBitmapUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, rectangle.flags.value & pdu.BitmapFlag.BITMAP_COMPRESSION, rectangle.bitmapDataStream.value)
+                observer.onUpdate(rectangle.destLeft.value, rectangle.destTop.value, rectangle.destRight.value, rectangle.destBottom.value, rectangle.width.value, rectangle.height.value, rectangle.bitsPerPixel.value, rectangle.flags.value & pdu.BitmapFlag.BITMAP_COMPRESSION, rectangle.bitmapDataStream.value)
+                
+    def onReady(self):
+        """
+        Call when PDU layer is connected
+        """
+        self._isReady = True
+        #signal all listener
+        for observer in self._clientObserver:
+            observer.onReady()
     
     def sendPointerEvent(self, x, y, button, isPressed):
         """
@@ -116,7 +128,7 @@ class RDPClientController(pdu.PDUClientListener):
         @param button: 1 or 2 or 3
         @param isPressed: true if button is pressed or false if it's released
         """
-        if not self._pduLayer._isConnected:
+        if not self._isReady:
             return
 
         try:
@@ -149,7 +161,7 @@ class RDPClientController(pdu.PDUClientListener):
         @param code: scan code
         @param isPressed: True if key is pressed and false if it's released
         """
-        if not self._pduLayer._isConnected:
+        if not self._isReady:
             return
         
         try:
@@ -172,7 +184,7 @@ class RDPClientController(pdu.PDUClientListener):
         @param code: unicode
         @param isPressed: True if key is pressed and false if it's released
         """
-        if not self._pduLayer._isConnected:
+        if not self._isReady:
             return
         
         try:
@@ -271,8 +283,13 @@ class RDPClientObserver(object):
         self._controller = controller
         self._controller.addClientObserver(self)
         
-        
-    def onBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+    def onReady(self):
+        """
+        Stack is ready and connected
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPClientObserver")) 
+    
+    def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
         Notify bitmap update
         @param destLeft: xmin position
@@ -285,4 +302,4 @@ class RDPClientObserver(object):
         @param isCompress: use RLE compression
         @param data: bitmap data
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onBitmapUpdate", "RDPClientObserver")) 
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onUpdate", "RDPClientObserver")) 

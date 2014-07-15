@@ -443,10 +443,10 @@ class CompositeType(Type):
             readLen += sizeof(self.__dict__[name])
             
     def __write__(self, s):
-        '''
-        call write on each ordered subtype
+        """
+        Call write on each ordered sub type
         @param s: Stream
-        '''
+        """
         for name in self._typeName:
             try:
                 s.writeType(self.__dict__[name])
@@ -818,21 +818,20 @@ class Stream(StringIO):
         value.write(self)
         
 class ArrayType(Type):
-    '''
-    in write mode ArrayType is just list
-    but in read mode it can be dynamic
+    """
+    In write mode ArrayType is just list
+    But in read mode it can be dynamic
     readLen may be dynamic
-    '''
+    """
     def __init__(self, typeFactory, init = None, readLen = UInt8(), conditional = lambda:True, optional = False, constant = False):
-        '''
-        constructor
+        """
         @param typeFactory: class use to init new element on read
         @param init: init array
         @param readLen: number of element in sequence
         @param conditional : function call before read or write type
         @param optional: boolean check before read if there is still data in stream
         @param constant: if true check any changes of object during reading
-        '''
+        """
         Type.__init__(self, conditional, optional, constant)
         self._typeFactory = typeFactory
         self._readLen = readLen
@@ -841,10 +840,10 @@ class ArrayType(Type):
             self._array = init
         
     def __read__(self, s):
-        '''
-        create new object and read it
+        """
+        Create new object and read it
         @param s: Stream
-        '''
+        """
         self._array = []
         for _ in range(0, self._readLen.value):
             element = self._typeFactory()
@@ -852,21 +851,21 @@ class ArrayType(Type):
             self._array.append(element)
     
     def __write__(self, s):
-        '''
-        just write array
+        """
+        Just write array
         @param s: Stream
-        '''
+        """
         s.writeType(self._array)
     
     def __sizeof__(self):
-        '''
-        sizeof inner array
-        '''
+        """
+        Size of inner array
+        """
         return sizeof(self._array)
     
 class FactoryType(Type):
     """
-    Call factory function on read or write
+    Call factory function on read
     """
     def __init__(self, factory, conditional = lambda:True, optional = False, constant = False):
         """
@@ -880,29 +879,43 @@ class FactoryType(Type):
         if not callable(factory):
             self._factory = lambda:factory
 
-        self._value = self._factory()
+        self._value = None
     
     def __read__(self, s):
-        '''
-        call factory and read it
+        """
+        Call factory and write it
         @param s: Stream
-        '''
+        """
         self._value = self._factory()
         s.readType(self._value)
-    
+        
     def __write__(self, s):
-        '''
-        call factory and write elements
+        """
+        Call factory and read it
         @param s: Stream
-        '''
+        """
         self._value = self._factory()
         s.writeType(self._value)
     
+    def __getattr__(self, name):
+        """
+        Magic function to be FactoryType as transparent as possible
+        @return: _value parameter
+        """
+        return self._value.__getattribute__(name)
+    
+    def __getitem__(self, item):
+        """
+        Magic function to be FactoryType as transparent as possible
+        @return: index of _value
+        """
+        return self._value.__getitem__(item)
+    
     def __sizeof__(self):
-        '''
-        sizeof of object returned by factory
-        '''
-        return sizeof(self._factory())
+        """
+        Size of of object returned by factory
+        """
+        return sizeof(self._value)
 
 def CheckValueOnRead(cls):
     '''
@@ -923,7 +936,7 @@ def CheckValueOnRead(cls):
 
 def hexDump(src, length=16):
     '''
-    print hex representation of sr
+    print hex representation of str
     @param src: string
     '''
     FILTER = ''.join([(len(repr(chr(x))) == 3) and chr(x) or '.' for x in range(256)])

@@ -269,9 +269,9 @@ class Capability(CompositeType):
                 return String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
         
         if capability is None:
-            capability = CapabilityFactory
+            capability = FactoryType(CapabilityFactory)
             
-        self.capability = FactoryType(capability)
+        self.capability = capability
 
 class GeneralCapability(CompositeType):
     """
