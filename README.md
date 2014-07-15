@@ -26,7 +26,7 @@ Binaries are uses as examples to use rdpy lib.
 To create an RDP client (this example doesn't need build step of project because it doesn't call bitmap uncompress):
 ```
 from rdpy.protocol.rdp import rdp
-class RDPClientQtFactory(rdp.ClientFactory):
+class MyRDPFactory(rdp.ClientFactory):
     def buildObserver(self, controller):
         class MyObserver(rdp.RDPClientObserver)
 		def __init__(self, controller)
@@ -37,7 +37,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
 		def onReady(self):
 			#send r key
 			self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
-			#mouse and click at pixel 200x200
+			#mouse move and click at pixel 200x200
 			self._controller.sendPointerEvent(200, 200, 1, true)
 
 	return MyObserver(controller)
@@ -48,6 +48,10 @@ class RDPClientQtFactory(rdp.ClientFactory):
         pass
     def clientConnectionFailed(self, connector, reason):
         pass
+
+from twisted.internet import reactor
+reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRDPFactory())
+reactor.run()
 ```
 
 RDP Client
