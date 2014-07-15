@@ -6,11 +6,15 @@ RDPY is ful python except the bitmap decompression in RDP client for performance
 
 
 ## Requirements
+
 ### twisted lib requirements
+
 * python2.7
 * python-twisted
 * python-openssl
+
 ### Binaries and graphical examples requirements
+
 * python-qt4
 * python-qt4reactor
 * python-sip-dev
