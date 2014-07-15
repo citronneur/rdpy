@@ -6,9 +6,11 @@ RDPY is ful python except the bitmap decompression in RDP client for performance
 
 
 ## Requirements
+### twisted lib requirements
 * python2.7
 * python-twisted
 * python-openssl
+### Binaries and graphical examples requirements
 * python-qt4
 * python-qt4reactor
 * python-sip-dev
@@ -27,18 +29,18 @@ from rdpy.protocol.rdp import rdp
 class MyRDPFactory(rdp.ClientFactory):
     def buildObserver(self, controller):
         class MyObserver(rdp.RDPClientObserver)
-		def __init__(self, controller)
-			rdp.RDPClientObserver.__init__(self, controller)
-		def onBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
-			#here code handle bitmap
-			pass
-		def onReady(self):
-			#send 'r' key
-			self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
-			#mouse move and click at pixel 200x200
-			self._controller.sendPointerEvent(200, 200, 1, true)
+			def __init__(self, controller)
+				rdp.RDPClientObserver.__init__(self, controller)
+			def onBitmapUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+				#here code handle bitmap
+				pass
+			def onReady(self):
+				#send 'r' key
+				self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
+				#mouse move and click at pixel 200x200
+				self._controller.sendPointerEvent(200, 200, 1, true)
 
-	return MyObserver(controller)
+		return MyObserver(controller)
 
     def startedConnecting(self, connector):
         pass
