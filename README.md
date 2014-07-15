@@ -20,9 +20,7 @@ $ git clone https://github.com/citronneur/rdpy.git rdpy
 $ scons -C rdpy/lib install
 ```
 
-## Binaries
-Binaries are uses as examples to use rdpy lib.
-
+## Examples
 To create an RDP client (this example doesn't need build step of project because it doesn't call bitmap uncompress):
 ```
 from rdpy.protocol.rdp import rdp
@@ -35,7 +33,7 @@ class MyRDPFactory(rdp.ClientFactory):
 			#here code handle bitmap
 			pass
 		def onReady(self):
-			#send r key
+			#send 'r' key
 			self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
 			#mouse move and click at pixel 200x200
 			self._controller.sendPointerEvent(200, 200, 1, true)
@@ -53,7 +51,9 @@ from twisted.internet import reactor
 reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRDPFactory())
 reactor.run()
 ```
+For more details on client rdp see rdpy/bin/rdpy-rdpclient binaries.
 
+## Binaries
 RDP Client
 ```
 $ rdpy/bin/rdpy-rdpclient XXX.XXX.XXX.XXX 3389
