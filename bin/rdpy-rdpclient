@@ -108,7 +108,7 @@ if __name__ == '__main__':
     height = 800
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hu:p:d:w:l")
+        opts, args = getopt.getopt(sys.argv[1:], "hu:p:d:w:l:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:

@@ -484,7 +484,7 @@ class RDPInfo(CompositeType):
         #code page
         self.codePage = UInt32Le()
         #support flag
-        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_LOGONERRORS | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_ENABLEWINDOWSKEY | InfoFlag.INFO_DISABLECTRLALTDEL | InfoFlag.INFO_AUTOLOGON)
+        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_AUTOLOGON)
         self.cbDomain = UInt16Le(lambda:sizeof(self.domain) - 2)
         self.cbUserName = UInt16Le(lambda:sizeof(self.userName) - 2)
         self.cbPassword = UInt16Le(lambda:sizeof(self.password) - 2)
@@ -524,7 +524,7 @@ class ShareControlHeader(CompositeType):
     def __init__(self, totalLength, pduType, userId):
         """
         Set pduType as constant
-        @param totalLength: total length of pdu packet
+        @param totalLength: total length of PDU packet
         """
         CompositeType.__init__(self)
         #share control header
@@ -577,7 +577,7 @@ class ConfirmActivePDU(CompositeType):
         self.originatorId = UInt16Le(0x03EA, constant = True)
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.lengthCombinedCapabilities = UInt16Le(lambda:(sizeof(self.numberCapabilities) + sizeof(self.pad2Octets) + sizeof(self.capabilitySets)))
-        self.sourceDescriptor = String("RDPY", readLen = self.lengthSourceDescriptor)
+        self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
         self.numberCapabilities = UInt16Le(lambda:len(self.capabilitySets._array))
         self.pad2Octets = UInt16Le()
         self.capabilitySets = ArrayType(caps.Capability, readLen = self.numberCapabilities)
@@ -744,10 +744,6 @@ class UpdateDataPDU(CompositeType):
         def UpdateDataFactory():
             if self.updateType.value == UpdateType.UPDATETYPE_BITMAP:
                 return BitmapUpdateDataPDU()
-            
-            elif self.updateType.value == UpdateType.UPDATETYPE_SYNCHRONIZE:
-                return SynchronizeUpdatePDU()
-            
             else:
                 return String()
             
@@ -1076,9 +1072,8 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         message = "Unknown code %s"%hex(dataPDU.pduData.errorInfo.value)
         if ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
             message = ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
-        
-        raise ErrorReportedFromPeer("Receive PDU Error info : %s"%message)
             
+        print "Error INFO PDU : %s"%message
         
     def recvDemandActivePDU(self, data):
         """
@@ -1147,6 +1142,8 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         @param data: Stream from transport layer
         """
         dataPDU = self.readDataPDU(data)
+        if dataPDU is None:
+            return
         if dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE and dataPDU.pduData.updateType.value == UpdateType.UPDATETYPE_BITMAP:
             self._clientListener.onUpdate(dataPDU.pduData.updateData.rectangles._array)
             
