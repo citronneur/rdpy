@@ -484,7 +484,7 @@ class RDPInfo(CompositeType):
         #code page
         self.codePage = UInt32Le()
         #support flag
-        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_LOGONERRORS | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_ENABLEWINDOWSKEY | InfoFlag.INFO_DISABLECTRLALTDEL)
+        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_LOGONERRORS | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_ENABLEWINDOWSKEY | InfoFlag.INFO_DISABLECTRLALTDEL | InfoFlag.INFO_AUTOLOGON)
         self.cbDomain = UInt16Le(lambda:sizeof(self.domain) - 2)
         self.cbUserName = UInt16Le(lambda:sizeof(self.userName) - 2)
         self.cbPassword = UInt16Le(lambda:sizeof(self.password) - 2)
@@ -497,7 +497,7 @@ class RDPInfo(CompositeType):
         #shell execute at start of session
         self.alternateShell = UniString(readLen = UInt16Le(lambda:self.cbAlternateShell.value - 2))
         #working directory for session
-        self.workingDir = UniString("toto", readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2))
+        self.workingDir = UniString(readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2))
         self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
         
 class RDPExtendedInfo(CompositeType):
@@ -629,22 +629,22 @@ class DataPDU(CompositeType):
             Create object in accordance self.shareDataHeader.pduType2 value
             """
             if self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE:
-                return UpdateDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+                return UpdateDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
             
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SYNCHRONIZE:
-                return SynchronizeDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+                return SynchronizeDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
             
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_CONTROL:
-                return ControlDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+                return ControlDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
             
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
-                return ErrorInfoDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+                return ErrorInfoDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
             
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_FONTLIST:
-                return FontListDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+                return FontListDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
             
             elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_FONTMAP:
-                return FontMapDataPDU(readLen = self.shareDataHeader.uncompressedLength)
+                return FontMapDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
             else:
                 #read all value
                 return String()
@@ -764,7 +764,7 @@ class FastPathUpdatePDU(CompositeType):
     def __init__(self, updateType = 0, updateData = None):
         CompositeType.__init__(self)
         self.updateHeader = UInt8(updateType)
-        self.compressionFlags = UInt8(conditional = lambda:(self.updateHeader.value & FastPathOutputCompression.FASTPATH_OUTPUT_COMPRESSION_USED))
+        self.compressionFlags = UInt8(conditional = lambda:((self.updateHeader.value >> 4) & FastPathOutputCompression.FASTPATH_OUTPUT_COMPRESSION_USED))
         self.size = UInt16Le()
         
         def UpdateDataFactory():
@@ -773,10 +773,6 @@ class FastPathUpdatePDU(CompositeType):
             """
             if (self.updateHeader.value & 0xf) == FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
                 return (UInt16Le(FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP, constant = True), BitmapUpdateDataPDU(readLen = self.size))
-            
-            elif (self.updateHeader.value & 0xf) == FastPathUpdateType.FASTPATH_UPDATETYPE_SYNCHRONIZE:
-                return SynchronizeUpdatePDU(readLen = self.size)
-            
             else:
                 return String()
             
@@ -784,17 +780,6 @@ class FastPathUpdatePDU(CompositeType):
             updateData = FactoryType(UpdateDataFactory)
             
         self.updateData = updateData
-
-class SynchronizeUpdatePDU(CompositeType): 
-    """
-    PDU is ignored, artefact of T.125
-    """
-    def __init__(self, readLen = None):
-        """
-        @param readLen: Max size of packet
-        """
-        CompositeType.__init__(self, readLen = readLen)
-        self.pad2Octets = UInt16Le()
   
 class BitmapUpdateDataPDU(CompositeType):
     """

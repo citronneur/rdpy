@@ -423,7 +423,7 @@ class CompositeType(Type):
         for name in self._typeName:            
             try:
                 s.readType(self.__dict__[name])
-                
+                readLen += sizeof(self.__dict__[name])
                 #read is ok but read out of bound
                 if not self._readLen is None and readLen > self._readLen.value:
                     #roll back
@@ -439,8 +439,6 @@ class CompositeType(Type):
                         break
                     s.pos -= sizeof(self.__dict__[tmpName])
                 raise e
-            
-            readLen += sizeof(self.__dict__[name])
             
     def __write__(self, s):
         """

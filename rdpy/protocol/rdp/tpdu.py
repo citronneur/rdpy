@@ -87,7 +87,7 @@ class TPDUDataHeader(CompositeType):
     """
     def __init__(self):
         CompositeType.__init__(self)
-        self.header = UInt8(2, constant = True)
+        self.header = UInt8(2)
         self.messageType = UInt8(MessageType.X224_TPDU_DATA, constant = True)
         self.separator = UInt8(0x80, constant = True)
     
