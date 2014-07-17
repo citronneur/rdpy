@@ -55,7 +55,14 @@ class QAdaptor(object):
         """
         @return: widget use for render
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getWidget", "QAdaptor")) 
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getWidget", "QAdaptor"))
+    
+    def closeEvent(self, e):
+        """
+        Call when you want to close connection
+        @param: QCloseEvent
+        """ 
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "closeEvent", "QAdaptor"))
     
 class RFBClientQt(RFBClientObserver, QAdaptor):
     """
@@ -161,6 +168,13 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param isPressed: event come from press or release action
         """
         self._controller.sendKeyEventUnicode(ord(unicode(e.text().toUtf8(), encoding="UTF-8")), isPressed)
+    
+    def closeEvent(self, e):
+        """
+        Convert Qt close widget event into close stack event
+        @param e: QCloseEvent
+        """
+        self._controller.close()
     
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
@@ -308,3 +322,9 @@ class QRemoteDesktop(QtGui.QWidget):
         """
         self._adaptor.sendKeyEvent(event, False)
         
+    def closeEvent(self, event):
+        """
+        Call when widget is closed
+        @param event: QCloseEvent
+        """
+        self._adaptor.closeEvent(event)

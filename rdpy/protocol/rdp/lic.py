@@ -23,6 +23,7 @@ RDP extended license
 """
 
 from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType
+from rdpy.network.error import InvalidExpectedDataException
 
 class MessageType(object):
     """
@@ -94,6 +95,8 @@ class LicensingErrorMessage(CompositeType):
     License error message
     @see: http://msdn.microsoft.com/en-us/library/cc240482.aspx
     """
+    _MESSAGE_TYPE_ = MessageType.ERROR_ALERT
+    
     def __init__(self, conditional = lambda:True):
         CompositeType.__init__(self, conditional = conditional)
         self.dwErrorCode = UInt32Le()
@@ -141,6 +144,8 @@ class ServerLicenseRequest(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc241914.aspx
     """
+    _MESSAGE_TYPE_ = MessageType.LICENSE_REQUEST
+    
     def __init__(self):
         CompositeType.__init__(self)
         self.serverRandom = String(readLen = UInt8(32))
@@ -155,13 +160,15 @@ class ClientNewLicenseRequest(CompositeType):
     RDPY doesn'support license reuse, need it in futur version
     @see: http://msdn.microsoft.com/en-us/library/cc241918.aspx
     """
+    _MESSAGE_TYPE_ = MessageType.NEW_LICENSE_REQUEST
+    
     def __init__(self):
         CompositeType.__init__(self)
         #RSA and must be only RSA
         self.preferredKeyExchangeAlg = UInt32Le(0x00000001, constant = True)
         #pure microsoft client ;-)
         #http://msdn.microsoft.com/en-us/library/1040af38-c733-4fb3-acd1-8db8cc979eda#id10
-        self.platformId = UInt32Le(0x04000000 | 0x00020000)
+        self.platformId = UInt32Le(0x04000000 | 0x00010000)
         self.clientRandom = String("\x00" * 32)
         self.encryptedPreMasterSecret = LicenseBinaryBlob(BinaryBlobType.BB_RANDOM_BLOB)
         self.ClientUserName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_USER_NAME_BLOB)
@@ -173,21 +180,8 @@ class LicPacket(CompositeType):
     """
     def __init__(self, message = None):
         CompositeType.__init__(self)
-        
-        def MessageTypeFactory():
-            """
-            Determine type in accordance of instance of licensingMessage type
-            Use in write mode
-            """
-            if isinstance(self.licensingMessage, LicensingErrorMessage):
-                return MessageType.ERROR_ALERT
-            elif isinstance(self.licensingMessage, ServerLicenseRequest):
-                return MessageType.LICENSE_REQUEST
-            elif isinstance(self.licensingMessage, ClientNewLicenseRequest):
-                return MessageType.NEW_LICENSE_REQUEST
-        
         #preambule
-        self.bMsgtype = UInt8(lambda:(MessageTypeFactory()))
+        self.bMsgtype = UInt8(lambda:self.licensingMessage.__class__._MESSAGE_TYPE_)
         self.flag = UInt8()
         self.wMsgSize = UInt16Le(lambda: sizeof(self))
         
@@ -196,15 +190,16 @@ class LicPacket(CompositeType):
             factory for message nego
             Use in read mode
             """
-            if self.bMsgtype.value == MessageType.ERROR_ALERT:
-                return LicensingErrorMessage()
-            elif self.bMsgtype.value == MessageType.LICENSE_REQUEST:
-                return ServerLicenseRequest()
-            elif self.bMsgtype.value == MessageType.NEW_LICENSE_REQUEST:
-                ClientNewLicenseRequest()
+            for c in [LicensingErrorMessage, ServerLicenseRequest, ClientNewLicenseRequest]:
+                if self.bMsgtype.value == c._MESSAGE_TYPE_:
+                    return c()
+            print "WARNING : unknown license message : %s"%self.bMsgtype.value
+            return String()
         
         if message is None:
             message = FactoryType(LicensingMessageFactory)
+        elif not "_MESSAGE_TYPE_" in message.__class__.__dict__:
+            raise InvalidExpectedDataException("Try to send an invalid license message")
             
         self.licensingMessage = message
 

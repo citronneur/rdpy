@@ -37,7 +37,7 @@ class RDPClientController(pdu.PDUClientListener):
         #list of observer
         self._clientObserver = []
         #PDU layer
-        self._pduLayer = pdu.PDU(self)
+        self._pduLayer = pdu.PDULayer(self)
         #multi channel service
         self._mcsLayer = mcs.MCS(LayerMode.CLIENT, self._pduLayer)
         #transport pdu layer
@@ -198,6 +198,12 @@ class RDPClientController(pdu.PDUClientListener):
             
         except InvalidValue:
             print "try send bad key event"
+            
+    def close(self):
+        """
+        Close protocol stack
+        """
+        self._pduLayer.close()
 
 class RDPServerController(pdu.PDUServerListener):
     """

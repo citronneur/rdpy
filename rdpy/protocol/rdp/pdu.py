@@ -25,7 +25,7 @@ In this layer are managed all mains bitmap update orders end user inputs
 
 from rdpy.network.layer import LayerAutomata, LayerMode
 from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
-from rdpy.network.error import InvalidExpectedDataException, ErrorReportedFromPeer, CallPureVirtualFuntion, InvalidType
+from rdpy.network.error import InvalidExpectedDataException, CallPureVirtualFuntion, InvalidType
 
 import gcc, lic, caps, tpkt
 
@@ -231,7 +231,7 @@ class PointerFlag(object):
     
 class KeyboardFlag(object):
     """
-    Use in scancode key event
+    Use in scan code key event
     @see: http://msdn.microsoft.com/en-us/library/cc240584.aspx
     """
     KBDFLAGS_EXTENDED = 0x0100
@@ -484,7 +484,7 @@ class RDPInfo(CompositeType):
         #code page
         self.codePage = UInt32Le()
         #support flag
-        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_AUTOLOGON)
+        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_AUTOLOGON | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_LOGONERRORS)
         self.cbDomain = UInt16Le(lambda:sizeof(self.domain) - 2)
         self.cbUserName = UInt16Le(lambda:sizeof(self.userName) - 2)
         self.cbPassword = UInt16Le(lambda:sizeof(self.password) - 2)
@@ -529,7 +529,7 @@ class ShareControlHeader(CompositeType):
         CompositeType.__init__(self)
         #share control header
         self.totalLength = UInt16Le(totalLength)
-        self.pduType = UInt16Le(pduType, constant = True)
+        self.pduType = UInt16Le(pduType)
         self.PDUSource = UInt16Le(userId + 1001)
         
 class ShareDataHeader(CompositeType):
@@ -537,25 +537,52 @@ class ShareDataHeader(CompositeType):
     PDU share data header
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     """
-    def __init__(self, size, pduType2 = None, userId = 0, shareId = 0):
+    def __init__(self, size, pduType2 = 0, shareId = 0):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(size, PDUType.PDUTYPE_DATAPDU, userId)
         self.shareId = UInt32Le(shareId)
         self.pad1 = UInt8()
         self.streamId = UInt8(StreamId.STREAM_LOW)
-        self.uncompressedLength = UInt16Le(lambda:(UInt16Le(size).value - 14))
-        self.pduType2 = UInt8() if pduType2 is None else UInt8(pduType2, constant = True)
+        self.uncompressedLength = UInt16Le(lambda:(UInt16Le(size).value - 8))
+        self.pduType2 = UInt8(pduType2)
         self.compressedType = UInt8()
         self.compressedLength = UInt16Le()
+        
+class PDU(CompositeType):
+    """
+    Main PDU message
+    """
+    def __init__(self, userId = 0, pduMessage = None):
+        CompositeType.__init__(self)
+        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), lambda:pduMessage.__class__._PDUTYPE_, userId)
+        
+        def PDUMessageFactory():
+            """
+            build message in accordance of type self.shareControlHeader.pduType.value
+            """
+            for c in [DemandActivePDU, ConfirmActivePDU, DataPDU, DeactiveAllPDU]:
+                if self.shareControlHeader.pduType.value == c._PDUTYPE_:
+                    return c()
+            print "WARNING : unknown PDU type : %s"%self.shareControlHeader.pduType.value
+            #read entire packet
+            return String()
+            
+        if pduMessage is None:
+            pduMessage = FactoryType(PDUMessageFactory)
+        elif not "_PDUTYPE_" in  pduMessage.__class__.__dict__:
+            raise InvalidExpectedDataException("Try to send an invalid PDU")
+        
+        self.pduMessage = pduMessage
         
 class DemandActivePDU(CompositeType):
     """
     @see: http://msdn.microsoft.com/en-us/library/cc240485.aspx
     Main use for capabilities exchange server -> client
     """
-    def __init__(self, userId = 0):
+    #may declare the PDU type
+    _PDUTYPE_ = PDUType.PDUTYPE_DEMANDACTIVEPDU
+    
+    def __init__(self):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_DEMANDACTIVEPDU, userId)
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.lengthCombinedCapabilities = UInt16Le(lambda:(sizeof(self.numberCapabilities) + sizeof(self.pad2Octets) + sizeof(self.capabilitySets)))
@@ -570,9 +597,11 @@ class ConfirmActivePDU(CompositeType):
     @see: http://msdn.microsoft.com/en-us/library/cc240488.aspx
     Main use for capabilities confirm client -> sever
     """
-    def __init__(self, userId = 0):
+    #may declare the PDU type
+    _PDUTYPE_ = PDUType.PDUTYPE_CONFIRMACTIVEPDU
+    
+    def __init__(self):
         CompositeType.__init__(self)
-        self.shareControlHeader = ShareControlHeader(lambda:sizeof(self), PDUType.PDUTYPE_CONFIRMACTIVEPDU, userId)
         self.shareId = UInt32Le()
         self.originatorId = UInt16Le(0x03EA, constant = True)
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
@@ -581,76 +610,46 @@ class ConfirmActivePDU(CompositeType):
         self.numberCapabilities = UInt16Le(lambda:len(self.capabilitySets._array))
         self.pad2Octets = UInt16Le()
         self.capabilitySets = ArrayType(caps.Capability, readLen = self.numberCapabilities)
-
-class PersistentListEntry(CompositeType):   
+        
+class DeactiveAllPDU(CompositeType):
     """
-    Use to record persistent key in PersistentListPDU
-    @see: http://msdn.microsoft.com/en-us/library/cc240496.aspx
-    """  
+    Use to signal already connected session
+    @see: http://msdn.microsoft.com/en-us/library/cc240536.aspx
+    """
+    #may declare the PDU type
+    _PDUTYPE_ = PDUType.PDUTYPE_DEACTIVATEALLPDU
+    
     def __init__(self):
         CompositeType.__init__(self)
-        self.key1 = UInt32Le()
-        self.key2 = UInt32Le()
-    
-class PersistentListPDU(CompositeType):
-    """
-    Use to indicate that bitmap cache was already
-    Fill with some keys from previous session
-    @see: http://msdn.microsoft.com/en-us/library/cc240495.aspx
-    """
-    def __init__(self, userId = 0, shareId = 0):
-        CompositeType.__init__(self)
-        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST, userId, shareId)
-        self.numEntriesCache0 = UInt16Le()
-        self.numEntriesCache1 = UInt16Le()
-        self.numEntriesCache2 = UInt16Le()
-        self.numEntriesCache3 = UInt16Le()
-        self.numEntriesCache4 = UInt16Le()
-        self.totalEntriesCache0 = UInt16Le()
-        self.totalEntriesCache1 = UInt16Le()
-        self.totalEntriesCache2 = UInt16Le()
-        self.totalEntriesCache3 = UInt16Le()
-        self.totalEntriesCache4 = UInt16Le()
-        self.bitMask = UInt8()
-        self.pad2 = UInt8()
-        self.pad3 = UInt16Le()
-        self.entries = ArrayType(PersistentListEntry, readLen = UInt16Le(lambda:(self.numEntriesCache0 + self.numEntriesCache1 + self.numEntriesCache2 + self.numEntriesCache3 + self.numEntriesCache4)))
-        
+        self.shareId = UInt32Le()
+        self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
+        self.sourceDescriptor = String(readLen = self.lengthSourceDescriptor)
+
 class DataPDU(CompositeType):
     """
     Generic PDU packet use after connection sequence
     """
-    def __init__(self, pduType = None, pduData = None, userId = 0, shareId = 0):
+    #may declare the PDU type
+    _PDUTYPE_ = PDUType.PDUTYPE_DATAPDU
+    
+    def __init__(self, pduData = None, shareId = 0):
         CompositeType.__init__(self)
-        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), pduType, userId, shareId)
+        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), lambda:self.pduData.__class__._PDUTYPE2_, shareId)
         
         def PDUDataFactory():
             """
             Create object in accordance self.shareDataHeader.pduType2 value
             """
-            if self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE:
-                return UpdateDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
-            
-            elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SYNCHRONIZE:
-                return SynchronizeDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
-            
-            elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_CONTROL:
-                return ControlDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
-            
-            elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
-                return ErrorInfoDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
-            
-            elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_FONTLIST:
-                return FontListDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
-            
-            elif self.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_FONTMAP:
-                return FontMapDataPDU(readLen = self.shareDataHeader.uncompressedLength - 18)
-            else:
-                #read all value
-                return String()
+            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU]:
+                if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
+                    return c()
+            print "WARNING : unknown PDU data type : %s"%self.shareDataHeader.pduType2.value
+            return String()
             
         if pduData is None:
             pduData = FactoryType(PDUDataFactory)
+        elif not "_PDUTYPE2_" in  pduData.__class__.__dict__:
+            raise InvalidExpectedDataException("Try to send an invalid data PDU")
             
         self.pduData = pduData
         
@@ -658,6 +657,8 @@ class SynchronizeDataPDU(CompositeType):
     """
     @see http://msdn.microsoft.com/en-us/library/cc240490.aspx
     """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_SYNCHRONIZE
+    
     def __init__(self, targetUser = 0, readLen = None):
         """
         @param targetUser: MCS Channel ID
@@ -670,6 +671,8 @@ class ControlDataPDU(CompositeType):
     """
     @see http://msdn.microsoft.com/en-us/library/cc240492.aspx
     """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_CONTROL
+    
     def __init__(self, action = None, readLen = None):
         """
         @param action: Action macro
@@ -685,6 +688,8 @@ class ErrorInfoDataPDU(CompositeType):
     Use to inform error in PDU layer
     @see: http://msdn.microsoft.com/en-us/library/cc240544.aspx
     """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU
+    
     def __init__(self, errorInfo = 0, readLen = None):
         """
         @param errorInfo: ErrorInfo macro
@@ -700,6 +705,8 @@ class FontListDataPDU(CompositeType):
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240498.aspx
     """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_FONTLIST
+    
     def __init__(self, readLen = None):
         """
         @param readLen: Max read length
@@ -716,6 +723,8 @@ class FontMapDataPDU(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240498.aspx
     """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_FONTMAP
+    
     def __init__(self, readLen = None):
         """
         @param readLen: Max read length
@@ -725,6 +734,72 @@ class FontMapDataPDU(CompositeType):
         self.totalNumEntries = UInt16Le()
         self.mapFlags = UInt16Le(0x0003)
         self.entrySize = UInt16Le(0x0004)
+        
+class PersistentListEntry(CompositeType):   
+    """
+    Use to record persistent key in PersistentListPDU
+    @see: http://msdn.microsoft.com/en-us/library/cc240496.aspx
+    """  
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.key1 = UInt32Le()
+        self.key2 = UInt32Le()
+    
+class PersistentListPDU(CompositeType):
+    """
+    Use to indicate that bitmap cache was already
+    Fill with some keys from previous session
+    @see: http://msdn.microsoft.com/en-us/library/cc240495.aspx
+    """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST
+    
+    def __init__(self, userId = 0, shareId = 0):
+        CompositeType.__init__(self)
+        self.numEntriesCache0 = UInt16Le()
+        self.numEntriesCache1 = UInt16Le()
+        self.numEntriesCache2 = UInt16Le()
+        self.numEntriesCache3 = UInt16Le()
+        self.numEntriesCache4 = UInt16Le()
+        self.totalEntriesCache0 = UInt16Le()
+        self.totalEntriesCache1 = UInt16Le()
+        self.totalEntriesCache2 = UInt16Le()
+        self.totalEntriesCache3 = UInt16Le()
+        self.totalEntriesCache4 = UInt16Le()
+        self.bitMask = UInt8()
+        self.pad2 = UInt8()
+        self.pad3 = UInt16Le()
+        self.entries = ArrayType(PersistentListEntry, readLen = UInt16Le(lambda:(self.numEntriesCache0 + self.numEntriesCache1 + self.numEntriesCache2 + self.numEntriesCache3 + self.numEntriesCache4)))
+
+class ClientInputEventPDU(CompositeType):
+    """
+    PDU use to send client inputs in slow path mode
+    @see: http://msdn.microsoft.com/en-us/library/cc746160.aspx
+    """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_INPUT
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.numEvents = UInt16Le(lambda:len(self.slowPathInputEvents._array))
+        self.pad2Octets = UInt16Le()
+        self.slowPathInputEvents = ArrayType(SlowPathInputEvent, readLen = self.numEvents)     
+
+class ShutdownRequestPDU(CompositeType):
+    """
+    PDU use to signal that the session will be closzed are connected
+    server -> client
+    """  
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_REQUEST
+    def __init__(self):
+        CompositeType.__init__(self)
+             
+class ShutdownDeniedPDU(CompositeType):
+    """
+    PDU use to signal that the session will be closzed are connected
+    server -> client
+    """  
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_DENIED
+    def __init__(self):
+        CompositeType.__init__(self)
 
 class UpdateDataPDU(CompositeType):
     """
@@ -732,6 +807,8 @@ class UpdateDataPDU(CompositeType):
     for example
     @see: http://msdn.microsoft.com/en-us/library/cc240608.aspx
     """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_UPDATE
+    
     def __init__(self, updateType = 0, updateData = None, readLen = None):
         """
         @param updateType: UpdateType macro
@@ -844,18 +921,6 @@ class BitmapData(CompositeType):
         self.bitmapLength = UInt16Le()
         self.bitmapComprHdr = BitmapCompressedDataHeader(conditional = lambda:(not (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
         self.bitmapDataStream = String(readLen = UInt16Le(lambda:(self.bitmapLength.value if (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
-
-class ClientInputEventPDU(CompositeType):
-    """
-    PDU use to send client inputs in slow path mode
-    @see: http://msdn.microsoft.com/en-us/library/cc746160.aspx
-    """
-    def __init__(self, userId = 0, shareId = 0):
-        CompositeType.__init__(self)
-        self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), PDUType2.PDUTYPE2_INPUT, userId, shareId)
-        self.numEvents = UInt16Le(lambda:len(self.slowPathInputEvents._array))
-        self.pad2Octets = UInt16Le()
-        self.slowPathInputEvents = ArrayType(SlowPathInputEvent, readLen = self.numEvents)
         
 class SlowPathInputEvent(CompositeType):
     """
@@ -865,23 +930,14 @@ class SlowPathInputEvent(CompositeType):
     def __init__(self, messageData = None):
         CompositeType.__init__(self)
         self.eventTime = UInt32Le()
-        
-        def MessageTypeFactory(event):
-            """
-            retrieve message type from event type
-            """
-            if isinstance(event, PointerEvent):
-                return InputMessageType.INPUT_EVENT_MOUSE
-            elif isinstance(event, ScancodeKeyEvent):
-                return InputMessageType.INPUT_EVENT_SCANCODE
-            elif isinstance(event, UnicodeKeyEvent):
-                return InputMessageType.INPUT_EVENT_UNICODE
-        
-        self.messageType = UInt16Le(lambda:MessageTypeFactory(self.slowPathInputData))
+        self.messageType = UInt16Le(lambda:self.slowPathInputData.__class__._INPUT_MESSAGE_TYPE_)
         
         def SlowPathInputDataFactory():
-            if self.messageType.value == InputMessageType.INPUT_EVENT_MOUSE:
-                return PointerEvent()
+            for c in [PointerEvent, ScancodeKeyEvent, UnicodeKeyEvent]:
+                if self.messageType.value == c._INPUT_MESSAGE_TYPE_:
+                    return c()
+            print "WARNING : unknown slow path input : %s"%self.messageType.value
+            return String()
         
         if messageData is None:
             messageData = FactoryType(SlowPathInputDataFactory)
@@ -893,6 +949,8 @@ class PointerEvent(CompositeType):
     Event use to communicate mouse position
     @see: http://msdn.microsoft.com/en-us/library/cc240586.aspx
     """
+    _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_MOUSE
+    
     def __init__(self):
         CompositeType.__init__(self)
         self.pointerFlags = UInt16Le()
@@ -904,6 +962,8 @@ class ScancodeKeyEvent(CompositeType):
     Event use to communicate keyboard informations
     @see: http://msdn.microsoft.com/en-us/library/cc240584.aspx
     """
+    _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_SCANCODE
+    
     def __init__(self):
         CompositeType.__init__(self)
         self.keyboardFlags = UInt16Le()
@@ -915,6 +975,8 @@ class UnicodeKeyEvent(CompositeType):
     Event use to communicate keyboard informations
     @see: http://msdn.microsoft.com/en-us/library/cc240585.aspx
     """
+    _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_UNICODE
+    
     def __init__(self):
         CompositeType.__init__(self)
         self.keyboardFlags = UInt16Le()
@@ -941,7 +1003,6 @@ class PDUClientListener(object):
     
     def recvDstBltOrder(self, order):
         """
-        Override this function to enable rectangle order
         @param order: rectangle order
         """
         pass
@@ -952,7 +1013,7 @@ class PDUServerListener(object):
     """
     pass
     
-class PDU(LayerAutomata, tpkt.FastPathListener):
+class PDULayer(LayerAutomata, tpkt.FastPathListener):
     """
     Global channel for MCS that handle session
     identification user, licensing management, and capabilities exchange
@@ -1022,8 +1083,7 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         """
         Send PDU close packet and call close method on transport method
         """
-        self._transport.send(ShareDataHeader(PDUType2.PDUTYPE2_SHUTDOWN_REQUEST, self._transport.getUserId(), self._shareId))
-        self._transport.close()
+        self.sendDataPDU(ShutdownRequestPDU())
         
     def sendInfoPkt(self):
         """
@@ -1057,24 +1117,6 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         else:
             raise InvalidExpectedDataException("Not a valid license packet")
         
-    def readDataPDU(self, data):
-        """
-        Read a DataPdu struct. If is an error PDU log and close layer
-        @param data: Stream from transport layer
-        @return:
-        """
-        #maybe an error message
-        dataPDU = DataPDU()
-        data.readType(dataPDU)
-        if dataPDU.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
-            return dataPDU
-        
-        message = "Unknown code %s"%hex(dataPDU.pduData.errorInfo.value)
-        if ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
-            message = ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
-            
-        print "Error INFO PDU : %s"%message
-        
     def recvDemandActivePDU(self, data):
         """
         Receive demand active PDU which contains 
@@ -1083,12 +1125,15 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         Send confirm active PDU
         @param data: Stream
         """
-        demandActivePDU = DemandActivePDU()
-        data.readType(demandActivePDU)
+        pdu = PDU()
+        data.readType(pdu)
         
-        self._shareId = demandActivePDU.shareId.value
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DEMANDACTIVEPDU:
+            raise InvalidExpectedDataException("Expected Demand Active PDU from server")
         
-        for cap in demandActivePDU.capabilitySets._array:
+        self._shareId = pdu.pduMessage.shareId.value
+        
+        for cap in pdu.pduMessage.capabilitySets._array:
             self._serverCapabilities[cap.capabilitySetType] = cap
         
         self.sendConfirmActivePDU()
@@ -1098,8 +1143,9 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         Receive from server 
         @param data: Stream from transport layer
         """
-        dataPDU = self.readDataPDU(data)
-        if dataPDU.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_SYNCHRONIZE:
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_SYNCHRONIZE:
             raise InvalidExpectedDataException("Error in PDU layer automata : expected synchronizePDU")
         self.setNextState(self.recvServerControlCooperatePDU)
         
@@ -1108,8 +1154,9 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         Receive control cooperate PDU from server
         @param data: Stream from transport layer
         """
-        dataPDU = self.readDataPDU(data)
-        if dataPDU.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or dataPDU.pduData.action.value != Action.CTRLACTION_COOPERATE:
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != Action.CTRLACTION_COOPERATE:
             raise InvalidExpectedDataException("Error in PDU layer automata : expected controlCooperatePDU")
         self.setNextState(self.recvServerControlGrantedPDU)
         
@@ -1118,8 +1165,9 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         Receive last control PDU the granted control PDU
         @param data: Stream from transport layer
         """
-        dataPDU = self.readDataPDU(data)
-        if dataPDU.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or dataPDU.pduData.action.value != Action.CTRLACTION_GRANTED_CONTROL:
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != Action.CTRLACTION_GRANTED_CONTROL:
             raise InvalidExpectedDataException("Error in PDU layer automata : expected controlGrantedPDU")
         self.setNextState(self.recvServerFontMapPDU)
         
@@ -1128,25 +1176,31 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         Last useless connection packet from server to client
         @param data: Stream from transport layer
         """
-        dataPDU = self.readDataPDU(data)
-        if dataPDU.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_FONTMAP:
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_FONTMAP:
             raise InvalidExpectedDataException("Error in PDU layer automata : expected fontMapPDU")
         
         #here i'm connected
         self._clientListener.onReady()
-        self.setNextState(self.recvDataPDU)
+        self.setNextState(self.recvPDU)
         
-    def recvDataPDU(self, data):
+    def recvPDU(self, data):
         """
         Main receive function after connection sequence
         @param data: Stream from transport layer
         """
-        dataPDU = self.readDataPDU(data)
-        if dataPDU is None:
-            return
-        if dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE and dataPDU.pduData.updateType.value == UpdateType.UPDATETYPE_BITMAP:
-            self._clientListener.onUpdate(dataPDU.pduData.updateData.rectangles._array)
-            
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value == PDUType.PDUTYPE_DATAPDU:
+            self.readDataPDU(pdu.pduMessage)
+        elif pdu.shareControlHeader.pduType.value == PDUType.PDUTYPE_DEACTIVATEALLPDU:
+            #use in deactivation-reactivation sequence
+            #next state is either a capabilities re exchange or disconnection
+            #http://msdn.microsoft.com/en-us/library/cc240454.aspx
+            self.setNextState(self.recvDemandActivePDU)
+        
+        
     def recvFastPath(self, fastPathData):
         """
         Implement FastPathListener interface
@@ -1157,6 +1211,44 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         fastPathData.readType(fastPathPDU)
         if fastPathPDU.updateHeader.value == FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
             self._clientListener.onUpdate(fastPathPDU.updateData[1].rectangles._array)
+            
+    def readDataPDU(self, dataPDU):
+        """
+        read a data PDU object
+        @param dataPDU: DataPDU object
+        """
+        if dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
+            message = "Unknown code %s"%hex(dataPDU.pduData.errorInfo.value)
+            if ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
+                message = ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
+                
+            print "Error INFO PDU : %s"%message
+        elif dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SHUTDOWN_DENIED:
+            #may be an event to ask to user
+            self._transport.close()
+        elif dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE:
+            self.readUpdateDataPDU(dataPDU.pduData)
+    
+    def readUpdateDataPDU(self, updateDataPDU):
+        """
+        Read an update data PDU message
+        dispatch update message
+        @param: UpdateDataPDU object
+        """
+        if updateDataPDU.updateType.value == UpdateType.UPDATETYPE_BITMAP:
+            self._clientListener.onUpdate(updateDataPDU.updateData.rectangles._array)
+        
+    def sendPDU(self, pduMessage):
+        """
+        Send a PDU message to transport layer
+        """
+        self._transport.send(PDU(self._transport.getUserId(), pduMessage))
+        
+    def sendDataPDU(self, pduData):
+        """
+        Send an PDUData to transport layer
+        """
+        self.sendPDU(DataPDU(pduData, self._shareId))
         
     def sendConfirmActivePDU(self):
         """
@@ -1188,10 +1280,10 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         inputCapability.imeFileName = self._transport.getGCCClientSettings().core.imeFileName
         
         #make active PDU packet
-        confirmActivePDU = ConfirmActivePDU(self._transport.getUserId())
+        confirmActivePDU = ConfirmActivePDU()
         confirmActivePDU.shareId.value = self._shareId
         confirmActivePDU.capabilitySets._array = self._clientCapabilities.values()
-        self._transport.send(confirmActivePDU)
+        self.sendPDU(confirmActivePDU)
         #send synchronize
         self.sendClientFinalizeSynchronizePDU()
         
@@ -1199,25 +1291,22 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         """
         send a synchronize PDU from client to server
         """
-        synchronizePDU = DataPDU(PDUType2.PDUTYPE2_SYNCHRONIZE, SynchronizeDataPDU(self._transport.getChannelId()), self._transport.getUserId(), self._shareId)
-        self._transport.send(synchronizePDU)
+        synchronizePDU = SynchronizeDataPDU(self._transport.getChannelId())
+        self.sendDataPDU(synchronizePDU)
         
         #ask for cooperation
-        controlCooperatePDU = DataPDU(PDUType2.PDUTYPE2_CONTROL, ControlDataPDU(Action.CTRLACTION_COOPERATE), self._transport.getUserId(), self._shareId)
-        self._transport.send(controlCooperatePDU)
+        controlCooperatePDU = ControlDataPDU(Action.CTRLACTION_COOPERATE)
+        self.sendDataPDU(controlCooperatePDU)
         
         #request control
-        controlRequestPDU = DataPDU(PDUType2.PDUTYPE2_CONTROL, ControlDataPDU(Action.CTRLACTION_REQUEST_CONTROL), self._transport.getUserId(), self._shareId)
-        self._transport.send(controlRequestPDU)
+        controlRequestPDU = ControlDataPDU(Action.CTRLACTION_REQUEST_CONTROL)
+        self.sendDataPDU(controlRequestPDU)
         
-        #send persistent list PDU I don't know why this packet is rejected maybe because we made a 0 size bitmapcache capability
-        #persistentListPDU = PersistentListPDU(self._transport.getUserId(), self._shareId)
-        #persistentListPDU.bitMask = UInt16Le(PersistentKeyListFlag.PERSIST_FIRST_PDU | PersistentKeyListFlag.PERSIST_LAST_PDU)
-        #self._transport.send(persistentListPDU)
+        #TODO persistent key list http://msdn.microsoft.com/en-us/library/cc240494.aspx
         
         #deprecated font list pdu
-        fontListPDU = DataPDU(PDUType2.PDUTYPE2_FONTLIST, FontListDataPDU(), self._transport.getUserId(), self._shareId)
-        self._transport.send(fontListPDU)
+        fontListPDU = FontListDataPDU()
+        self.sendDataPDU(fontListPDU)
         
         self.setNextState(self.recvServerSynchronizePDU)
         
@@ -1226,6 +1315,6 @@ class PDU(LayerAutomata, tpkt.FastPathListener):
         send client input events
         @param pointerEvents: list of pointer events
         """
-        pdu = ClientInputEventPDU(self._transport.getUserId(), self._shareId)
+        pdu = ClientInputEventPDU()
         pdu.slowPathInputEvents._array = [SlowPathInputEvent(x) for x in pointerEvents]
-        self._transport.send(pdu)
+        self.sendDataPDU(pdu)
