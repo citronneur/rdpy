@@ -2,11 +2,11 @@
 
 Remote Desktop Protocol in Twisted Python.
 
-RDPY is full python implementation of RDP and VNC protocol, except the bitmap uncompress for performance. The main goal of RDPY is not to be as faster as freerdp, rdesktop or mstsc, but is made to play with microsoft protocol. There are some limitations essentially due to price of license of some Microsoft products (Packet redirection and License extension in RDP protocol).
+RDPY is full python implementation of RDP and VNC protocol, except the bitmap uncompress for performance. The main goal of RDPY is not to be as faster as freerdp, rdesktop or mstsc, but is made to play with protocol. You can use it as twisted library. In library mode build step is not necessary until you want to uncompress bitmap data. You can use it as QWidget in your Qt4 application. Most of GUI library compatibility would be implemented. You can use pre made script (call binaries) for rdp and vnc client, or rdp proxy with admin spy port.
 
 ## Requirements
 
-### twisted library requirements
+### Twisted library requirements
 
 * python2.7
 * python-twisted
@@ -25,8 +25,8 @@ $ git clone https://github.com/citronneur/rdpy.git rdpy
 $ scons -C rdpy/lib install
 ```
 
-## Library
-To create an RDP client:
+## Library Mode
+To create a RDP client:
 ```
 from rdpy.protocol.rdp import rdp
 class MyRDPFactory(rdp.ClientFactory):
@@ -58,12 +58,12 @@ reactor.run()
 ```
 For more details on client rdp see rdpy/bin/rdpy-rdpclient binaries.
 
-## Binaries
+## Binaries Mode
 RDPY is delivered with 3 binaries : 
 
 RDP Client
 ```
-$ rdpy/bin/rdpy-rdpclient XXX.XXX.XXX.XXX 3389
+$ rdpy/bin/rdpy-rdpclient [-u username] [-p password] [-d domain] [...] XXX.XXX.XXX.XXX[:3389]
 ```
 
 VNC Client

@@ -941,6 +941,8 @@ class SlowPathInputEvent(CompositeType):
         
         if messageData is None:
             messageData = FactoryType(SlowPathInputDataFactory)
+        elif not "_INPUT_MESSAGE_TYPE_" in messageData.__class__.__dict__:
+            raise InvalidExpectedDataException("try to send an invalid Slow Path Input Event")
             
         self.slowPathInputData = messageData
             
@@ -1060,12 +1062,7 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
             caps.CapsType.CAPSTYPE_GLYPHCACHE : caps.Capability(caps.CapsType.CAPSTYPE_GLYPHCACHE, caps.GlyphCapability()),
             caps.CapsType.CAPSTYPE_OFFSCREENCACHE : caps.Capability(caps.CapsType.CAPSTYPE_OFFSCREENCACHE, caps.OffscreenBitmapCacheCapability()),
             caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.CapsType.CAPSTYPE_VIRTUALCHANNEL, caps.VirtualChannelCapability()),
-            caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.CapsType.CAPSTYPE_SOUND, caps.SoundCapability()),
-            #caps.CapsType.CAPSTYPE_CONTROL : caps.Capability(caps.CapsType.CAPSTYPE_CONTROL, caps.ControlCapability()),
-            #caps.CapsType.CAPSTYPE_ACTIVATION : caps.Capability(caps.CapsType.CAPSTYPE_ACTIVATION, caps.WindowActivationCapability()),
-            #caps.CapsType.CAPSTYPE_FONT : caps.Capability(caps.CapsType.CAPSTYPE_FONT, caps.FontCapability()),
-            #caps.CapsType.CAPSTYPE_COLORCACHE : caps.Capability(caps.CapsType.CAPSTYPE_COLORCACHE, caps.ColorCacheCapability()),
-            #caps.CapsType.CAPSTYPE_SHARE : caps.Capability(caps.CapsType.CAPSTYPE_SHARE, caps.ShareCapability())
+            caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.CapsType.CAPSTYPE_SOUND, caps.SoundCapability())
         }
         #share id between client and server
         self._shareId = 0
