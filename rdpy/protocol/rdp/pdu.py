@@ -1259,9 +1259,9 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         
         #init bitmap capability
         bitmapCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability
-        bitmapCapability.preferredBitsPerPixel = self._transport.getGCCClientSettings().core.highColorDepth
-        bitmapCapability.desktopWidth = self._transport.getGCCClientSettings().core.desktopWidth
-        bitmapCapability.desktopHeight = self._transport.getGCCClientSettings().core.desktopHeight
+        bitmapCapability.preferredBitsPerPixel = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).highColorDepth
+        bitmapCapability.desktopWidth = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).desktopWidth
+        bitmapCapability.desktopHeight = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).desktopHeight
          
         #init order capability
         orderCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_ORDER].capability
@@ -1270,11 +1270,11 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         #init input capability
         inputCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_INPUT].capability
         inputCapability.inputFlags.value = caps.InputFlags.INPUT_FLAG_SCANCODES | caps.InputFlags.INPUT_FLAG_MOUSEX | caps.InputFlags.INPUT_FLAG_UNICODE
-        inputCapability.keyboardLayout = self._transport.getGCCClientSettings().core.kbdLayout
-        inputCapability.keyboardType = self._transport.getGCCClientSettings().core.keyboardType
-        inputCapability.keyboardSubType = self._transport.getGCCClientSettings().core.keyboardSubType
-        inputCapability.keyboardrFunctionKey = self._transport.getGCCClientSettings().core.keyboardFnKeys
-        inputCapability.imeFileName = self._transport.getGCCClientSettings().core.imeFileName
+        inputCapability.keyboardLayout = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).kbdLayout
+        inputCapability.keyboardType = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardType
+        inputCapability.keyboardSubType = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardSubType
+        inputCapability.keyboardrFunctionKey = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardFnKeys
+        inputCapability.imeFileName = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).imeFileName
         
         #make active PDU packet
         confirmActivePDU = ConfirmActivePDU()

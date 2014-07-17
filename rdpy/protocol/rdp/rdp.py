@@ -24,7 +24,7 @@ Use to manage RDP stack in twisted
 from twisted.internet import protocol
 from rdpy.network.error import CallPureVirtualFuntion, InvalidValue
 from rdpy.network.layer import LayerMode
-import tpkt, tpdu, mcs, pdu
+import tpkt, tpdu, mcs, pdu, gcc
 
 class RDPClientController(pdu.PDUClientListener):
     """
@@ -68,8 +68,8 @@ class RDPClientController(pdu.PDUClientListener):
         @param height: height in pixel of screen
         """
         #set screen definition in MCS layer
-        self._mcsLayer._clientSettings.core.desktopHeight.value = height
-        self._mcsLayer._clientSettings.core.desktopWidth.value = width
+        self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).desktopHeight.value = height
+        self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).desktopWidth.value = width
         
     def setUsername(self, username):
         """

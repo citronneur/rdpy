@@ -121,7 +121,7 @@ class MCS(LayerAutomata):
         @param presentation: presentation layer
         """
         LayerAutomata.__init__(self, mode, presentation)
-        self._clientSettings = gcc.ClientSettings()
+        self._clientSettings = gcc.clientSettings()
         self._serverSettings = gcc.ServerSettings()
         #default user Id
         self._userId = 1
@@ -136,7 +136,7 @@ class MCS(LayerAutomata):
         a write connect initial packet
         """
         if self._mode == LayerMode.CLIENT:
-            self._clientSettings.core.serverSelectedProtocol.value = self._transport._selectedProtocol
+            self._clientSettings.getBlock(gcc.MessageType.CS_CORE).serverSelectedProtocol.value = self._transport._selectedProtocol
             self.sendConnectInitial()
         else:
             self.setNextState(self.recvConnectInitial)

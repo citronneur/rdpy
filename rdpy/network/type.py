@@ -821,7 +821,7 @@ class ArrayType(Type):
     But in read mode it can be dynamic
     readLen may be dynamic
     """
-    def __init__(self, typeFactory, init = None, readLen = UInt8(), conditional = lambda:True, optional = False, constant = False):
+    def __init__(self, typeFactory, init = None, readLen = None, conditional = lambda:True, optional = False, constant = False):
         """
         @param typeFactory: class use to init new element on read
         @param init: init array
@@ -843,10 +843,14 @@ class ArrayType(Type):
         @param s: Stream
         """
         self._array = []
-        for _ in range(0, self._readLen.value):
+        i = 0
+        #self._readLen is None means that array will be read until end of stream
+        while self._readLen is None or i < self._readLen.value:
             element = self._typeFactory()
+            element._optional = self._readLen is None
             s.readType(element)
             self._array.append(element)
+            i += 1
     
     def __write__(self, s):
         """
