@@ -25,7 +25,7 @@ The main channel is the graphical channel.
 It exist channel for file system order, audio channel, clipboard etc...
 """
 from rdpy.network.layer import LayerAutomata, StreamSender, Layer, LayerMode
-from rdpy.network.type import sizeof, Stream, UInt8, UInt16Be
+from rdpy.network.type import sizeof, Stream, UInt8, UInt16Le
 from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
 
@@ -60,7 +60,7 @@ class Channel:
 
 class MCS(LayerAutomata):
     """
-    Multi Channel Service layer
+    Multiple Channel Service layer
     the main layer of RDP protocol
     is why he can do everything and more!
     """
@@ -122,13 +122,13 @@ class MCS(LayerAutomata):
         """
         LayerAutomata.__init__(self, mode, presentation)
         self._clientSettings = gcc.clientSettings()
-        self._serverSettings = gcc.ServerSettings()
+        self._serverSettings = gcc.serverSettings()
         #default user Id
-        self._userId = 1
+        self._userId = 1 + Channel.MCS_USERCHANNEL_BASE
         #list of channel use in this layer and connection state
         self._channelIds = {Channel.MCS_GLOBAL_CHANNEL: presentation}
         #use to record already requested channel
-        self._channelIdsRequest = {}
+        self._channelIdsRequested = {}
     
     def connect(self):
         """
@@ -143,27 +143,29 @@ class MCS(LayerAutomata):
         
     def connectNextChannel(self):
         """
-        Send sendChannelJoinRequest message on next unconnect channel
+        Send sendChannelJoinRequest message on next disconnect channel
+        client automata function
         """
         for (channelId, layer) in self._channelIds.iteritems():
-            #for each unconnect channel send a request
-            if not self._channelIdsRequest.has_key(channelId):
+            #for each disconnect channel send a request
+            if not self._channelIdsRequested.has_key(channelId):
                 self.sendChannelJoinRequest(channelId)
                 self.setNextState(self.recvChannelJoinConfirm)
                 return
             
-        #connection is done reinit class
+        #connection is done
         self.setNextState(self.recvData)
         #try connection on all requested channel
         for (channelId, layer) in self._channelIds.iteritems():
-            if self._channelIdsRequest[channelId] and not layer is None:
-                #use proxy foreach channell
+            if self._channelIdsRequested[channelId] and not layer is None:
+                #use proxy for each channel
                 layer._transport = MCS.MCSProxySender(self, channelId)
                 layer.connect()
                 
     def sendConnectInitial(self):
         """
         Send connect initial packet
+        client automata function
         """
         ccReq = gcc.writeConferenceCreateRequest(self._clientSettings)
         ccReqStream = Stream()
@@ -179,25 +181,66 @@ class MCS(LayerAutomata):
         self.setNextState(self.recvConnectResponse)
         
     def sendConnectResponse(self):
-        pass
+        """
+        Send connect response
+        server automata function
+        """
+        ccReq = gcc.writeConferenceCreateResponse(self._serverSettings)
+        ccReqStream = Stream()
+        ccReqStream.writeType(ccReq)
+        
+        tmp = (ber.writeEnumerated(0), ber.writeInteger(0), self.writeDomainParams(22, 3, 0, 0xfff8), 
+               ber.writeOctetstring(ccReqStream.getvalue()))
+        self._transport.send((ber.writeApplicationTag(Message.MCS_TYPE_CONNECT_RESPONSE, sizeof(tmp)), tmp))
+        
+        self.setNextState(self.recvErectDomainRequest)
         
     def sendErectDomainRequest(self):
         """
         Send a formated erect domain request for RDP connection
+        client automata function
         """
-        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ERECT_DOMAIN_REQUEST)), per.writeInteger(0), per.writeInteger(0)))
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ERECT_DOMAIN_REQUEST)), 
+                              per.writeInteger(0), 
+                              per.writeInteger(0)))
         
     def sendAttachUserRequest(self):
         """
         Send a formated attach user request for RDP connection
+        client automata function
         """
         self._transport.send(self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ATTACH_USER_REQUEST)))
+        
+    def sendAttachUserConfirm(self):
+        """
+        Send attach user confirm
+        server automata function
+        """
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ATTACH_USER_CONFIRM)), 
+                             per.writeEnumerates(0), 
+                             per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE)))
         
     def sendChannelJoinRequest(self, channelId):
         """
         Send a formated Channel join request from client to server
+        client automata function
+        @param channelId: id of channel requested
         """
-        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_REQUEST)), UInt16Be(self._userId), UInt16Be(channelId)))
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_REQUEST)), 
+                              per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE), 
+                              per.writeInteger16(channelId)))
+        
+    def sendChannelJoinConfirm(self, channelId, confirm):
+        """
+        Send a confirm channel (or not) to client
+        @param channelId: id of channel
+        @param confirm: connection state 
+        """
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_CONFIRM)), 
+                              per.writeEnumerates(int(confirm)), 
+                              per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE), 
+                              per.writeInteger16(channelId), 
+                              per.writeInteger16(channelId)))
     
     def send(self, channelId, data):
         """
@@ -205,11 +248,16 @@ class MCS(LayerAutomata):
         @param channelId: Channel use to send
         @param data: message to send
         """
-        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.SEND_DATA_REQUEST)), UInt16Be(self._userId), UInt16Be(channelId), UInt8(0x70), UInt16Be(sizeof(data)) | UInt16Be(0x8000), data))
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.SEND_DATA_REQUEST)), 
+                              per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE), 
+                              per.writeInteger16(channelId), 
+                              UInt8(0x70), 
+                              per.writeLength(sizeof(data)), data))
     
     def recvConnectInitial(self, data):
         """
         Receive MCS connect initial from client
+        server automata function
         @param data: Stream
         """
         ber.readApplicationTag(data, UInt8(Message.MCS_TYPE_CONNECT_INITIAL))
@@ -222,11 +270,16 @@ class MCS(LayerAutomata):
         self.readDomainParams(data)
         self.readDomainParams(data)
         self.readDomainParams(data)
-        gcc.readConferenceCreateRequest(Stream(ber.readOctetString(data)))
+        self._clientSettings = gcc.readConferenceCreateRequest(Stream(ber.readOctetString(data)))
+        
+        self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelIdArray._array = [UInt16Le(x + Channel.MCS_GLOBAL_CHANNEL) for x in range(1, len(self._clientSettings.getBlock(gcc.MessageType.CS_NET).channelDefArray._array) + 1)]
+        
+        self.sendConnectResponse()
     
     def recvConnectResponse(self, data):
         """
         Receive MCS connect response from server
+        client automata function
         @param data: Stream
         """
         ber.readApplicationTag(data, UInt8(Message.MCS_TYPE_CONNECT_RESPONSE))
@@ -237,7 +290,7 @@ class MCS(LayerAutomata):
             raise InvalidExpectedDataException("invalid expected BER tag")
         gccRequestLength = ber.readLength(data)
         if data.dataLen() != gccRequestLength:
-            raise InvalidSize("bad size of gcc request")
+            raise InvalidSize("bad size of GCC request")
         self._serverSettings = gcc.readConferenceCreateResponse(data)
         
         #send domain request
@@ -247,49 +300,102 @@ class MCS(LayerAutomata):
         #now wait user confirm from server
         self.setNextState(self.recvAttachUserConfirm)
         
-    def recvAttachUserConfirm(self, data):
+    def recvErectDomainRequest(self, data):
         """
-        Receive an attach user confirm
+        Receive erect domain request
+        server automata function
         @param data: Stream
         """
         opcode = UInt8()
-        confirm = UInt8()
-        userId = UInt16Be()
-        data.readType((opcode, confirm))
+        data.readType(opcode)
+        
+        if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.ERECT_DOMAIN_REQUEST):
+            raise InvalidExpectedDataException("Invalid MCS PDU : ERECT_DOMAIN_REQUEST expected")
+        
+        per.readInteger(data)
+        per.readInteger(data)
+        
+        self.setNextState(self.recvAttachUserRequest)
+        
+    def recvAttachUserRequest(self, data):
+        """
+        Receive Attach user request
+        server automata function
+        @param data: Stream
+        """
+        opcode = UInt8()
+        data.readType(opcode)
+        
+        if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.ATTACH_USER_REQUEST):
+            raise InvalidExpectedDataException("Invalid MCS PDU : ATTACH_USER_REQUEST expected")
+        
+        self.sendAttachUserConfirm()
+        self.setNextState(self.recvChannelJoinRequest)
+        
+    def recvAttachUserConfirm(self, data):
+        """
+        Receive an attach user confirm
+        client automata function
+        @param data: Stream
+        """
+        opcode = UInt8()
+        data.readType(opcode)
+        
         if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.ATTACH_USER_CONFIRM):
-            raise InvalidExpectedDataException("invalid MCS PDU")
-        if confirm != 0:
-            raise Exception("server reject user")
-        if opcode & UInt8(2) == UInt8(2):
-            data.readType(userId)
-            self._userId = userId.value
+            raise InvalidExpectedDataException("Invalid MCS PDU : ATTACH_USER_CONFIRM expected")
+        
+        if per.readEnumerates(data) != 0:
+            raise InvalidExpectedDataException("Server reject user")
+        
+        self._userId = per.readInteger16(data, Channel.MCS_USERCHANNEL_BASE)
             
         #build channel list because we have user id
-        #add default channel + channels accepted by gcc connection sequence
-        self._channelIds[self._userId + Channel.MCS_USERCHANNEL_BASE] = None
+        #add default channel + channels accepted by GCC connection sequence
+        self._channelIds[self._userId] = None
         
         self.connectNextChannel()
+        
+    def recvChannelJoinRequest(self, data):
+        """
+        Receive for each client channel a request
+        server automata function
+        @param data: Stream
+        
+        """
+        opcode = UInt8()
+        data.readType(opcode)
+        
+        if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.CHANNEL_JOIN_REQUEST):
+            raise InvalidExpectedDataException("Invalid MCS PDU : CHANNEL_JOIN_REQUEST expected")
+        
+        userId = per.readInteger16(data, Channel.MCS_USERCHANNEL_BASE)
+        if self._userId != userId:
+            raise InvalidExpectedDataException("Invalid MCS User Id")
+        
+        channelId = per.readInteger16(data)
+        self.sendChannelJoinConfirm(channelId, channelId in self._channelIds.keys() or channelId == self._userId)
     
     def recvChannelJoinConfirm(self, data):
         """
         Receive a channel join confirm from server
+        client automata function
         @param data: Stream
         """
         opcode = UInt8()
-        confirm = UInt8()
-        data.readType((opcode, confirm))
+        data.readType(opcode)
+        
         if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.CHANNEL_JOIN_CONFIRM):
-            raise InvalidExpectedDataException("invalid MCS PDU")
-        userId = UInt16Be()
-        channelId = UInt16Be()
-        data.readType((userId, channelId))
+            raise InvalidExpectedDataException("Invalid MCS PDU : CHANNEL_JOIN_CONFIRM expected")
+        
+        confirm = per.readEnumerates(data)
+        
+        userId = per.readInteger16(data, Channel.MCS_USERCHANNEL_BASE)
+        if self._userId != userId:
+            raise InvalidExpectedDataException("Invalid MCS User Id")
+        
+        channelId = per.readInteger16(data)
         #save state of channel
-        self._channelIdsRequest[channelId] = confirm == 0
-        if confirm == 0:
-            print "server accept channel %d"%channelId.value
-        else:
-            print "server refused channel %d"%channelId.value
-            
+        self._channelIdsRequested[channelId] = (confirm == 0)
         self.connectNextChannel()
         
     def recvData(self, data):
@@ -301,32 +407,29 @@ class MCS(LayerAutomata):
         data.readType(opcode)
         
         if self.readMCSPDUHeader(opcode.value, DomainMCSPDU.DISCONNECT_PROVIDER_ULTIMATUM):
-            print "receive DISCONNECT_PROVIDER_ULTIMATUM"
-            self.close()
+            print "INFO : MCS DISCONNECT_PROVIDER_ULTIMATUM"
+            self._transport.close()
+            return
             
         elif not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.SEND_DATA_INDICATION):
-            raise InvalidExpectedDataException("invalid expected mcs opcode")
+            raise InvalidExpectedDataException("Invalid expected MCS opcode")
         
-        userId = UInt16Be()
-        channelId = UInt16Be()
-        flags = UInt8()
-        length = UInt8()
+        #server user id
+        per.readInteger16(data, Channel.MCS_USERCHANNEL_BASE)
         
-        data.readType((userId, channelId, flags, length))
+        channelId = per.readInteger16(data)
         
-        if length & UInt8(0x80) == UInt8(0x80):
-            lengthP2 = UInt8()
-            data.readType(lengthP2)
-            length = UInt16Be(length.value & 0x7f << 8 | lengthP2.value)
+        per.readEnumerates(data)       
+        per.readLength(data)
         
         #channel id doesn't match a requested layer
-        if not self._channelIdsRequest.has_key(channelId):
-            print "receive data for an unrequested layer"
+        if not self._channelIdsRequested.has_key(channelId):
+            print "ERROR : receive data for an unrequested layer"
             return
         
         #channel id math an unconnected layer
-        if not self._channelIdsRequest[channelId]:
-            print "receive data for an unconnected layer"
+        if not self._channelIdsRequested[channelId]:
+            print "ERROR : receive data for an unconnected layer"
             return
         
         self._channelIds[channelId].recv(data) 

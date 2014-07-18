@@ -214,7 +214,7 @@ class RDPServerController(pdu.PDUServerListener):
         @param privateKeyFileName: file contain server private key
         @param certficiateFileName: file that contain public key
         """
-        self._pduLayer = pdu.PDU(self)
+        self._pduLayer = pdu.PDULayer(self)
         #multi channel service
         self._mcsLayer = mcs.MCS(LayerMode.SERVER, self._pduLayer)
         #transport pdu layer

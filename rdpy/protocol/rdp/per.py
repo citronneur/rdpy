@@ -15,7 +15,7 @@ def readLength(s):
     s.readType(byte)
     size = 0
     if byte.value & 0x80:
-        byte.value &= 0x80
+        byte.value &= ~0x80
         size = byte.value << 8
         s.readType(byte)
         size += byte.value

@@ -71,7 +71,7 @@ def readLength(s):
     length = UInt8()
     s.readType(length)
     byte = length.value
-    if (byte & 0x80):
+    if byte & 0x80:
         byte &= ~0x80
         if byte == 1:
             size = UInt8()
@@ -166,7 +166,7 @@ def writeBoolean(b):
     """
     Return structure that represent boolean in BER specification
     @param b: boolean
-    @return: BER boolean structure
+    @return: BER boolean block
     """
     boolean = UInt8(0)
     if b:
@@ -209,7 +209,7 @@ def writeInteger(value):
     """
     Write integer value
     @param param: INT or Python long
-    @return: BER integer structure 
+    @return: BER integer block 
     """
     if value <= 0xff:
         return (writeUniversalTag(Tag.BER_TAG_INTEGER, False), writeLength(1), UInt8(value))
@@ -233,7 +233,7 @@ def writeOctetstring(value):
     """
     Write string in BER representation
     @param value: string
-    @return: string BER structure 
+    @return: BER octet string block 
     """
     return (writeUniversalTag(Tag.BER_TAG_OCTET_STRING, False), writeLength(len(value)), String(value))
 
@@ -250,3 +250,11 @@ def readEnumerated(s):
     enumer = UInt8()
     s.readType(enumer)
     return enumer.value
+
+def writeEnumerated(enumerated):
+    """
+    Write enumerated structure
+    @param s: Stream
+    @return: BER enumerated block 
+    """
+    return (writeUniversalTag(Tag.BER_TAG_ENUMERATED, False), writeLength(1), UInt8(enumerated))

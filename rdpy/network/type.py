@@ -439,6 +439,9 @@ class CompositeType(Type):
                         break
                     s.pos -= sizeof(self.__dict__[tmpName])
                 raise e
+        if not self._readLen is None and readLen < self._readLen.value:
+            print "WARNING : still have correct data in packet %s, read it as padding"%self.__class__
+            s.read(self._readLen.value - readLen)
             
     def __write__(self, s):
         """
@@ -453,10 +456,10 @@ class CompositeType(Type):
                 raise e
             
     def __sizeof__(self):
-        '''
-        call sizeof on each subtype
+        """
+        Call sizeof on each sub type
         @return: sum of sizeof of each public type attributes
-        '''
+        """
         size = 0
         for name in self._typeName:
             size += sizeof(self.__dict__[name])
@@ -665,7 +668,7 @@ class String(Type, CallableValue):
     '''
     String network type
     '''
-    def __init__(self, value = "", readLen = UInt32Le(), conditional = lambda:True, optional = False, constant = False):
+    def __init__(self, value = "", readLen = UInt32Le(), conditional = lambda:True, optional = False, constant = False, unicode = False):
         '''
         constructor with new string
         @param value: python string use for inner value
@@ -673,11 +676,13 @@ class String(Type, CallableValue):
         @param conditional : function call before read or write type
         @param optional: boolean check before read if there is still data in stream
         @param constant: if true check any changement of object during reading
+        @param unicode: Encode and decode value as unicode
         '''
         Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
         CallableValue.__init__(self, value)
         #type use to know read length
         self._readLen = readLen
+        self._unicode = unicode
         
     def __eq__(self, other):
         '''
@@ -702,52 +707,60 @@ class String(Type, CallableValue):
         return self.value
     
     def __write__(self, s):
-        '''
-        write the entire raw value
+        """
+        Write the entire raw value
         @param s: Stream
-        '''
-        s.write(self.value)
+        """
+        if self._unicode:
+            s.write(encodeUnicode(self.value))
+        else:
+            s.write(self.value)
     
     def __read__(self, s):
-        '''
-        read all stream if len of inner value is zero
-        else read the len of inner string
+        """
+        read all stream if length of inner value is zero
+        else read the length of inner string
         @param s: Stream
-        '''
+        """
         if self._readLen.value == 0:
             self.value = s.getvalue()
         else:
             self.value = s.read(self._readLen.value)
         
-    def __sizeof__(self):
-        '''
-        return len of string
-        @return: len of inner string
-        '''
-        return len(self.value)
-    
-class UniString(String):
-    '''
-    string with unicode representation
-    '''
-    def write(self, s):
-        '''
-        separate each char with null char 
-        and end with double null char
-        @param s: Stream
-        '''
-        for c in self.value:
-            s.writeType(UInt8(ord(c)))
-            s.writeType(UInt8(0))
-        s.writeType(UInt16Le(0))
+        if self._unicode:
+            self.value = decodeUnicode(self.value)
         
     def __sizeof__(self):
-        '''
-        return len of uni string
-        @return: 2*len + 2
-        '''
-        return len(self.value) * 2 + 2
+        """
+        return length of string
+        @return: length of inner string
+        """
+        if self._unicode:
+            return 2 * len(self.value) + 2
+        else:
+            return len(self.value)
     
+def encodeUnicode(s):
+    """
+    Encode string in unicode
+    @param s: str python
+    @return: unicode string
+    """
+    return "".join([c + "\x00" for c in s]) + "\x00\x00"
+
+def decodeUnicode(s):
+    """
+    Decode Unicode string
+    @param s: unicode string
+    @return: str python
+    """
+    i = 0
+    r = ""
+    while i < len(s) - 2:
+        if i % 2 == 0:
+            r += s[i]
+        i += 1
+    return r
 
 class Stream(StringIO):
     '''
@@ -849,6 +862,8 @@ class ArrayType(Type):
             element = self._typeFactory()
             element._optional = self._readLen is None
             s.readType(element)
+            if not element._is_readed:
+                break
             self._array.append(element)
             i += 1
     

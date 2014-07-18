@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
+from rdpy.network.error import InvalidExpectedDataException
 
 """
 Definition of structure use for capabilities nego
@@ -233,43 +234,17 @@ class Capability(CompositeType):
             """
             Closure for capability factory
             """
-            if self.capabilitySetType.value == CapsType.CAPSTYPE_GENERAL:
-                return GeneralCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_BITMAP:
-                return BitmapCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_ORDER:
-                return OrderCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_BITMAPCACHE:
-                return BitmapCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_POINTER:
-                return PointerCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_INPUT:
-                return InputCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_BRUSH:
-                return BrushCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_GLYPHCACHE:
-                return GlyphCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_OFFSCREENCACHE:
-                return OffscreenBitmapCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_VIRTUALCHANNEL:
-                return VirtualChannelCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_SOUND:
-                return SoundCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_CONTROL:
-                return ControlCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_ACTIVATION:
-                return WindowActivationCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_FONT:
-                return FontCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_COLORCACHE:
-                return ColorCacheCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            elif self.capabilitySetType.value == CapsType.CAPSTYPE_SHARE:
-                return ShareCapability(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
-            else:
-                return String(readLen = UInt16Le(lambda:self.lengthCapability.value - 4))
+            for c in [GeneralCapability, BitmapCapability, OrderCapability, BitmapCacheCapability, PointerCapability, InputCapability, BrushCapability, GlyphCapability, OffscreenBitmapCacheCapability, VirtualChannelCapability, SoundCapability, ControlCapability, WindowActivationCapability, FontCapability, ColorCacheCapability, ShareCapability]:
+                if self.capabilitySetType.value == c._TYPE_:
+                    return c(readLen = self.lengthCapability - 4)
+            print "WARNING : unknown Capability type : %s"%hex(self.capabilitySetType.value)
+            #read entire packet
+            return String(readLen = self.lengthCapability - 4)
         
         if capability is None:
             capability = FactoryType(CapabilityFactory)
+        elif not "_TYPE_" in capability.__class__.__dict__:
+            raise InvalidExpectedDataException("Try to send an invalid capability block")
             
         self.capability = capability
 
@@ -280,6 +255,8 @@ class GeneralCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_GENERAL
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.osMajorType = UInt16Le()
@@ -301,6 +278,8 @@ class BitmapCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240554.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_BITMAP
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.preferredBitsPerPixel = UInt16Le()
@@ -324,6 +303,8 @@ class OrderCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_ORDER
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.terminalDescriptor = String("\x00" * 16, readLen = UInt8(16))
@@ -350,6 +331,8 @@ class BitmapCacheCapability(CompositeType):
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240559.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_BITMAPCACHE
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.pad1 = UInt32Le()
@@ -373,6 +356,8 @@ class PointerCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240562.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_POINTER
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.colorPointerFlag = UInt16Le()
@@ -386,6 +371,8 @@ class InputCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240563.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_INPUT
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.inputFlags = UInt16Le()
@@ -407,6 +394,8 @@ class BrushCapability(CompositeType):
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240564.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_BRUSH
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.brushSupportLevel = UInt32Le(BrushSupport.BRUSH_DEFAULT)
@@ -417,6 +406,8 @@ class GlyphCapability(CompositeType):
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240565.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_GLYPHCACHE
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.glyphCache = ArrayType(CacheEntry, init = [CacheEntry() for _ in range(0,10)], readLen = UInt8(10))
@@ -431,6 +422,8 @@ class OffscreenBitmapCacheCapability(CompositeType):
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240550.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_OFFSCREENCACHE
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.offscreenSupportLevel = UInt32Le(OffscreenSupportLevel.FALSE)
@@ -444,6 +437,8 @@ class VirtualChannelCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240551.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_VIRTUALCHANNEL
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.flags = UInt32Le(VirtualChannelCompressionFlag.VCCAPS_NO_COMPR)
@@ -455,6 +450,8 @@ class SoundCapability(CompositeType):
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240552.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_SOUND
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.soundFlags = UInt16Le(SoundFlag.NONE)
@@ -465,6 +462,8 @@ class ControlCapability(CompositeType):
     client -> server but server ignore contents! Thanks krosoft for brandwidth
     @see: http://msdn.microsoft.com/en-us/library/cc240568.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_CONTROL
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.controlFlags = UInt16Le()
@@ -477,6 +476,8 @@ class WindowActivationCapability(CompositeType):
     client -> server but server ignore contents! Thanks krosoft for brandwidth
     @see: http://msdn.microsoft.com/en-us/library/cc240569.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_ACTIVATION
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.helpKeyFlag = UInt16Le()
@@ -491,6 +492,8 @@ class FontCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240571.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_FONT
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.fontSupportFlags = UInt16Le(0x0001)
@@ -502,6 +505,8 @@ class ColorCacheCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc241564.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_COLORCACHE
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.colorTableCacheSize = UInt16Le(0x0006)
@@ -514,6 +519,8 @@ class ShareCapability(CompositeType):
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240570.aspx
     """
+    _TYPE_ = CapsType.CAPSTYPE_SHARE
+    
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.nodeId = UInt16Le()

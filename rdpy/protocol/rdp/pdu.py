@@ -24,7 +24,7 @@ In this layer are managed all mains bitmap update orders end user inputs
 """
 
 from rdpy.network.layer import LayerAutomata, LayerMode
-from rdpy.network.type import CompositeType, UniString, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+from rdpy.network.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
 from rdpy.network.error import InvalidExpectedDataException, CallPureVirtualFuntion, InvalidType
 
 import gcc, lic, caps, tpkt
@@ -491,13 +491,13 @@ class RDPInfo(CompositeType):
         self.cbAlternateShell = UInt16Le(lambda:sizeof(self.alternateShell) - 2)
         self.cbWorkingDir = UInt16Le(lambda:sizeof(self.workingDir) - 2)
         #microsoft domain
-        self.domain = UniString(readLen = UInt16Le(lambda:self.cbDomain.value - 2))
-        self.userName = UniString(readLen = UInt16Le(lambda:self.cbUserName.value - 2))
-        self.password = UniString(readLen = UInt16Le(lambda:self.cbPassword.value - 2))
+        self.domain = String(readLen = UInt16Le(lambda:self.cbDomain.value - 2), unicode = True)
+        self.userName = String(readLen = UInt16Le(lambda:self.cbUserName.value - 2), unicode = True)
+        self.password = String(readLen = UInt16Le(lambda:self.cbPassword.value - 2), unicode = True)
         #shell execute at start of session
-        self.alternateShell = UniString(readLen = UInt16Le(lambda:self.cbAlternateShell.value - 2))
+        self.alternateShell = String(readLen = UInt16Le(lambda:self.cbAlternateShell.value - 2), unicode = True)
         #working directory for session
-        self.workingDir = UniString(readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2))
+        self.workingDir = String(readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2), unicode = True)
         self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
         
 class RDPExtendedInfo(CompositeType):
@@ -508,9 +508,9 @@ class RDPExtendedInfo(CompositeType):
         CompositeType.__init__(self, conditional = conditional)
         self.clientAddressFamily = UInt16Le(AfInet.AF_INET)
         self.cbClientAddress = UInt16Le(lambda:sizeof(self.clientAddress))
-        self.clientAddress = UniString(readLen = self.cbClientAddress)
+        self.clientAddress = String(readLen = self.cbClientAddress, unicode = True)
         self.cbClientDir = UInt16Le(lambda:sizeof(self.clientDir))
-        self.clientDir = UniString(readLen = self.cbClientDir)
+        self.clientDir = String(readLen = self.cbClientDir, unicode = True)
         #TODO make tiomezone
         self.clientTimeZone = String("\x00" * 172)
         self.clientSessionId = UInt32Le()
@@ -530,7 +530,7 @@ class ShareControlHeader(CompositeType):
         #share control header
         self.totalLength = UInt16Le(totalLength)
         self.pduType = UInt16Le(pduType)
-        self.PDUSource = UInt16Le(userId + 1001)
+        self.PDUSource = UInt16Le(userId)
         
 class ShareDataHeader(CompositeType):
     """
@@ -562,7 +562,7 @@ class PDU(CompositeType):
             for c in [DemandActivePDU, ConfirmActivePDU, DataPDU, DeactiveAllPDU]:
                 if self.shareControlHeader.pduType.value == c._PDUTYPE_:
                     return c()
-            print "WARNING : unknown PDU type : %s"%self.shareControlHeader.pduType.value
+            print "WARNING : unknown PDU type : %s"%hex(self.shareControlHeader.pduType.value)
             #read entire packet
             return String()
             
@@ -643,7 +643,7 @@ class DataPDU(CompositeType):
             for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU]:
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
                     return c()
-            print "WARNING : unknown PDU data type : %s"%self.shareDataHeader.pduType2.value
+            print "WARNING : unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value)
             return String()
             
         if pduData is None:
@@ -936,7 +936,7 @@ class SlowPathInputEvent(CompositeType):
             for c in [PointerEvent, ScancodeKeyEvent, UnicodeKeyEvent]:
                 if self.messageType.value == c._INPUT_MESSAGE_TYPE_:
                     return c()
-            print "WARNING : unknown slow path input : %s"%self.messageType.value
+            print "WARNING : unknown slow path input : %s"%hex(self.messageType.value)
             return String()
         
         if messageData is None:
@@ -1037,7 +1037,7 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         LayerAutomata.__init__(self, mode, None)
         
         #logon info send from client to server
-        self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().core.rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
+        self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_CORE).rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
         #server capabilities
         self._serverCapabilities = {
             caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.CapsType.CAPSTYPE_GENERAL, caps.GeneralCapability()),

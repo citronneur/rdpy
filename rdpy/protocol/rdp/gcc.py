@@ -22,8 +22,7 @@ Implement GCC structure use in RDP protocol
 http://msdn.microsoft.com/en-us/library/cc240508.aspx
 """
 
-from rdpy.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, UniString, Stream, sizeof, FactoryType,\
-    ArrayType
+from rdpy.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, Stream, sizeof, FactoryType, ArrayType
 import per
 from rdpy.network.error import InvalidExpectedDataException
 
@@ -204,10 +203,10 @@ class DataBlock(CompositeType):
             """
             for c in [ClientCoreData, ClientSecurityData, ClientNetworkData, ServerCoreData, ServerNetworkData, ServerSecurityData]:
                 if self.type.value == c._TYPE_:
-                    return c()
-            print "WARNING : unknown GCC block type : %s"%self.type.value
+                    return c(readLen = self.length - 4)
+            print "WARNING : unknown GCC block type : %s"%hex(self.type.value)
             #read entire packet
-            return String(readLen = self.length)
+            return String(readLen = self.length - 4)
         
         if dataBlock is None:
             dataBlock = FactoryType(DataBlockFactory)
@@ -223,8 +222,8 @@ class ClientCoreData(CompositeType):
     """
     _TYPE_ = MessageType.CS_CORE
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.rdpVersion = UInt32Le(Version.RDP_VERSION_5_PLUS)
         self.desktopWidth = UInt16Le(1280)
         self.desktopHeight = UInt16Le(800)
@@ -232,7 +231,7 @@ class ClientCoreData(CompositeType):
         self.sasSequence = UInt16Le(Sequence.RNS_UD_SAS_DEL)
         self.kbdLayout = UInt32Le(KeyboardLayout.FRENCH)
         self.clientBuild = UInt32Le(3790)
-        self.clientName = UniString("rdpy" + "\x00"*11, readLen = UInt8(30))
+        self.clientName = String("rdpy" + "\x00"*11, readLen = UInt8(32), unicode = True)
         self.keyboardType = UInt32Le(KeyboardType.IBM_101_102_KEYS)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
@@ -255,8 +254,8 @@ class ServerCoreData(CompositeType):
     """
     _TYPE_ = MessageType.SC_CORE
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.rdpVersion = UInt32Le(Version.RDP_VERSION_5_PLUS)
         self.clientRequestedProtocol = UInt32Le()
         
@@ -268,8 +267,8 @@ class ClientSecurityData(CompositeType):
     """
     _TYPE_ = MessageType.CS_SECURITY
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.encryptionMethods = UInt32Le()
         self.extEncryptionMethods = UInt32Le()
         
@@ -283,8 +282,8 @@ class ServerSecurityData(CompositeType):
     """
     _TYPE_ = MessageType.SC_SECURITY
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.encryptionMethod = UInt32Le()
         self.encryptionLevel = UInt32Le()
         
@@ -309,8 +308,8 @@ class ClientNetworkData(CompositeType):
     """
     _TYPE_ = MessageType.CS_NET
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.channelCount = UInt32Le()
         self.channelDefArray = ArrayType(ChannelDef, readLen = self.channelCount)
         
@@ -322,19 +321,19 @@ class ServerNetworkData(CompositeType):
     """
     _TYPE_ = MessageType.SC_NET
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.MCSChannelId = UInt16Le()
         self.channelCount = UInt16Le(lambda:len(self.channelIdArray._array))
         self.channelIdArray = ArrayType(UInt16Le, readLen = self.channelCount)
-        self.pad = UInt16Le(conditional = lambda:(self.channelCount.value % 2 == 1))
+        self.pad = UInt16Le(conditional = lambda:((self.channelCount.value % 2) == 1))
         
 class Settings(CompositeType):
     """
     Class which group all clients settings supported by RDPY
     """
-    def __init__(self, init = []):
-        CompositeType.__init__(self)
+    def __init__(self, init = [], readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.settings = ArrayType(DataBlock, [DataBlock(i) for i in init])
     
     def getBlock(self, messageType):
@@ -346,18 +345,6 @@ class Settings(CompositeType):
             if i.type.value == messageType:
                 return i.dataBlock
         return None
-        
-class ServerSettings(object):
-    """
-    Server settings
-    """
-    def __init__(self):
-        #core settings of server
-        self.core = ServerCoreData()
-        #unuse security informations
-        self.security = ServerSecurityData()
-        #channel id accepted by server
-        self.channelsId = []
         
 def clientSettings():
     """
@@ -371,13 +358,14 @@ def serverSettings():
     Build settings for server
     @return Settings
     """
-    return Settings([ServerCoreData(), ServerSecurityData(), ServerSecurityData()])
+    return Settings([ServerCoreData(), ServerSecurityData(), ServerNetworkData()])
         
 def readConferenceCreateRequest(s):
     """
     Read a response from client
     GCC create request
     @param s: Stream
+    @param client settings (Settings)
     """
     per.readChoice(s)
     per.readObjectIdentifier(s, t124_02_98_oid)
@@ -394,6 +382,10 @@ def readConferenceCreateRequest(s):
         raise InvalidExpectedDataException("Invalid choice in readConferenceCreateRequest")
     
     per.readOctetStream(s, h221_cs_key, 4)
+    length = per.readLength(s)
+    clientSettings = Settings(readLen = UInt32Le(length))
+    s.readType(clientSettings)
+    return clientSettings
     
 def readConferenceCreateResponse(s):
     """
@@ -413,59 +405,11 @@ def readConferenceCreateResponse(s):
     per.readChoice(s)
     if not per.readOctetStream(s, h221_sc_key, 4):
         raise InvalidExpectedDataException("cannot read h221_sc_key")
-    #serverSettings = Settings()
-    #s.readType(serverSettings)
-    #return serverSettings
-    return readServerDataBlocks(s)
     
-def readServerDataBlocks(s):
-    """
-    Read GCC server data blocks
-    And return result in Server Settings object
-    @param s: Stream
-    @return: ServerSettings
-    """
-    settings = ServerSettings()
     length = per.readLength(s)
-    while length > 0:
-        marker = s.readLen()
-        blockType = UInt16Le()
-        blockLength = UInt16Le()
-        s.readType((blockType, blockLength))
-        #read core block
-        if blockType.value == MessageType.SC_CORE:
-            s.readType(settings.core)
-        #read network block
-        elif blockType.value == MessageType.SC_NET:
-            settings.channelsId = readServerSecurityData(s)
-        #read security block
-        #unused in rdpy because use SSL layer
-        elif blockType.value == MessageType.SC_SECURITY:
-            s.readType(settings.security)
-        else:
-            print "Unknown server block %s"%hex(type)
-        length -= blockLength.value
-        s.seek(marker + blockLength.value)
-        
-    return settings
-
-def readServerSecurityData(s):
-    """
-    Read server security and fill it in settings
-    Read all channels accepted by server by server
-    @param s: Stream
-    @return: list of channel id selected by server
-    @see: http://msdn.microsoft.com/en-us/library/cc240522.aspx
-    """
-    channelsId = []
-    channelId = UInt16Le()
-    numberOfChannels = UInt16Le()
-    s.readType((channelId, numberOfChannels))
-    for _ in range(0, numberOfChannels.value):
-        channelId = UInt16Le()
-        s.readType(channelId)
-        channelsId.append(channelId)
-    return channelsId
+    serverSettings = Settings(readLen = UInt32Le(length))
+    s.readType(serverSettings)
+    return serverSettings
 
 def writeConferenceCreateRequest(userData):
     """
@@ -482,20 +426,17 @@ def writeConferenceCreateRequest(userData):
             per.writeNumberOfSet(1), per.writeChoice(0xc0),
             per.writeOctetStream(h221_cs_key, 4), per.writeOctetStream(userDataStream.getvalue()))
     
-def writeConferenceCreateResponse(settings):
+def writeConferenceCreateResponse(serverData):
     """
     Write a conference create response packet
-    @param settings: ServerSettingsDataBlock
+    @param serverData: Settings for server
     @return: gcc packet
     """
-    pass
+    serverDataStream = Stream()
+    serverDataStream.writeType(serverData)
     
-def writeClientDataBlocks(settings):
-    """
-    Write all blocks for client
-    and return GCC valid structure
-    @param settings: ClientSettings
-    """
-    return (DataBlock(settings.core), 
-            DataBlock(settings.security),
-            DataBlock(settings.network))
+    return (per.writeChoice(0), per.writeObjectIdentifier(t124_02_98_oid),
+            per.writeLength(len(serverDataStream.getvalue()) + 14), per.writeChoice(0x14),
+            per.writeInteger16(0x79F3, 1001), per.writeInteger(1), per.writeEnumerates(16),
+            per.writeNumberOfSet(1), per.writeChoice(0xc0),
+            per.writeOctetStream(h221_sc_key, 4), per.writeOctetStream(serverDataStream.getvalue()))
