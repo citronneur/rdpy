@@ -139,6 +139,7 @@ class MCS(LayerAutomata):
             self._clientSettings.getBlock(gcc.MessageType.CS_CORE).serverSelectedProtocol.value = self._transport._selectedProtocol
             self.sendConnectInitial()
         else:
+            self._serverSettings.getBlock(gcc.MessageType.SC_CORE).clientRequestedProtocol.value = self._transport._requestedProtocol
             self.setNextState(self.recvConnectInitial)
         
     def connectNextChannel(self):

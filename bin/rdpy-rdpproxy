@@ -11,7 +11,7 @@ from rdpy.protocol.rdp import rdp
 
 class TestServerFactory(rdp.ServerFactory):
     def __init__(self):
-        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt")
+        rdp.ServerFactory.__init__(self, "/home/sylvain/dev/certificate/rdpy.key", "/home/sylvain/dev/certificate/rdpy.crt")
     def startedConnecting(self, connector):
         pass
     
