@@ -450,9 +450,13 @@ class MCS(LayerAutomata):
             log.info("MCS DISCONNECT_PROVIDER_ULTIMATUM")
             self._transport.close()
             return
-            
-        elif not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.SEND_DATA_INDICATION):
-            raise InvalidExpectedDataException("Invalid expected MCS opcode")
+        
+        #client case
+        elif self._mode == LayerMode.CLIENT and not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.SEND_DATA_INDICATION):
+            raise InvalidExpectedDataException("Invalid expected MCS opcode for server to client communication")
+        
+        elif self._mode == LayerMode.SERVER and not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.SEND_DATA_REQUEST):
+            raise InvalidExpectedDataException("Invalid expected MCS opcode for client to server communication")
         
         #server user id
         per.readInteger16(data, Channel.MCS_USERCHANNEL_BASE)

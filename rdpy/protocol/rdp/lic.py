@@ -204,6 +204,16 @@ class LicPacket(CompositeType):
             
         self.licensingMessage = message
 
+def createValidClientLicensingErrorMessage():
+    """
+    Create a licensing error message that accept client
+    server automata message
+    """
+    message = LicensingErrorMessage()
+    message.dwErrorCode.value = ErrorCode.STATUS_VALID_CLIENT
+    message.dwStateTransition.value = StateTransition.ST_NO_TRANSITION
+    return LicPacket(message = message)
+
 def createNewLicenseRequest(serverLicenseRequest):
     """
     Create new license request in response to server license request

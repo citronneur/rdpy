@@ -491,13 +491,13 @@ class RDPInfo(CompositeType):
         self.cbAlternateShell = UInt16Le(lambda:sizeof(self.alternateShell) - 2)
         self.cbWorkingDir = UInt16Le(lambda:sizeof(self.workingDir) - 2)
         #microsoft domain
-        self.domain = String(readLen = UInt16Le(lambda:self.cbDomain.value - 2), unicode = True)
-        self.userName = String(readLen = UInt16Le(lambda:self.cbUserName.value - 2), unicode = True)
-        self.password = String(readLen = UInt16Le(lambda:self.cbPassword.value - 2), unicode = True)
+        self.domain = String(readLen = UInt16Le(lambda:self.cbDomain.value + 2), unicode = True)
+        self.userName = String(readLen = UInt16Le(lambda:self.cbUserName.value + 2), unicode = True)
+        self.password = String(readLen = UInt16Le(lambda:self.cbPassword.value + 2), unicode = True)
         #shell execute at start of session
-        self.alternateShell = String(readLen = UInt16Le(lambda:self.cbAlternateShell.value - 2), unicode = True)
+        self.alternateShell = String(readLen = UInt16Le(lambda:self.cbAlternateShell.value + 2), unicode = True)
         #working directory for session
-        self.workingDir = String(readLen = UInt16Le(lambda:self.cbWorkingDir.value - 2), unicode = True)
+        self.workingDir = String(readLen = UInt16Le(lambda:self.cbWorkingDir.value + 2), unicode = True)
         self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
         
 class RDPExtendedInfo(CompositeType):
@@ -1065,16 +1065,19 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
             caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.CapsType.CAPSTYPE_SOUND, caps.SoundCapability())
         }
         #share id between client and server
-        self._shareId = 0
+        self._shareId = 0x103EA
   
     def connect(self):
         """
         Connect event in client mode send logon info
         Next state receive license PDU
-        """        
-        self.sendInfoPkt()
-        #next state is license info PDU
-        self.setNextState(self.recvLicenceInfo)
+        """     
+        if self._mode == LayerMode.CLIENT:
+            self.sendInfoPkt()
+            #next state is license info PDU
+            self.setNextState(self.recvLicenceInfo)
+        else:
+            self.setNextState(self.recvInfoPkt)
         
     def close(self):
         """
@@ -1082,24 +1085,35 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         """
         self.sendDataPDU(ShutdownRequestPDU())
         
-    def sendInfoPkt(self):
+    def recvInfoPkt(self, data):
         """
-        Send a logon info packet
+        Receive info packet from client
+        Client credential
+        @param data: Stream
         """
-        #always send extended info because rdpy only accept RDP version 5 and more
-        self._transport.send((UInt16Le(SecurityFlag.SEC_INFO_PKT), UInt16Le(), self._info))
+        securityFlag = UInt16Le()
+        securityFlagHi = UInt16Le()
+        data.readType((securityFlag, securityFlagHi))
+        
+        if not (securityFlag.value & SecurityFlag.SEC_INFO_PKT):
+            raise InvalidExpectedDataException("Waiting info packet")
+        
+        data.readType(self._info)
+        #next state send error license
+        self.sendLicensingErrorMessage()
+        self.sendDemandActivePDU()
     
     def recvLicenceInfo(self, data):
         """
         Read license info packet and check if is a valid client info
         @param data: Stream
         """
-        #license preambule
+        #packet preambule
         securityFlag = UInt16Le()
         securityFlagHi = UInt16Le()
         data.readType((securityFlag, securityFlagHi))
         
-        if securityFlag.value & SecurityFlag.SEC_LICENSE_PKT != SecurityFlag.SEC_LICENSE_PKT:
+        if not (securityFlag.value & SecurityFlag.SEC_LICENSE_PKT):
             raise InvalidExpectedDataException("Waiting license packet")
         
         validClientPdu = lic.LicPacket()
@@ -1134,6 +1148,9 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
             self._serverCapabilities[cap.capabilitySetType] = cap
         
         self.sendConfirmActivePDU()
+        #send synchronize
+        self.sendClientFinalizeSynchronizePDU()
+        self.setNextState(self.recvServerSynchronizePDU)
         
     def recvServerSynchronizePDU(self, data):
         """
@@ -1197,7 +1214,6 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
             #http://msdn.microsoft.com/en-us/library/cc240454.aspx
             self.setNextState(self.recvDemandActivePDU)
         
-        
     def recvFastPath(self, fastPathData):
         """
         Implement FastPathListener interface
@@ -1235,6 +1251,30 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         if updateDataPDU.updateType.value == UpdateType.UPDATETYPE_BITMAP:
             self._clientListener.onUpdate(updateDataPDU.updateData.rectangles._array)
         
+    def sendInfoPkt(self):
+        """
+        Send a logon info packet
+        client automata message
+        """
+        self._transport.send((UInt16Le(SecurityFlag.SEC_INFO_PKT), UInt16Le(), self._info))
+        
+    def sendLicensingErrorMessage(self):
+        """
+        Send a licensing error message
+        server automata message
+        """
+        self._transport.send((UInt16Le(SecurityFlag.SEC_LICENSE_PKT), UInt16Le(), lic.createValidClientLicensingErrorMessage()))
+        
+    def sendDemandActivePDU(self):
+        """
+        Send server capabilities
+        server automata PDU
+        """
+        demandActivePDU = DemandActivePDU()
+        demandActivePDU.shareId.value = self._shareId
+        demandActivePDU.capabilitySets._array = self._serverCapabilities.values()
+        self.sendPDU(demandActivePDU)
+    
     def sendPDU(self, pduMessage):
         """
         Send a PDU message to transport layer
@@ -1281,8 +1321,6 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         confirmActivePDU.shareId.value = self._shareId
         confirmActivePDU.capabilitySets._array = self._clientCapabilities.values()
         self.sendPDU(confirmActivePDU)
-        #send synchronize
-        self.sendClientFinalizeSynchronizePDU()
         
     def sendClientFinalizeSynchronizePDU(self):
         """
@@ -1304,8 +1342,6 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         #deprecated font list pdu
         fontListPDU = FontListDataPDU()
         self.sendDataPDU(fontListPDU)
-        
-        self.setNextState(self.recvServerSynchronizePDU)
         
     def sendInputEvents(self, pointerEvents):
         """
