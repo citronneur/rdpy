@@ -26,8 +26,14 @@ QRemoteDesktop is a widget use for render in rdpy
 from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
-from rdpy.network.error import CallPureVirtualFuntion
-import rle
+from rdpy.base.error import CallPureVirtualFuntion
+
+import rdpy.base.log as log
+
+try:
+    import rdpy.core.rle as rle
+except:
+    log.error("Please build core package before using RLE algorithm : scons -C rdpy/core install")
 
 
 class QAdaptor(object):
@@ -97,7 +103,7 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         if pixelFormat.BitsPerPixel.value == 32 and pixelFormat.RedShift.value == 16:
             imageFormat = QtGui.QImage.Format_RGB32
         else:
-            print "Receive image in bad format"
+            log.error("Receive image in bad format")
             return
  
         image = QtGui.QImage(data, width, height, imageFormat)
@@ -218,7 +224,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
             else:
                 image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32)
         else:
-            print "Receive image in bad format"
+            log.error("Receive image in bad format")
             return
         
         #if image need to be cut
@@ -290,8 +296,6 @@ class QRemoteDesktop(QtGui.QWidget):
         Call when mouse move
         @param event: QMouseEvent
         """
-        if self._adaptor is None:
-            print "No adaptor to send mouse move event"
         self._adaptor.sendMouseEvent(event, False)
         
     def mousePressEvent(self, event):

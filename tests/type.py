@@ -332,19 +332,3 @@ class TypeCase(unittest.TestCase):
             self.assertEqual(s.readLen(), 0, "invalid stream roll back operation")
             return
         self.assertTrue(False, "Constant constraint fail")
-        
-    def test_stream_composite_type_force_read_length_optional(self):
-        '''
-        test where type have readLen forced and have optional subtype which have
-        length greater than last subtype of composite type
-        '''
-        class TestType(rdpy.network.type.CompositeType):
-            def __init__(self, readLen = None):
-                rdpy.network.type.CompositeType.__init__(self, readLen = readLen)
-                self.t1 = rdpy.network.type.UInt32Le(0, optional = True)
-                self.t2 = rdpy.network.type.UInt16Le(0, optional = True)
-                
-        s = rdpy.network.type.Stream("\x00\x00\x00\x00\x00\x00\x00")
-        t = TestType(readLen = rdpy.network.type.UInt8(2))
-        s.readType(t)
-        self.assertTrue(not t.t1._is_readed and t.t2._is_readed, "Invalid optional reading when length is forced")

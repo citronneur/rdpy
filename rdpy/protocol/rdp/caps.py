@@ -16,7 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-from rdpy.network.error import InvalidExpectedDataException
+from rdpy.base.error import InvalidExpectedDataException
+import rdpy.base.log as log
 
 """
 Definition of structure use for capabilities nego
@@ -237,7 +238,7 @@ class Capability(CompositeType):
             for c in [GeneralCapability, BitmapCapability, OrderCapability, BitmapCacheCapability, PointerCapability, InputCapability, BrushCapability, GlyphCapability, OffscreenBitmapCacheCapability, VirtualChannelCapability, SoundCapability, ControlCapability, WindowActivationCapability, FontCapability, ColorCacheCapability, ShareCapability]:
                 if self.capabilitySetType.value == c._TYPE_:
                     return c(readLen = self.lengthCapability - 4)
-            print "WARNING : unknown Capability type : %s"%hex(self.capabilitySetType.value)
+            log.debug("unknown Capability type : %s"%hex(self.capabilitySetType.value))
             #read entire packet
             return String(readLen = self.lengthCapability - 4)
         

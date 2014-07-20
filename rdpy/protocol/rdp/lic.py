@@ -23,7 +23,8 @@ RDP extended license
 """
 
 from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType
-from rdpy.network.error import InvalidExpectedDataException
+from rdpy.base.error import InvalidExpectedDataException
+import rdpy.base.log as log
 
 class MessageType(object):
     """
@@ -193,7 +194,7 @@ class LicPacket(CompositeType):
             for c in [LicensingErrorMessage, ServerLicenseRequest, ClientNewLicenseRequest]:
                 if self.bMsgtype.value == c._MESSAGE_TYPE_:
                     return c()
-            print "WARNING : unknown license message : %s"%self.bMsgtype.value
+            log.debug("unknown license message : %s"%self.bMsgtype.value)
             return String()
         
         if message is None:

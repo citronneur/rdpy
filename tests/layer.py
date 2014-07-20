@@ -26,17 +26,6 @@ class LayerCase(unittest.TestCase):
             
         self.assertRaises(LayerCase.LayerCaseException, rdpy.network.layer.Layer(presentation = TestConnect()).connect)
         
-    def test_layer_receive_event(self):
-        '''
-        test if recv event is send from transport to presentation
-        '''
-        class TestConnect(rdpy.network.layer.Layer):
-            def recv(self, s):
-                if s == "message":
-                    raise LayerCase.LayerCaseException()
-            
-        self.assertRaises(LayerCase.LayerCaseException, rdpy.network.layer.Layer(presentation = TestConnect()).recv, "message")
-        
     def test_layer_automata_more_than_expected(self):
         '''
         test layer automata mechanism if data received is more than expected

@@ -2,7 +2,7 @@
 .project
 .pydevproject
 README.md~
-lib/build/*
+rdpy/core/tmp/*
 *.so
 *.os
 .sconsign.dblite

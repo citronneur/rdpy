@@ -23,7 +23,7 @@ ASN.1 standard
 """
 
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, String
-from rdpy.network.error import InvalidExpectedDataException, InvalidSize
+from rdpy.base.error import InvalidExpectedDataException, InvalidSize
 
 class BerPc(object):
     BER_PC_MASK = 0x20

@@ -29,7 +29,7 @@ Implement Remote FrameBuffer protocol use in VNC client and server
 from twisted.internet import protocol
 from rdpy.network.layer import RawLayer, LayerMode
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
-from rdpy.network.error import InvalidValue, CallPureVirtualFuntion, InvalidType
+from rdpy.base.error import InvalidValue, CallPureVirtualFuntion, InvalidType
 
 class ProtocolVersion(object):
     """

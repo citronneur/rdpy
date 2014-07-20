@@ -23,8 +23,9 @@ http://msdn.microsoft.com/en-us/library/cc240508.aspx
 """
 
 from rdpy.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, Stream, sizeof, FactoryType, ArrayType
-import per
-from rdpy.network.error import InvalidExpectedDataException
+import per, mcs
+from rdpy.base.error import InvalidExpectedDataException
+import rdpy.base.log as log
 
 t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
 
@@ -204,7 +205,7 @@ class DataBlock(CompositeType):
             for c in [ClientCoreData, ClientSecurityData, ClientNetworkData, ServerCoreData, ServerNetworkData, ServerSecurityData]:
                 if self.type.value == c._TYPE_:
                     return c(readLen = self.length - 4)
-            print "WARNING : unknown GCC block type : %s"%hex(self.type.value)
+            log.debug("unknown GCC block type : %s"%hex(self.type.value))
             #read entire packet
             return String(readLen = self.length - 4)
         
@@ -285,8 +286,7 @@ class ServerSecurityData(CompositeType):
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.encryptionMethod = UInt32Le()
-        self.encryptionLevel = UInt32Le()
-        
+        self.encryptionLevel = UInt32Le() 
 
 class ChannelDef(CompositeType):
     """
@@ -310,7 +310,7 @@ class ClientNetworkData(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.channelCount = UInt32Le()
+        self.channelCount = UInt32Le(lambda:len(self.channelDefArray._array))
         self.channelDefArray = ArrayType(ChannelDef, readLen = self.channelCount)
         
 class ServerNetworkData(CompositeType):
@@ -323,7 +323,7 @@ class ServerNetworkData(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.MCSChannelId = UInt16Le()
+        self.MCSChannelId = UInt16Le(mcs.Channel.MCS_GLOBAL_CHANNEL)
         self.channelCount = UInt16Le(lambda:len(self.channelIdArray._array))
         self.channelIdArray = ArrayType(UInt16Le, readLen = self.channelCount)
         self.pad = UInt16Le(conditional = lambda:((self.channelCount.value % 2) == 1))

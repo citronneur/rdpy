@@ -24,7 +24,7 @@ Use to build correct size packet and handle slow path and fast path mode
 """
 from rdpy.network.layer import RawLayer, LayerMode
 from rdpy.network.type import UInt8, UInt16Be, sizeof
-from rdpy.network.error import CallPureVirtualFuntion
+from rdpy.base.error import CallPureVirtualFuntion
 
 class FastPathListener(object):
     """

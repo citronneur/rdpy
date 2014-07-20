@@ -3,7 +3,7 @@
 '''
 
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, String
-from rdpy.network.error import InvalidValue, InvalidExpectedDataException
+from rdpy.base.error import InvalidValue, InvalidExpectedDataException
 
 def readLength(s):
     '''

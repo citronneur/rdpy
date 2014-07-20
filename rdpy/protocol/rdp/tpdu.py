@@ -26,7 +26,7 @@ RDP basic security is not supported by RDPY (because is not a true security laye
 
 from rdpy.network.layer import LayerAutomata, LayerMode, StreamSender
 from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
-from rdpy.network.error import InvalidExpectedDataException
+from rdpy.base.error import InvalidExpectedDataException
 
 class MessageType(object):
     """

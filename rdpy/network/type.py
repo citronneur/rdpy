@@ -27,8 +27,8 @@ We are in python we can use that!
 import struct
 from copy import deepcopy
 from StringIO import StringIO
-from error import InvalidValue
-from rdpy.network.error import InvalidExpectedDataException, InvalidSize, CallPureVirtualFuntion
+from rdpy.base.error import InvalidExpectedDataException, InvalidSize, CallPureVirtualFuntion, InvalidValue
+import rdpy.base.log as log
 
 def sizeof(element):
     """
@@ -432,7 +432,7 @@ class CompositeType(Type):
                     raise InvalidSize("Impossible to read type %s : read length is too small"%(self.__class__))
                 
             except Exception as e:
-                print "Error during read %s::%s"%(self.__class__, name)
+                log.error("Error during read %s::%s"%(self.__class__, name))
                 #roll back already read
                 for tmpName in self._typeName:
                     if tmpName == name:
@@ -440,7 +440,7 @@ class CompositeType(Type):
                     s.pos -= sizeof(self.__dict__[tmpName])
                 raise e
         if not self._readLen is None and readLen < self._readLen.value:
-            print "WARNING : still have correct data in packet %s, read it as padding"%self.__class__
+            log.warning("still have correct data in packet %s, read it as padding"%self.__class__)
             s.read(self._readLen.value - readLen)
             
     def __write__(self, s):
@@ -452,7 +452,7 @@ class CompositeType(Type):
             try:
                 s.writeType(self.__dict__[name])
             except Exception as e:
-                print "Error during write %s::%s"%(self.__class__, name)
+                log.error("Error during write %s::%s"%(self.__class__, name))
                 raise e
             
     def __sizeof__(self):
@@ -950,15 +950,3 @@ def CheckValueOnRead(cls):
             raise InvalidValue("CheckValueOnRead %s != %s"%(self, old))
     cls.read = read
     return cls
-
-def hexDump(src, length=16):
-    '''
-    print hex representation of str
-    @param src: string
-    '''
-    FILTER = ''.join([(len(repr(chr(x))) == 3) and chr(x) or '.' for x in range(256)])
-    for c in xrange(0, len(src), length):
-        chars = src[c:c+length]
-        hexa = ' '.join(["%02x" % ord(x) for x in chars])
-        printable = ''.join(["%s" % ((ord(x) <= 127 and FILTER[ord(x)]) or '.') for x in chars])
-        print "%04x %-*s %s" % (c, length*3, hexa, printable)

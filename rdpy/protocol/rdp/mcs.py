@@ -26,8 +26,9 @@ It exist channel for file system order, audio channel, clipboard etc...
 """
 from rdpy.network.layer import LayerAutomata, StreamSender, Layer, LayerMode
 from rdpy.network.type import sizeof, Stream, UInt8, UInt16Le
-from rdpy.network.error import InvalidExpectedDataException, InvalidValue, InvalidSize
+from rdpy.base.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
+import rdpy.base.log as log
 
 import ber, gcc, per
 
@@ -115,10 +116,11 @@ class MCS(LayerAutomata):
             return self._mcs._serverSettings
         
     
-    def __init__(self, mode, presentation):
+    def __init__(self, mode, presentation, virtualChannels = []):
         """
         @param mode: mode of MCS layer
         @param presentation: presentation layer
+        @param virtualChannels: list additional channels like rdpsnd... [tuple(mcs.ChannelDef, layer)]
         """
         LayerAutomata.__init__(self, mode, presentation)
         self._clientSettings = gcc.clientSettings()
@@ -126,7 +128,13 @@ class MCS(LayerAutomata):
         #default user Id
         self._userId = 1 + Channel.MCS_USERCHANNEL_BASE
         #list of channel use in this layer and connection state
-        self._channelIds = {Channel.MCS_GLOBAL_CHANNEL: presentation}
+        self._channels = {Channel.MCS_GLOBAL_CHANNEL: presentation}
+        #virtual channels
+        self._virtualChannels = virtualChannels
+        #nb join and confirm channel
+        self._nbJoinAndConfirmChannel = 0
+        self._isGlobalChannelRequested = False
+        self._isUserChannelRequested = False
         #use to record already requested channel
         self._channelIdsRequested = {}
     
@@ -137,7 +145,12 @@ class MCS(LayerAutomata):
         """
         if self._mode == LayerMode.CLIENT:
             self._clientSettings.getBlock(gcc.MessageType.CS_CORE).serverSelectedProtocol.value = self._transport._selectedProtocol
+            #ask for virtual channel
+            self._clientSettings.getBlock(gcc.MessageType.CS_NET).channelDefArray._array = [x for (x, _) in self._virtualChannels]
+            #send connect initial
             self.sendConnectInitial()
+            #next wait response
+            self.setNextState(self.recvConnectResponse)
         else:
             self._serverSettings.getBlock(gcc.MessageType.SC_CORE).clientRequestedProtocol.value = self._transport._requestedProtocol
             self.setNextState(self.recvConnectInitial)
@@ -147,21 +160,41 @@ class MCS(LayerAutomata):
         Send sendChannelJoinRequest message on next disconnect channel
         client automata function
         """
-        for (channelId, layer) in self._channelIds.iteritems():
-            #for each disconnect channel send a request
-            if not self._channelIdsRequested.has_key(channelId):
-                self.sendChannelJoinRequest(channelId)
-                self.setNextState(self.recvChannelJoinConfirm)
-                return
-            
+        self.setNextState(self.recvChannelJoinConfirm)
+        #global channel
+        if not self._isGlobalChannelRequested:
+            self.sendChannelJoinRequest(Channel.MCS_GLOBAL_CHANNEL)
+            self._isGlobalChannelRequested = True
+            return
+        
+        #user channel
+        if not self._isUserChannelRequested:
+            self.sendChannelJoinRequest(self._userId)
+            self._isUserChannelRequested = True
+            return
+        
+        #static virtual channel
+        if self._nbJoinAndConfirmChannel < self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelCount.value:
+            channelId = self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelIdArray._array[self._nbJoinAndConfirmChannel]
+            self._nbJoinAndConfirmChannel += 1
+            self.sendChannelJoinRequest(channelId)
+            return
+        
+        self.allChannelConnected()
+        
+    def allChannelConnected(self):
+        """
+        All channels are connected to MCS layer
+        Send connect to upper channel
+        And prepare MCS layer to receive data
+        """
         #connection is done
         self.setNextState(self.recvData)
         #try connection on all requested channel
-        for (channelId, layer) in self._channelIds.iteritems():
-            if self._channelIdsRequested[channelId] and not layer is None:
-                #use proxy for each channel
-                layer._transport = MCS.MCSProxySender(self, channelId)
-                layer.connect()
+        for (channelId, layer) in self._channels.iteritems():
+            #use proxy for each channel
+            layer._transport = MCS.MCSProxySender(self, channelId)
+            layer.connect()
                 
     def sendConnectInitial(self):
         """
@@ -178,8 +211,6 @@ class MCS(LayerAutomata):
                self.writeDomainParams(0xffff, 0xfc17, 0xffff, 0xffff),
                ber.writeOctetstring(ccReqStream.getvalue()))
         self._transport.send((ber.writeApplicationTag(Message.MCS_TYPE_CONNECT_INITIAL, sizeof(tmp)), tmp))
-        #we must receive a connect response
-        self.setNextState(self.recvConnectResponse)
         
     def sendConnectResponse(self):
         """
@@ -193,8 +224,6 @@ class MCS(LayerAutomata):
         tmp = (ber.writeEnumerated(0), ber.writeInteger(0), self.writeDomainParams(22, 3, 0, 0xfff8), 
                ber.writeOctetstring(ccReqStream.getvalue()))
         self._transport.send((ber.writeApplicationTag(Message.MCS_TYPE_CONNECT_RESPONSE, sizeof(tmp)), tmp))
-        
-        self.setNextState(self.recvErectDomainRequest)
         
     def sendErectDomainRequest(self):
         """
@@ -217,7 +246,7 @@ class MCS(LayerAutomata):
         Send attach user confirm
         server automata function
         """
-        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ATTACH_USER_CONFIRM)), 
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ATTACH_USER_CONFIRM), 2), 
                              per.writeEnumerates(0), 
                              per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE)))
         
@@ -237,7 +266,7 @@ class MCS(LayerAutomata):
         @param channelId: id of channel
         @param confirm: connection state 
         """
-        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_CONFIRM)), 
+        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_CONFIRM), 2), 
                               per.writeEnumerates(int(confirm)), 
                               per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE), 
                               per.writeInteger16(channelId), 
@@ -276,6 +305,7 @@ class MCS(LayerAutomata):
         self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelIdArray._array = [UInt16Le(x + Channel.MCS_GLOBAL_CHANNEL) for x in range(1, len(self._clientSettings.getBlock(gcc.MessageType.CS_NET).channelDefArray._array) + 1)]
         
         self.sendConnectResponse()
+        self.setNextState(self.recvErectDomainRequest)
     
     def recvConnectResponse(self, data):
         """
@@ -350,10 +380,6 @@ class MCS(LayerAutomata):
         
         self._userId = per.readInteger16(data, Channel.MCS_USERCHANNEL_BASE)
             
-        #build channel list because we have user id
-        #add default channel + channels accepted by GCC connection sequence
-        self._channelIds[self._userId] = None
-        
         self.connectNextChannel()
         
     def recvChannelJoinRequest(self, data):
@@ -374,7 +400,12 @@ class MCS(LayerAutomata):
             raise InvalidExpectedDataException("Invalid MCS User Id")
         
         channelId = per.readInteger16(data)
-        self.sendChannelJoinConfirm(channelId, channelId in self._channelIds.keys() or channelId == self._userId)
+        #TODO check if it's a virtual channel too
+        #actually algo support virtual channel but not RDPY
+        self.sendChannelJoinConfirm(channelId, channelId in self._channels.keys() or channelId == self._userId)
+        self._nbJoinAndConfirmChannel += 1
+        if self._nbJoinAndConfirmChannel == self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelCount.value + 2:
+            self.allChannelConnected()
     
     def recvChannelJoinConfirm(self, data):
         """
@@ -395,8 +426,16 @@ class MCS(LayerAutomata):
             raise InvalidExpectedDataException("Invalid MCS User Id")
         
         channelId = per.readInteger16(data)
-        #save state of channel
-        self._channelIdsRequested[channelId] = (confirm == 0)
+        #must confirm global channel and user channel
+        if (confirm != 0) and (channelId == Channel.MCS_GLOBAL_CHANNEL or channelId == self._userId):
+            raise InvalidExpectedDataException("Server must confirm static channel")
+        
+        if confirm ==0:
+            serverNet = self._serverSettings.getBlock(gcc.MessageType.SC_NET)
+            for i in range(0, serverNet.channelCount.value):
+                if channelId == serverNet.channelIdArray._array[i].value:
+                    self._channels[channelId] = self._virtualChannels[i][1] 
+        
         self.connectNextChannel()
         
     def recvData(self, data):
@@ -408,7 +447,7 @@ class MCS(LayerAutomata):
         data.readType(opcode)
         
         if self.readMCSPDUHeader(opcode.value, DomainMCSPDU.DISCONNECT_PROVIDER_ULTIMATUM):
-            print "INFO : MCS DISCONNECT_PROVIDER_ULTIMATUM"
+            log.info("MCS DISCONNECT_PROVIDER_ULTIMATUM")
             self._transport.close()
             return
             
@@ -424,16 +463,11 @@ class MCS(LayerAutomata):
         per.readLength(data)
         
         #channel id doesn't match a requested layer
-        if not self._channelIdsRequested.has_key(channelId):
-            print "ERROR : receive data for an unrequested layer"
+        if not self._channels.has_key(channelId):
+            log.error("receive data for an unconnected layer")
             return
-        
-        #channel id math an unconnected layer
-        if not self._channelIdsRequested[channelId]:
-            print "ERROR : receive data for an unconnected layer"
-            return
-        
-        self._channelIds[channelId].recv(data) 
+
+        self._channels[channelId].recv(data) 
     
     def writeDomainParams(self, maxChannels, maxUsers, maxTokens, maxPduSize):
         """

@@ -22,8 +22,9 @@ Use to manage RDP stack in twisted
 """
 
 from twisted.internet import protocol
-from rdpy.network.error import CallPureVirtualFuntion, InvalidValue
+from rdpy.base.error import CallPureVirtualFuntion, InvalidValue
 from rdpy.network.layer import LayerMode
+import rdpy.base.log as log
 import tpkt, tpdu, mcs, pdu, gcc
 
 class RDPClientController(pdu.PDUClientListener):
@@ -153,7 +154,7 @@ class RDPClientController(pdu.PDUClientListener):
             self._pduLayer.sendInputEvents([event])
             
         except InvalidValue:
-            print "try send pointer event with incorrect position"
+            log.info("try send pointer event with incorrect position")
             
     def sendKeyEventScancode(self, code, isPressed):
         """
@@ -176,7 +177,7 @@ class RDPClientController(pdu.PDUClientListener):
             self._pduLayer.sendInputEvents([event])
             
         except InvalidValue:
-            print "try send bad key event"
+            log.info("try send bad key event")
             
     def sendKeyEventUnicode(self, code, isPressed):
         """
@@ -197,7 +198,7 @@ class RDPClientController(pdu.PDUClientListener):
             self._pduLayer.sendInputEvents([event])
             
         except InvalidValue:
-            print "try send bad key event"
+            log.info("try send bad key event")
             
     def close(self):
         """

@@ -23,7 +23,7 @@ Join RDPY design with twisted design
 RDPY use Layer Protocol design (like twisted)
 """
 
-from rdpy.network.error import CallPureVirtualFuntion
+from rdpy.base.error import CallPureVirtualFuntion
 
 class LayerMode(object):
     NONE = 0

@@ -25,8 +25,8 @@ In this layer are managed all mains bitmap update orders end user inputs
 
 from rdpy.network.layer import LayerAutomata, LayerMode
 from rdpy.network.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
-from rdpy.network.error import InvalidExpectedDataException, CallPureVirtualFuntion, InvalidType
-
+from rdpy.base.error import InvalidExpectedDataException, CallPureVirtualFuntion, InvalidType
+import rdpy.base.log as log
 import gcc, lic, caps, tpkt
 
 class SecurityFlag(object):
@@ -562,7 +562,7 @@ class PDU(CompositeType):
             for c in [DemandActivePDU, ConfirmActivePDU, DataPDU, DeactiveAllPDU]:
                 if self.shareControlHeader.pduType.value == c._PDUTYPE_:
                     return c()
-            print "WARNING : unknown PDU type : %s"%hex(self.shareControlHeader.pduType.value)
+            log.debug("unknown PDU type : %s"%hex(self.shareControlHeader.pduType.value))
             #read entire packet
             return String()
             
@@ -643,7 +643,7 @@ class DataPDU(CompositeType):
             for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU]:
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
                     return c()
-            print "WARNING : unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value)
+            log.debug("unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value))
             return String()
             
         if pduData is None:
@@ -936,7 +936,7 @@ class SlowPathInputEvent(CompositeType):
             for c in [PointerEvent, ScancodeKeyEvent, UnicodeKeyEvent]:
                 if self.messageType.value == c._INPUT_MESSAGE_TYPE_:
                     return c()
-            print "WARNING : unknown slow path input : %s"%hex(self.messageType.value)
+            log.debug("unknown slow path input : %s"%hex(self.messageType.value))
             return String()
         
         if messageData is None:
@@ -1219,7 +1219,7 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
             if ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
                 message = ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
                 
-            print "Error INFO PDU : %s"%message
+            log.error("INFO PDU : %s"%message)
         elif dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SHUTDOWN_DENIED:
             #may be an event to ask to user
             self._transport.close()
