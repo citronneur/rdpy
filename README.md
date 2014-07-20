@@ -22,7 +22,7 @@ RDPY is full python implementation of RDP and VNC protocol, except the bitmap un
 ## Build
 ```
 $ git clone https://github.com/citronneur/rdpy.git rdpy
-$ scons -C rdpy/lib install
+$ scons -C rdpy/rdpy/core install
 ```
 
 ## Library Mode
