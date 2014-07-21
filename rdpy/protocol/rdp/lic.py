@@ -79,6 +79,13 @@ class BinaryBlobType(object):
     BB_SCOPE_BLOB = 0x000E
     BB_CLIENT_USER_NAME_BLOB = 0x000F
     BB_CLIENT_MACHINE_NAME_BLOB = 0x0010
+
+class Preambule(object):
+    """
+    Preambule version
+    """
+    PREAMBLE_VERSION_2_0 = 0x2
+    PREAMBLE_VERSION_3_0 = 0x3
     
 class LicenseBinaryBlob(CompositeType):
     """
@@ -98,8 +105,8 @@ class LicensingErrorMessage(CompositeType):
     """
     _MESSAGE_TYPE_ = MessageType.ERROR_ALERT
     
-    def __init__(self, conditional = lambda:True):
-        CompositeType.__init__(self, conditional = conditional)
+    def __init__(self):
+        CompositeType.__init__(self)
         self.dwErrorCode = UInt32Le()
         self.dwStateTransition = UInt32Le()
         self.blob = LicenseBinaryBlob(BinaryBlobType.BB_ERROR_BLOB)
@@ -183,7 +190,7 @@ class LicPacket(CompositeType):
         CompositeType.__init__(self)
         #preambule
         self.bMsgtype = UInt8(lambda:self.licensingMessage.__class__._MESSAGE_TYPE_)
-        self.flag = UInt8()
+        self.flag = UInt8(Preambule.PREAMBLE_VERSION_3_0)
         self.wMsgSize = UInt16Le(lambda: sizeof(self))
         
         def LicensingMessageFactory():

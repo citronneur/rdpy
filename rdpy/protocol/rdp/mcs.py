@@ -278,7 +278,8 @@ class MCS(LayerAutomata):
         @param channelId: Channel use to send
         @param data: message to send
         """
-        self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.SEND_DATA_REQUEST)), 
+        opcode = DomainMCSPDU.SEND_DATA_REQUEST if self._mode == LayerMode.CLIENT else DomainMCSPDU.SEND_DATA_INDICATION
+        self._transport.send((self.writeMCSPDUHeader(UInt8(opcode)), 
                               per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE), 
                               per.writeInteger16(channelId), 
                               UInt8(0x70), 

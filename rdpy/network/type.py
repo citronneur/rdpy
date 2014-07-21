@@ -440,7 +440,7 @@ class CompositeType(Type):
                     s.pos -= sizeof(self.__dict__[tmpName])
                 raise e
         if not self._readLen is None and readLen < self._readLen.value:
-            log.warning("still have correct data in packet %s, read it as padding"%self.__class__)
+            log.debug("still have correct data in packet %s, read it as padding"%self.__class__)
             s.read(self._readLen.value - readLen)
             
     def __write__(self, s):
@@ -668,7 +668,7 @@ class String(Type, CallableValue):
     '''
     String network type
     '''
-    def __init__(self, value = "", readLen = UInt32Le(), conditional = lambda:True, optional = False, constant = False, unicode = False):
+    def __init__(self, value = "", readLen = None, conditional = lambda:True, optional = False, constant = False, unicode = False):
         '''
         constructor with new string
         @param value: python string use for inner value
@@ -722,7 +722,7 @@ class String(Type, CallableValue):
         else read the length of inner string
         @param s: Stream
         """
-        if self._readLen.value == 0:
+        if self._readLen is None:
             self.value = s.getvalue()
         else:
             self.value = s.read(self._readLen.value)

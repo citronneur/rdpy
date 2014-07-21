@@ -1102,6 +1102,7 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         #next state send error license
         self.sendLicensingErrorMessage()
         self.sendDemandActivePDU()
+        self.setNextState(self.recvConfirmActivePDU)
     
     def recvLicenceInfo(self, data):
         """
@@ -1152,6 +1153,23 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         self.sendClientFinalizeSynchronizePDU()
         self.setNextState(self.recvServerSynchronizePDU)
         
+    def recvConfirmActivePDU(self, data):
+        """
+        Receive confirm active PDU from client
+        Capabilities exchange
+        @param data: Stream
+        """
+        pdu = PDU()
+        data.readType(pdu)
+        
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_CONFIRMACTIVEPDU:
+            raise InvalidExpectedDataException("Expected Confirm Active PDU from client")
+        
+        for cap in pdu.pduMessage.capabilitySets._array:
+            self._clientCapabilities[cap.capabilitySetType] = cap
+            
+        self.setNextState(self.recvClientSynchronizePDU)
+        
     def recvServerSynchronizePDU(self, data):
         """
         Receive from server 
@@ -1197,6 +1215,53 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         
         #here i'm connected
         self._clientListener.onReady()
+        self.setNextState(self.recvPDU)
+        
+    def recvClientSynchronizePDU(self, data):
+        """
+        Receive from client 
+        @param data: Stream from transport layer
+        """
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_SYNCHRONIZE:
+            raise InvalidExpectedDataException("Error in PDU layer automata : expected synchronizePDU")
+        self.setNextState(self.recvClientControlCooperatePDU)
+        
+    def recvClientControlCooperatePDU(self, data):
+        """
+        Receive control cooperate PDU from client
+        @param data: Stream from transport layer
+        """
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != Action.CTRLACTION_COOPERATE:
+            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlCooperatePDU")
+        self.setNextState(self.recvClientControlRequestPDU)
+        
+    def recvClientControlRequestPDU(self, data):
+        """
+        Receive last control PDU the request control PDU from client
+        @param data: Stream from transport layer
+        """
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != Action.CTRLACTION_REQUEST_CONTROL:
+            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlGrantedPDU")
+        self.setNextState(self.recvClientFontListPDU)
+        
+    def recvClientFontListPDU(self, data):
+        """
+        Last synchronize packet from client to server
+        @param data: Stream from transport layer
+        """
+        pdu = PDU()
+        data.readType(pdu)
+        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_FONTLIST:
+            raise InvalidExpectedDataException("Error in PDU layer automata : expected fontMapPDU")
+        
+        #finalize server
+        self.sendServerFinalizeSynchronizePDU()
         self.setNextState(self.recvPDU)
         
     def recvPDU(self, data):
@@ -1270,6 +1335,18 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         Send server capabilities
         server automata PDU
         """
+        #init general capability
+        generalCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
+        generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
+        generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
+        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
+        
+        #init bitmap capability
+        bitmapCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability
+        bitmapCapability.preferredBitsPerPixel.value = 16
+        bitmapCapability.desktopWidth.value = 800
+        bitmapCapability.desktopHeight.value = 600
+        
         demandActivePDU = DemandActivePDU()
         demandActivePDU.shareId.value = self._shareId
         demandActivePDU.capabilitySets._array = self._serverCapabilities.values()
@@ -1342,6 +1419,27 @@ class PDULayer(LayerAutomata, tpkt.FastPathListener):
         #deprecated font list pdu
         fontListPDU = FontListDataPDU()
         self.sendDataPDU(fontListPDU)
+        
+    def sendServerFinalizeSynchronizePDU(self):
+        """
+        Send last synchronize packet from server to client
+        """
+        synchronizePDU = SynchronizeDataPDU(self._transport.getChannelId())
+        self.sendDataPDU(synchronizePDU)
+        
+        #ask for cooperation
+        controlCooperatePDU = ControlDataPDU(Action.CTRLACTION_COOPERATE)
+        self.sendDataPDU(controlCooperatePDU)
+        
+        #request control
+        controlRequestPDU = ControlDataPDU(Action.CTRLACTION_GRANTED_CONTROL)
+        self.sendDataPDU(controlRequestPDU)
+        
+        #TODO persistent key list http://msdn.microsoft.com/en-us/library/cc240494.aspx
+        
+        #deprecated font list pdu
+        fontMapPDU = FontMapDataPDU()
+        self.sendDataPDU(fontMapPDU)
         
     def sendInputEvents(self, pointerEvents):
         """
