@@ -75,12 +75,14 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
     QAdaptor for specific RFB protocol stack
     is to an RFB observer 
     """   
-    def __init__(self, controller):
+    def __init__(self, controller, width, height):
         """
         @param controller: controller for observer
+        @param width: width of widget
+        @param height: height of widget
         """
         RFBClientObserver.__init__(self, controller)
-        self._widget = QRemoteDesktop(self)
+        self._widget = QRemoteDesktop(self, width, height)
         
     def getWidget(self):
         """
@@ -138,12 +140,16 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
     """
     Adaptor for RDP client
     """
-    def __init__(self, controller):
+    def __init__(self, controller, width, height):
         """
         @param controller: RDP controller
+        @param width: width of widget
+        @param height: height of widget
         """
         RDPClientObserver.__init__(self, controller)
-        self._widget = QRemoteDesktop(self)
+        self._widget = QRemoteDesktop(self, width, height)
+        #set widget screen to RDP stack
+        controller.setScreen(width, height)
         
     def getWidget(self):
         """
@@ -245,13 +251,15 @@ class QRemoteDesktop(QtGui.QWidget):
     """
     Qt display widget
     """
-    def __init__(self, adaptor):
+    def __init__(self, adaptor, width, height):
         """
         @param adaptor: QAdaptor
         """
         super(QRemoteDesktop, self).__init__()
         #adaptor use to send
         self._adaptor = adaptor
+        #set correct size
+        self.resize(width, height)
         #refresh stack of image
         #because we can update image only in paint
         #event function. When protocol receive image
@@ -260,6 +268,8 @@ class QRemoteDesktop(QtGui.QWidget):
         self._refresh = []
         #bind mouse event
         self.setMouseTracking(True)
+        #buffer image
+        self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
     
     def notifyImage(self, x, y, qimage):
         """
@@ -281,15 +291,15 @@ class QRemoteDesktop(QtGui.QWidget):
         #if there is no refresh -> done
         if self._refresh == []:
             return
-        #create painter to update background
-        qp = QtGui.QPainter()
+        #fill buffer image
+        with QtGui.QPainter(self._buffer) as qp:
         #draw image
-        qp.begin(self)
-        for image in self._refresh:
-            qp.drawImage(image["x"], image["y"], image["image"])
-        qp.end()
-        
-        self._lastReceive = []
+            for image in self._refresh:
+                qp.drawImage(image["x"], image["y"], image["image"])
+        #draw in widget
+        with QtGui.QPainter(self) as qp:
+            qp.drawImage(0, 0, self._buffer)
+        self._refresh = []
         
     def mouseMoveEvent(self, event):
         """

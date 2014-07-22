@@ -52,15 +52,12 @@ class RDPClientQtFactory(rdp.ClientFactory):
         @param controller: build factory and needed by observer
         """
         #create client observer
-        client = RDPClientQt(controller)
+        client = RDPClientQt(controller, self._width, self._height)
         #create qt widget
         self._w = client.getWidget()
-        self._w.resize(self._width, self._height)
         self._w.setWindowTitle('rdpy-rdpclient')
         self._w.show()
         
-        #resize session
-        controller.setScreen(self._width, self._height)
         controller.setUsername(self._username)
         controller.setPassword(self._passwod)
         controller.setDomain(self._domain)
