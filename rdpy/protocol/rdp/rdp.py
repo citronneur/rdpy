@@ -25,6 +25,7 @@ from twisted.internet import protocol
 from rdpy.base.error import CallPureVirtualFuntion, InvalidValue
 import pdu.layer
 import pdu.data
+import pdu.caps
 import rdpy.base.log as log
 import tpkt, tpdu, mcs, gcc
 
@@ -45,6 +46,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         self._tpktLayer = tpkt.TPKT(self._tpduLayer, self._pduLayer)
         #is pdu layer is ready to send
         self._isReady = False
+        self._sendReady = False
         
     def getProtocol(self):
         """
@@ -52,6 +54,12 @@ class RDPClientController(pdu.layer.PDUClientListener):
         In case of RDP TPKT is the Raw layer
         """
         return self._tpktLayer
+    
+    def getColorDepth(self):
+        """
+        @return: color depth set by the server (15, 16, 24)
+        """
+        return self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability.preferredBitsPerPixel.value
         
     def setPerformanceSession(self):
         """
@@ -113,6 +121,9 @@ class RDPClientController(pdu.layer.PDUClientListener):
         Call when PDU layer is connected
         """
         self._isReady = True
+        if self._sendReady:
+            return
+        self._sendReady = False
         #signal all listener
         for observer in self._clientObserver:
             observer.onReady()
@@ -206,11 +217,14 @@ class RDPServerController(pdu.layer.PDUServerListener):
     """
     Controller use in server side mode
     """               
-    def __init__(self, privateKeyFileName, certificateFileName):
+    def __init__(self, privateKeyFileName, certificateFileName, colorDepth):
         """
         @param privateKeyFileName: file contain server private key
         @param certficiateFileName: file that contain public key
+        @param colorDepth: 15, 16, 24
         """
+        self._isReady = False
+        self._sendReady = False
         #list of observer
         self._serverObserver = []
         #build RDP protocol stack
@@ -221,8 +235,8 @@ class RDPServerController(pdu.layer.PDUServerListener):
         self._tpduLayer = tpdu.Server(self._mcsLayer, privateKeyFileName, certificateFileName)
         #transport packet (protocol layer)
         self._tpktLayer = tpkt.TPKT(self._tpduLayer, self._pduLayer)
-        
-        self._isReady = False
+        #set color depth of session
+        self.setColorDepth(colorDepth)
         
     def getProtocol(self):
         """
@@ -259,18 +273,40 @@ class RDPServerController(pdu.layer.PDUServerListener):
         """
         return (self.getDomain(), self.getUsername(), self.getPassword())
     
+    def getScreen(self):
+        """
+        @return: tuple(width, height) of client asked screen
+        """
+        bitmapCap = self._pduLayer._clientCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability
+        return (bitmapCap.desktopWidth.value, bitmapCap.desktopHeight.value)
+    
     def addServerObserver(self, observer):
         """
         Add observer to RDP protocol
         @param observer: new observer to add
         """
         self._serverObserver.append(observer)
+        
+    def setColorDepth(self, colorDepth):
+        """
+        Set color depth of session
+        if PDU stack is already connected send a deactive-reactive sequence
+        @param colorDepth: depth of session (15, 16, 24)
+        """
+        self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability.preferredBitsPerPixel.value = colorDepth
+        if self._isReady:
+            #restart connection sequence
+            self._isReady = False
+            self._pduLayer.sendPDU(pdu.data.DeactiveAllPDU())
     
     def onReady(self):
         """
         RDP stack is now ready
         """
         self._isReady = True
+        if self._sendReady:
+            return
+        self._sendReady = True
         for observer in self._serverObserver:
             observer.onReady()
     
@@ -289,6 +325,11 @@ class RDPServerController(pdu.layer.PDUServerListener):
         """
         if not self._isReady:
             return
+        bitmapData = pdu.data.BitmapData(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, data)
+        if isCompress:
+            bitmapData.flags.value = pdu.data.BitmapFlag.BITMAP_COMPRESSION
+        
+        self._pduLayer.sendBitmapUpdatePDU([bitmapData])
 
 class ClientFactory(protocol.Factory):
     """
@@ -314,20 +355,22 @@ class ServerFactory(protocol.Factory):
     """
     Factory of Server RDP protocol
     """
-    def __init__(self, privateKeyFileName, certificateFileName):
+    def __init__(self, privateKeyFileName, certificateFileName, colorDepth):
         """
         @param privateKeyFileName: file contain server private key
-        @param certficiateFileName: file that contain publi key
+        @param certficiateFileName: file that contain public key
+        @param colorDepth: color depth of session
         """
         self._privateKeyFileName = privateKeyFileName
         self._certificateFileName = certificateFileName
+        self._colorDepth = colorDepth
         
     def buildProtocol(self, addr):
         """
         Function call from twisted and build rdp protocol stack
         @param addr: destination address
         """
-        controller = RDPServerController(self._privateKeyFileName, self._certificateFileName)
+        controller = RDPServerController(self._privateKeyFileName, self._certificateFileName, self._colorDepth)
         self.buildObserver(controller)
         return controller.getProtocol()
     

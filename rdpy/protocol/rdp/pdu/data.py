@@ -621,7 +621,7 @@ class DeactiveAllPDU(CompositeType):
         CompositeType.__init__(self)
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
-        self.sourceDescriptor = String(readLen = self.lengthSourceDescriptor)
+        self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
 
 class DataPDU(CompositeType):
     """
@@ -849,8 +849,9 @@ class FastPathUpdatePDU(CompositeType):
             Create correct object in accordance to self.updateHeader field
             """
             if (self.updateHeader.value & 0xf) == FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
-                return (UInt16Le(FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP, constant = True), BitmapUpdateDataPDU(readLen = self.size))
+                return (UInt16Le(FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP, constant = True), BitmapUpdateDataPDU(readLen = self.size - 2))
             else:
+                log.debug("unknown Fast Path PDU update data type : %s"%hex(self.updateHeader.value & 0xf))
                 return String()
             
         if updateData is None:
@@ -904,7 +905,12 @@ class BitmapCompressedDataHeader(CompositeType):
     Compressed header of bitmap
     @see: http://msdn.microsoft.com/en-us/library/cc240644.aspx
     """
-    def __init__(self, conditional = lambda:True):
+    def __init__(self, bodySize = 0, scanWidth = 0, uncompressedSize = 0, conditional = lambda:True):
+        """
+        @param bodySize: size of image body
+        @param scanWidth: width of image
+        @param uncompressedSize: size of uncompressed image
+        """
         CompositeType.__init__(self, conditional = conditional)
         self.cbCompFirstRowSize = UInt16Le(0x0000, constant = True)
         #compressed data size
@@ -917,19 +923,29 @@ class BitmapData(CompositeType):
     """
     Bitmap data here the screen capture
     """
-    def __init__(self):
+    def __init__(self, destLeft = 0, destTop = 0, destRight = 0, destBottom = 0, width = 0, height = 0, bitsPerPixel = 0, bitmapDataStream = ""):
+        """
+        @param destLeft: destination left coordinate
+        @param destTop: destination top coordinate
+        @param destRight: destination right coordinate
+        @param destBottom: destination bottom coordinate
+        @param width: width of image
+        @param height: height of image
+        @param bitsPerPixel: color depth
+        @param bitmapDataStream: data
+        """
         CompositeType.__init__(self)
-        self.destLeft = UInt16Le()
-        self.destTop = UInt16Le()
-        self.destRight = UInt16Le()
-        self.destBottom = UInt16Le()
-        self.width = UInt16Le()
-        self.height = UInt16Le()
-        self.bitsPerPixel = UInt16Le()
+        self.destLeft = UInt16Le(destLeft)
+        self.destTop = UInt16Le(destTop)
+        self.destRight = UInt16Le(destRight)
+        self.destBottom = UInt16Le(destBottom)
+        self.width = UInt16Le(width)
+        self.height = UInt16Le(height)
+        self.bitsPerPixel = UInt16Le(bitsPerPixel)
         self.flags = UInt16Le()
-        self.bitmapLength = UInt16Le()
-        self.bitmapComprHdr = BitmapCompressedDataHeader(conditional = lambda:(not (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
-        self.bitmapDataStream = String(readLen = UInt16Le(lambda:(self.bitmapLength.value if (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
+        self.bitmapLength = UInt16Le(lambda:(sizeof(self.bitmapComprHdr) + sizeof(self.bitmapDataStream)))
+        self.bitmapComprHdr = BitmapCompressedDataHeader(bodySize = lambda:sizeof(self.bitmapDataStream), scanWidth = lambda:self.width.value, uncompressedSize = lambda:(self.width.value * self.height.value * self.bitsPerPixel.value), conditional = lambda:((self.flags.value | BitmapFlag.BITMAP_COMPRESSION) and not (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
+        self.bitmapDataStream = String(bitmapDataStream, readLen = UInt16Le(lambda:(self.bitmapLength.value if (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
         
 class SlowPathInputEvent(CompositeType):
     """

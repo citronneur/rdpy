@@ -372,7 +372,7 @@ class Client(MCSLayer):
         if (confirm != 0) and (channelId == Channel.MCS_GLOBAL_CHANNEL or channelId == self._userId):
             raise InvalidExpectedDataException("Server must confirm static channel")
         
-        if confirm ==0:
+        if confirm == 0:
             serverNet = self._serverSettings.getBlock(gcc.MessageType.SC_NET)
             for i in range(0, serverNet.channelCount.value):
                 if channelId == serverNet.channelIdArray._array[i].value:
@@ -524,7 +524,8 @@ class Server(MCSLayer):
         
         channelId = per.readInteger16(data)
         #actually algo support virtual channel but RDPY have no virtual channel
-        self.sendChannelJoinConfirm(channelId, channelId in self._channels.keys() or channelId == self._userId)
+        confirm = 0 if channelId in self._channels.keys() or channelId == self._userId else 1
+        self.sendChannelJoinConfirm(channelId, confirm)
         self._nbChannelConfirmed += 1
         if self._nbChannelConfirmed == self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelCount.value + 2:
             self.allChannelConnected()

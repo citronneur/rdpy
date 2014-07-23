@@ -1,7 +1,29 @@
 #!/usr/bin/python
-'''
-@author: sylvain
-'''
+#
+# Copyright (c) 2014 Sylvain Peyrefitte
+#
+# This file is part of rdpy.
+#
+# rdpy is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+
+"""
+RDP proxy recorder and spyer
+Proxy RDP protocol
+With admin account you can watch all currently session
+For special session you can record
+"""
 
 import sys, os
 # Change path so we find rdpy
@@ -11,23 +33,71 @@ from rdpy.protocol.rdp import rdp
 from twisted.internet import reactor
 
 class ProxyServer(rdp.RDPServerObserver):
+    """
+    Server side of proxy
+    """
+    def __init__(self, controller):
+        """
+        @param controller: RDPServerController
+        """
+        rdp.RDPServerObserver.__init__(self, controller)
+        self._client = None
+        
     def onReady(self):
-        reactor.connectTCP("wav-glw-013", 3389, ProxyClientFactory(self))
+        """
+        Event use to inform state of server stack
+        Use to connect client
+        """
+        width, height = self._controller.getScreen()
+        reactor.connectTCP("wav-glw-013", 3389, ProxyClientFactory(self, width, height))
+        
     def clientConnected(self, client):
-        print "ok"
+        """
+        Event throw by client when it's ready
+        @param client: ProxyClient
+        """
+        self._client = client
+        self._controller.setColorDepth(self._client._controller.getColorDepth())
     
 class ProxyClient(rdp.RDPClientObserver):
+    """
+    Client side of proxy
+    """
     def __init__(self, controller, server):
+        """
+        @param controller: RDPClientObserver
+        @param server: ProxyServer
+        """
         rdp.RDPClientObserver.__init__(self, controller)
         self._server = server
+        
     def onReady(self):
+        """
+        Event use to signal that RDP stack is ready
+        Inform proxy server that i'm connected
+        implement RDPClientObserver
+        """
         self._server.clientConnected(self)
+        
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
-        pass
+        """
+        Event use to inform bitmap update
+        implement RDPClientObserver
+        @param destLeft: xmin position
+        @param destTop: ymin position
+        @param destRight: xmax position because RDP can send bitmap with padding
+        @param destBottom: ymax position because RDP can send bitmap with padding
+        @param width: width of bitmap
+        @param height: height of bitmap
+        @param bitsPerPixel: number of bit per pixel
+        @param isCompress: use RLE compression
+        @param data: bitmap data
+        """
+        self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
 
 class ProxyServerFactory(rdp.ServerFactory):
     def __init__(self):
-        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt")
+        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt", 16)
         
     def buildObserver(self, controller):
         return ProxyServer(controller)
@@ -42,10 +112,13 @@ class ProxyServerFactory(rdp.ServerFactory):
         pass
 
 class ProxyClientFactory(rdp.ClientFactory):
-    def __init__(self, server):
+    def __init__(self, server, width, height):
         self._server = server
+        self._width = width
+        self._height = height
         
     def buildObserver(self, controller):
+        controller.setScreen(self._width, self._height)
         return ProxyClient(controller, self._server)
     
     def startedConnecting(self, connector):

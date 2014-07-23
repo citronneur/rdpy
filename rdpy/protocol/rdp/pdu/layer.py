@@ -107,12 +107,14 @@ class PDULayer(LayerAutomata):
     def sendPDU(self, pduMessage):
         """
         Send a PDU data to transport layer
+        @param pduMessage: PDU message
         """
         self._transport.send(data.PDU(self._transport.getUserId(), pduMessage))
         
     def sendDataPDU(self, pduData):
         """
         Send an PDUData to transport layer
+        @param pduData: PDU data message
         """
         self.sendPDU(data.DataPDU(pduData, self._shareId))
 
@@ -183,7 +185,10 @@ class Client(PDULayer, tpkt.FastPathListener):
         s.readType(pdu)
         
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DEMANDACTIVEPDU:
-            raise InvalidExpectedDataException("Expected Demand Active PDU from server")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
         
         self._shareId = pdu.pduMessage.shareId.value
         
@@ -204,7 +209,11 @@ class Client(PDULayer, tpkt.FastPathListener):
         pdu = data.PDU()
         s.readType(pdu)
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != data.PDUType2.PDUTYPE2_SYNCHRONIZE:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected synchronizePDU")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
+        
         self.setNextState(self.recvServerControlCooperatePDU)
         
     def recvServerControlCooperatePDU(self, s):
@@ -216,7 +225,11 @@ class Client(PDULayer, tpkt.FastPathListener):
         pdu = data.PDU()
         s.readType(pdu)
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != data.PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != data.Action.CTRLACTION_COOPERATE:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlCooperatePDU")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
+        
         self.setNextState(self.recvServerControlGrantedPDU)
         
     def recvServerControlGrantedPDU(self, s):
@@ -228,7 +241,11 @@ class Client(PDULayer, tpkt.FastPathListener):
         pdu = data.PDU()
         s.readType(pdu)
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != data.PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != data.Action.CTRLACTION_GRANTED_CONTROL:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlGrantedPDU")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
+        
         self.setNextState(self.recvServerFontMapPDU)
         
     def recvServerFontMapPDU(self, s):
@@ -240,7 +257,10 @@ class Client(PDULayer, tpkt.FastPathListener):
         pdu = data.PDU()
         s.readType(pdu)
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != data.PDUType2.PDUTYPE2_FONTMAP:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected fontMapPDU")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
         
         self.setNextState(self.recvPDU)
         #here i'm connected
@@ -421,7 +441,10 @@ class Server(PDULayer):
         s.readType(pdu)
         
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_CONFIRMACTIVEPDU:
-            raise InvalidExpectedDataException("Expected Confirm Active PDU from client")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
         
         for cap in pdu.pduMessage.capabilitySets._array:
             self._clientCapabilities[cap.capabilitySetType] = cap
@@ -437,7 +460,10 @@ class Server(PDULayer):
         pdu = data.PDU()
         s.readType(pdu)
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != data.PDUType2.PDUTYPE2_SYNCHRONIZE:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected synchronizePDU")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
         self.setNextState(self.recvClientControlCooperatePDU)
         
     def recvClientControlCooperatePDU(self, s):
@@ -449,7 +475,10 @@ class Server(PDULayer):
         pdu = data.PDU()
         s.readType(pdu)
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != data.PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != data.Action.CTRLACTION_COOPERATE:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlCooperatePDU")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
         self.setNextState(self.recvClientControlRequestPDU)
         
     def recvClientControlRequestPDU(self, s):
@@ -461,7 +490,10 @@ class Server(PDULayer):
         pdu = data.PDU()
         s.readType(pdu)
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != data.PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != data.Action.CTRLACTION_REQUEST_CONTROL:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlGrantedPDU")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send too but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
         self.setNextState(self.recvClientFontListPDU)
         
     def recvClientFontListPDU(self, s):
@@ -474,7 +506,10 @@ class Server(PDULayer):
         pdu = data.PDU()
         s.readType(pdu)
         if pdu.shareControlHeader.pduType.value != data.PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != data.PDUType2.PDUTYPE2_FONTLIST:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected fontMapPDU")
+            #not a blocking error because in deactive reactive sequence 
+            #input can be send but ignored
+            log.debug("Ignore message type %s during connection sequence"%hex(pdu.shareControlHeader.pduType.value))
+            return
         
         #finalize server
         self.sendServerFinalizeSynchronizePDU()
@@ -519,13 +554,10 @@ class Server(PDULayer):
         generalCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
         generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
         generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
+        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR
         
-        #init bitmap capability
-        bitmapCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability
-        bitmapCapability.preferredBitsPerPixel.value = 16
-        bitmapCapability.desktopWidth.value = 800
-        bitmapCapability.desktopHeight.value = 600
+        inputCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_INPUT].capability
+        inputCapability.inputFlags.value = caps.InputFlags.INPUT_FLAG_SCANCODES | caps.InputFlags.INPUT_FLAG_MOUSEX
         
         demandActivePDU = data.DemandActivePDU()
         demandActivePDU.shareId.value = self._shareId
@@ -552,3 +584,27 @@ class Server(PDULayer):
         #deprecated font list pdu
         fontMapPDU = data.FontMapDataPDU()
         self.sendDataPDU(fontMapPDU)
+        
+    def sendPDU(self, pduMessage):
+        """
+        Send a PDU data to transport layer
+        @param pduMessage: PDU message
+        """
+        PDULayer.sendPDU(self, pduMessage)
+        #restart capabilities exchange in case of deactive reactive sequence
+        if isinstance(pduMessage, data.DeactiveAllPDU):
+            self.sendDemandActivePDU()
+            self.setNextState(self.recvConfirmActivePDU)
+        
+    def sendBitmapUpdatePDU(self, bitmapDatas):
+        """
+        Send bitmap update data
+        @param bitmapDatas: List of data.BitmapData
+        """
+        #check bitmap header for client that want it (very old client)
+        if self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags.value & caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR:
+            for bitmapData in bitmapDatas:
+                bitmapData.flags.value |= data.BitmapFlag.NO_BITMAP_COMPRESSION_HDR
+        updateDataPDU = data.BitmapUpdateDataPDU()
+        updateDataPDU.rectangles._array = bitmapDatas
+        self.sendDataPDU(data.UpdateDataPDU(updateDataPDU))
