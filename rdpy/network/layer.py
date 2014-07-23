@@ -25,12 +25,6 @@ RDPY use Layer Protocol design (like twisted)
 
 from rdpy.base.error import CallPureVirtualFuntion
 
-class LayerMode(object):
-    NONE = 0
-    SERVER = 1
-    CLIENT = 2
-    
-    
 class StreamListener(object):
     """
     Interface use to inform that we can handle receive stream
@@ -60,17 +54,14 @@ class Layer(object):
     A simple double linked list with presentation and transport layer
     and a subset of event (connect and close)
     """
-    def __init__(self, mode, presentation = None):
+    def __init__(self, presentation = None):
         """
-        @param mode: LayerMode use
         @param presentation: presentation layer
         """
         #presentation layer higher layer in model
         self._presentation = presentation
         #transport layer under layer in model
         self._transport = None
-        #network layer mode
-        self._mode = mode
         #auto set transport layer of own presentation layer
         if not self._presentation is None:
             self._presentation._transport = self
@@ -96,13 +87,12 @@ class LayerAutomata(Layer, StreamListener):
     Layer with automata state
     we can set next recv function used for Stream packet
     """
-    def __init__(self, mode, presentation = None):
+    def __init__(self, presentation = None):
         """
-        @param mode: LayerMode use
         @param presentation: presentation Layer
         """
         #call parent constructor
-        Layer.__init__(self, mode, presentation)
+        Layer.__init__(self, presentation)
         
     def setNextState(self, callback = None):
         """
@@ -127,13 +117,12 @@ class RawLayer(protocol.Protocol, LayerAutomata, StreamSender):
     allow this protocol to wait until expected size of packet
     and use Layer automata to call next automata state
     """
-    def __init__(self, mode, presentation = None):
+    def __init__(self, presentation = None):
         """
-        @param mode: LayerMode use
         @param presentation: presentation layer in layer list
         """
         #call parent automata
-        LayerAutomata.__init__(self, mode, presentation)
+        LayerAutomata.__init__(self, presentation)
         #data buffer received from twisted network layer
         self._buffer = ""
         #len of next packet pass to next state function

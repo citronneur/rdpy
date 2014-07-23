@@ -665,19 +665,18 @@ class UInt24Le(SimpleType):
         self.value = struct.unpack(self._structFormat, s.read(self._typeSize) + '\x00')[0]
         
 class String(Type, CallableValue):
-    '''
+    """
     String network type
-    '''
+    """
     def __init__(self, value = "", readLen = None, conditional = lambda:True, optional = False, constant = False, unicode = False):
-        '''
-        constructor with new string
+        """
         @param value: python string use for inner value
         @param readLen: length use to read in stream (SimpleType) if 0 read entire stream
         @param conditional : function call before read or write type
         @param optional: boolean check before read if there is still data in stream
         @param constant: if true check any changement of object during reading
         @param unicode: Encode and decode value as unicode
-        '''
+        """
         Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
         CallableValue.__init__(self, value)
         #type use to know read length

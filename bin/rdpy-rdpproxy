@@ -8,10 +8,46 @@ import sys, os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 from rdpy.protocol.rdp import rdp
+from twisted.internet import reactor
 
-class TestServerFactory(rdp.ServerFactory):
+class ProxyServer(rdp.RDPServerObserver):
+    def onReady(self):
+        reactor.connectTCP("wav-glw-013", 3389, ProxyClientFactory(self))
+    def clientConnected(self, client):
+        print "ok"
+    
+class ProxyClient(rdp.RDPClientObserver):
+    def __init__(self, controller, server):
+        rdp.RDPClientObserver.__init__(self, controller)
+        self._server = server
+    def onReady(self):
+        self._server.clientConnected(self)
+    def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+        pass
+
+class ProxyServerFactory(rdp.ServerFactory):
     def __init__(self):
-        rdp.ServerFactory.__init__(self, "/home/sylvain/dev/certificate/rdpy.key", "/home/sylvain/dev/certificate/rdpy.crt")
+        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt")
+        
+    def buildObserver(self, controller):
+        return ProxyServer(controller)
+    
+    def startedConnecting(self, connector):
+        pass
+    
+    def clientConnectionLost(self, connector, reason):
+        pass
+        
+    def clientConnectionFailed(self, connector, reason):
+        pass
+
+class ProxyClientFactory(rdp.ClientFactory):
+    def __init__(self, server):
+        self._server = server
+        
+    def buildObserver(self, controller):
+        return ProxyClient(controller, self._server)
+    
     def startedConnecting(self, connector):
         pass
     
@@ -22,6 +58,6 @@ class TestServerFactory(rdp.ServerFactory):
         pass
 
 if __name__ == '__main__':
-    from twisted.internet import reactor
-    reactor.listenTCP(33389, TestServerFactory())
+    
+    reactor.listenTCP(33389, ProxyServerFactory())
     reactor.run()

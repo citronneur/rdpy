@@ -22,7 +22,7 @@ Transport packet layer implementation
 
 Use to build correct size packet and handle slow path and fast path mode
 """
-from rdpy.network.layer import RawLayer, LayerMode
+from rdpy.network.layer import RawLayer
 from rdpy.network.type import UInt8, UInt16Be, sizeof
 from rdpy.base.error import CallPureVirtualFuntion
 
@@ -31,10 +31,10 @@ class FastPathListener(object):
     Fast path packet listener
     Usually PDU layer
     """
-    def recvFastPath(self, fastPathData):
+    def recvFastPath(self, fastPathS):
         """
         Call when fast path packet is received
-        @param fastPathData: Stream
+        @param fastPathS: Stream
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "StreamListener"))
 
@@ -50,7 +50,7 @@ class TPKT(RawLayer):
         """
         @param presentation: presentation layer, in RDP case is TPDU layer
         """
-        RawLayer.__init__(self, LayerMode.NONE, presentation)
+        RawLayer.__init__(self, presentation)
         #last packet version read from header
         self._lastPacketVersion = UInt8()
         #length may be coded on more than 1 bytes

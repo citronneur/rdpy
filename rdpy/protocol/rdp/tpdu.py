@@ -24,7 +24,7 @@ This layer have main goal to negociate SSL transport
 RDP basic security is not supported by RDPY (because is not a true security layer...)
 """
 
-from rdpy.network.layer import LayerAutomata, LayerMode, StreamSender
+from rdpy.network.layer import LayerAutomata, StreamSender
 from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
 from rdpy.base.error import InvalidExpectedDataException
 
@@ -107,46 +107,69 @@ class Negotiation(CompositeType):
         self.selectedProtocol = UInt32Le(conditional = lambda: (self.code.value != NegociationType.TYPE_RDP_NEG_FAILURE))
         self.failureCode = UInt32Le(conditional = lambda: (self.code.value == NegociationType.TYPE_RDP_NEG_FAILURE))
 
-class TPDU(LayerAutomata, StreamSender):
+class TPDULayer(LayerAutomata, StreamSender):
     """
     TPDU layer management
     there is an connection automata
     """
-    def __init__(self, mode, presentation):
+    def __init__(self, presentation):
         """
-        @param mode: automata mode (client or server)
         @param presentation: upper layer, MCS layer in RDP case
         """
-        LayerAutomata.__init__(self, mode, presentation)
+        LayerAutomata.__init__(self, presentation)
         #default selectedProtocol is SSl because is the only supported
         #in this version of RDPY
         #client requested selectedProtocol
         self._requestedProtocol = Protocols.PROTOCOL_SSL
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
+    
+    def recvData(self, data):
+        """
+        Read data header from packet
+        And pass to presentation layer
+        @param data: Stream
+        """
+        header = TPDUDataHeader()
+        data.readType(header)
+        self._presentation.recv(data)
         
-        #Server mode informations for TLS connection
-        self._serverPrivateKeyFileName = None
-        self._serverCertificateFileName = None
-    
-    def initTLSServerInfos(self, privateKeyFileName, certificateFileName):
+    def send(self, message):
         """
-        Initialize informations for SSL server connection
-        @param privateKeyFileName: file contain server private key
-        @param certficiateFileName: file that contain public key
+        Write message packet for TPDU layer
+        Add TPDU header
+        @param message: network.Type message
         """
-        self._serverPrivateKeyFileName = privateKeyFileName
-        self._serverCertificateFileName = certificateFileName
-    
+        self._transport.send((TPDUDataHeader(), message))
+        
+class Client(TPDULayer):
+    """
+    Client automata of TPDU layer
+    """
+    def __init__(self, presentation):
+        """
+        @param presentation: upper layer, MCS layer in RDP case
+        """
+        TPDULayer.__init__(self, presentation)
+        
     def connect(self):
         """
         Connection request for client send a connection request packet
         """
-        if self._mode == LayerMode.CLIENT:
-            self.sendConnectionRequest()
-        else:
-            self.setNextState(self.recvConnectionRequest)
-    
+        self.sendConnectionRequest()
+        
+    def sendConnectionRequest(self):
+        """
+        Write connection request message
+        Next state is recvConnectionConfirm
+        @see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
+        """
+        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_REQUEST)
+        message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_REQ
+        message.protocolNeg.selectedProtocol.value = self._requestedProtocol
+        self._transport.send(message)
+        self.setNextState(self.recvConnectionConfirm)
+        
     def recvConnectionConfirm(self, data):
         """
         Receive connection confirm message
@@ -179,6 +202,27 @@ class TPDU(LayerAutomata, StreamSender):
         
         #connection is done send to presentation
         self._presentation.connect()
+
+class Server(TPDULayer):
+    """
+    Server automata of TPDU layer
+    """
+    def __init__(self, presentation, privateKeyFileName, certificateFileName):
+        """
+        @param presentation: upper layer, MCS layer in RDP case
+        @param privateKeyFileName: file contain server private key
+        @param certficiateFileName: file that contain public key
+        """
+        TPDULayer.__init__(self, presentation)
+        #Server mode informations for TLS connection
+        self._serverPrivateKeyFileName = privateKeyFileName
+        self._serverCertificateFileName = certificateFileName
+        
+    def connect(self):
+        """
+        Connection request for server wait connection request packet from client
+        """
+        self.setNextState(self.recvConnectionRequest)
         
     def recvConnectionRequest(self, data):
         """
@@ -206,28 +250,6 @@ class TPDU(LayerAutomata, StreamSender):
         
         self._selectedProtocol = Protocols.PROTOCOL_SSL
         self.sendConnectionConfirm()
-    
-    def recvData(self, data):
-        """
-        Read data header from packet
-        And pass to presentation layer
-        @param data: Stream
-        """
-        header = TPDUDataHeader()
-        data.readType(header)
-        self._presentation.recv(data)
-        
-    def sendConnectionRequest(self):
-        """
-        Write connection request message
-        Next state is recvConnectionConfirm
-        @see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
-        """
-        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_REQUEST)
-        message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_REQ
-        message.protocolNeg.selectedProtocol.value = self._requestedProtocol
-        self._transport.send(message)
-        self.setNextState(self.recvConnectionConfirm)
         
     def sendConnectionConfirm(self):
         """
@@ -245,32 +267,6 @@ class TPDU(LayerAutomata, StreamSender):
         #connection is done send to presentation
         self.setNextState(self.recvData)
         self._presentation.connect()
-        
-    def send(self, message):
-        """
-        Write message packet for TPDU layer
-        Add TPDU header
-        @param message: network.Type message
-        """
-        self._transport.send((TPDUDataHeader(), message))
-        
-def createClient(mcsLayer):
-    """
-    Factory for client TPDU automata
-    @param mcsLayer: presentation layer of TPDU
-    """
-    return TPDU(LayerMode.CLIENT, mcsLayer)
-
-def createServer(mcsLayer, privateKeyFileName, certificateFileName):
-    """
-    Factory for server TPDU automata
-    @param mcsLayer: presentation layer of TPDU
-    @param privateKeyFileName: file contain server private key
-    @param certficiateFileName: file that contain public key
-    """
-    tpduLayer = TPDU(LayerMode.SERVER, mcsLayer)
-    tpduLayer.initTLSServerInfos(privateKeyFileName, certificateFileName)
-    return tpduLayer
 
 #open ssl needed
 from twisted.internet import ssl

@@ -27,9 +27,9 @@ Implement Remote FrameBuffer protocol use in VNC client and server
 """
 
 from twisted.internet import protocol
-from rdpy.network.layer import RawLayer, LayerMode
+from rdpy.network.layer import RawLayer
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
-from rdpy.base.error import InvalidValue, CallPureVirtualFuntion, InvalidType
+from rdpy.base.error import InvalidValue, CallPureVirtualFuntion
 
 class ProtocolVersion(object):
     """
@@ -170,18 +170,11 @@ class RFB(RawLayer):
     """
     def __init__(self, listener):
         """
-        @param mode: LayerMode client or server
         @param listener: listener use to inform new orders
         """
-        mode = None
-        if isinstance(listener, RFBClientListener):
-            mode = LayerMode.CLIENT
-            #set client listener
-            self._clientListener = listener
-        else:
-            raise InvalidType("RFB Layer expect RFBClientListener as listener")
-        
-        RawLayer.__init__(self, mode)
+        RawLayer.__init__(self)
+        #set client listener
+        self._clientListener = listener
         #useful for RFB protocol
         self._callbackBody = None
         #protocol version negotiated
@@ -239,12 +232,8 @@ class RFB(RawLayer):
         """
         Call when transport layer connection is made
         in Client mode -> wait protocol version
-        in Server mode -> send protocol version
         """
-        if self._mode == LayerMode.CLIENT:
-            self.expect(12, self.recvProtocolVersion)
-        else:
-            self.send(self._version)
+        self.expect(12, self.recvProtocolVersion)
         
     def readProtocolVersion(self, data):
         """
@@ -550,7 +539,7 @@ class ClientFactory(protocol.Factory):
         Function call by twisted on connection
         @param addr: address where client try to connect
         """
-        controller = RFBController(LayerMode.CLIENT)
+        controller = RFBController()
         self.buildObserver(controller)
         return controller.getRFBLayer()
     

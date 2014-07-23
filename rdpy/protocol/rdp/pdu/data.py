@@ -22,12 +22,10 @@ Implement the main graphic layer
 
 In this layer are managed all mains bitmap update orders end user inputs
 """
-
-from rdpy.network.layer import LayerAutomata, LayerMode
 from rdpy.network.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
-from rdpy.base.error import InvalidExpectedDataException, CallPureVirtualFuntion, InvalidType
+from rdpy.base.error import InvalidExpectedDataException
 import rdpy.base.log as log
-import gcc, lic, caps, tpkt
+import caps
 
 class SecurityFlag(object):
     """
@@ -809,23 +807,29 @@ class UpdateDataPDU(CompositeType):
     """
     _PDUTYPE2_ = PDUType2.PDUTYPE2_UPDATE
     
-    def __init__(self, updateType = 0, updateData = None, readLen = None):
+    def __init__(self, updateData = None, readLen = None):
         """
         @param updateType: UpdateType macro
         @param updateData: Update data PDU in accordance with updateType (BitmapUpdateDataPDU)
         @param readLen: Max length to read
         """
         CompositeType.__init__(self, readLen = readLen)
-        self.updateType = UInt16Le(updateType)
+        self.updateType = UInt16Le(lambda:updateData.__class__._UPDATE_TYPE_)
         
         def UpdateDataFactory():
-            if self.updateType.value == UpdateType.UPDATETYPE_BITMAP:
-                return BitmapUpdateDataPDU()
-            else:
-                return String()
-            
+            """
+            Create object in accordance self.updateType value
+            """
+            for c in [BitmapUpdateDataPDU]:
+                if self.updateType.value == c._UPDATE_TYPE_:
+                    return c()
+            log.debug("unknown PDU update data type : %s"%hex(self.updateType.value))
+            return String()
+        
         if updateData is None:
             updateData = FactoryType(UpdateDataFactory, conditional = lambda:(self.updateType.value != UpdateType.UPDATETYPE_SYNCHRONIZE))
+        elif not "_UPDATE_TYPE_" in  updateData.__class__.__dict__:
+            raise InvalidExpectedDataException("Try to send an invalid data update PDU")
             
         self.updateData = updateData
 
@@ -834,9 +838,9 @@ class FastPathUpdatePDU(CompositeType):
     Fast path update PDU packet
     @see: http://msdn.microsoft.com/en-us/library/cc240622.aspx
     """
-    def __init__(self, updateType = 0, updateData = None):
+    def __init__(self, updateData = None):
         CompositeType.__init__(self)
-        self.updateHeader = UInt8(updateType)
+        self.updateHeader = UInt8(lambda:updateData.__class__._FASTPATH_UPDATE_TYPE_)
         self.compressionFlags = UInt8(conditional = lambda:((self.updateHeader.value >> 4) & FastPathOutputCompression.FASTPATH_OUTPUT_COMPRESSION_USED))
         self.size = UInt16Le()
         
@@ -851,6 +855,8 @@ class FastPathUpdatePDU(CompositeType):
             
         if updateData is None:
             updateData = FactoryType(UpdateDataFactory)
+        elif not "_FASTPATH_UPDATE_TYPE_" in  updateData.__class__.__dict__:
+            raise InvalidExpectedDataException("Try to send an invalid fast path data update PDU")
             
         self.updateData = updateData
   
@@ -859,6 +865,9 @@ class BitmapUpdateDataPDU(CompositeType):
     PDU use to send raw bitmap compressed or not
     @see: http://msdn.microsoft.com/en-us/library/dd306368.aspx
     """
+    _UPDATE_TYPE_ = UpdateType.UPDATETYPE_BITMAP
+    _FASTPATH_UPDATE_TYPE_ = FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP
+    
     def __init__(self, readLen = None):
         """
         @param readLen: Max size of packet
@@ -984,468 +993,3 @@ class UnicodeKeyEvent(CompositeType):
         self.keyboardFlags = UInt16Le()
         self.unicode = UInt16Le()
         self.pad2Octets = UInt16Le()
-    
-        
-class PDUClientListener(object):
-    """
-    Interface for PDU client automata listener
-    """
-    def onReady(self):
-        """
-        Event call when PDU layer is ready to send events
-        """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "PDUClientListener"))
-    
-    def onUpdate(self, rectangles):
-        """
-        call when a bitmap data is received from update PDU
-        @param rectangles: [pdu.BitmapData] struct
-        """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onUpdate", "PDUClientListener"))
-    
-    def recvDstBltOrder(self, order):
-        """
-        @param order: rectangle order
-        """
-        pass
-
-class PDUServerListener(object):
-    """
-    Interface for PDU server automata listener
-    """
-    pass
-    
-class PDULayer(LayerAutomata, tpkt.FastPathListener):
-    """
-    Global channel for MCS that handle session
-    identification user, licensing management, and capabilities exchange
-    """
-    def __init__(self, listener):
-        """
-        @param listener: listener use to inform orders 
-        """
-        mode = None
-        if isinstance(listener, PDUClientListener):
-            mode = LayerMode.CLIENT
-            #set client listener
-            self._clientListener = listener
-        elif isinstance(listener, PDUServerListener):
-            mode = LayerMode.SERVER
-        else:
-            raise InvalidType("PDU Layer expect PDU(Client|Server)Listener as listener")
-        
-        LayerAutomata.__init__(self, mode, None)
-        
-        #logon info send from client to server
-        self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_CORE).rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
-        #server capabilities
-        self._serverCapabilities = {
-            caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.CapsType.CAPSTYPE_GENERAL, caps.GeneralCapability()),
-            caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.CapsType.CAPSTYPE_BITMAP, caps.BitmapCapability()),
-            caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.CapsType.CAPSTYPE_ORDER, caps.OrderCapability()),
-            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.CapsType.CAPSTYPE_POINTER, caps.PointerCapability()),
-            caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.CapsType.CAPSTYPE_INPUT, caps.InputCapability()),
-            caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.CapsType.CAPSTYPE_VIRTUALCHANNEL, caps.VirtualChannelCapability()),
-            caps.CapsType.CAPSTYPE_FONT : caps.Capability(caps.CapsType.CAPSTYPE_FONT, caps.FontCapability()),
-            caps.CapsType.CAPSTYPE_COLORCACHE : caps.Capability(caps.CapsType.CAPSTYPE_COLORCACHE, caps.ColorCacheCapability()),
-            caps.CapsType.CAPSTYPE_SHARE : caps.Capability(caps.CapsType.CAPSTYPE_SHARE, caps.ShareCapability())
-        }
-        #client capabilities
-        self._clientCapabilities = {
-            caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.CapsType.CAPSTYPE_GENERAL, caps.GeneralCapability()),
-            caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.CapsType.CAPSTYPE_BITMAP, caps.BitmapCapability()),
-            caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.CapsType.CAPSTYPE_ORDER, caps.OrderCapability()),
-            caps.CapsType.CAPSTYPE_BITMAPCACHE : caps.Capability(caps.CapsType.CAPSTYPE_BITMAPCACHE, caps.BitmapCacheCapability()),
-            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.CapsType.CAPSTYPE_POINTER, caps.PointerCapability()),
-            caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.CapsType.CAPSTYPE_INPUT, caps.InputCapability()),
-            caps.CapsType.CAPSTYPE_BRUSH : caps.Capability(caps.CapsType.CAPSTYPE_BRUSH, caps.BrushCapability()),
-            caps.CapsType.CAPSTYPE_GLYPHCACHE : caps.Capability(caps.CapsType.CAPSTYPE_GLYPHCACHE, caps.GlyphCapability()),
-            caps.CapsType.CAPSTYPE_OFFSCREENCACHE : caps.Capability(caps.CapsType.CAPSTYPE_OFFSCREENCACHE, caps.OffscreenBitmapCacheCapability()),
-            caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.CapsType.CAPSTYPE_VIRTUALCHANNEL, caps.VirtualChannelCapability()),
-            caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.CapsType.CAPSTYPE_SOUND, caps.SoundCapability())
-        }
-        #share id between client and server
-        self._shareId = 0x103EA
-  
-    def connect(self):
-        """
-        Connect event in client mode send logon info
-        Next state receive license PDU
-        """     
-        if self._mode == LayerMode.CLIENT:
-            self.sendInfoPkt()
-            #next state is license info PDU
-            self.setNextState(self.recvLicenceInfo)
-        else:
-            self.setNextState(self.recvInfoPkt)
-        
-    def close(self):
-        """
-        Send PDU close packet and call close method on transport method
-        """
-        self.sendDataPDU(ShutdownRequestPDU())
-        
-    def recvInfoPkt(self, data):
-        """
-        Receive info packet from client
-        Client credential
-        @param data: Stream
-        """
-        securityFlag = UInt16Le()
-        securityFlagHi = UInt16Le()
-        data.readType((securityFlag, securityFlagHi))
-        
-        if not (securityFlag.value & SecurityFlag.SEC_INFO_PKT):
-            raise InvalidExpectedDataException("Waiting info packet")
-        
-        data.readType(self._info)
-        #next state send error license
-        self.sendLicensingErrorMessage()
-        self.sendDemandActivePDU()
-        self.setNextState(self.recvConfirmActivePDU)
-    
-    def recvLicenceInfo(self, data):
-        """
-        Read license info packet and check if is a valid client info
-        @param data: Stream
-        """
-        #packet preambule
-        securityFlag = UInt16Le()
-        securityFlagHi = UInt16Le()
-        data.readType((securityFlag, securityFlagHi))
-        
-        if not (securityFlag.value & SecurityFlag.SEC_LICENSE_PKT):
-            raise InvalidExpectedDataException("Waiting license packet")
-        
-        validClientPdu = lic.LicPacket()
-        data.readType(validClientPdu)
-        
-        if validClientPdu.bMsgtype.value == lic.MessageType.ERROR_ALERT and validClientPdu.licensingMessage.dwErrorCode.value == lic.ErrorCode.STATUS_VALID_CLIENT and validClientPdu.licensingMessage.dwStateTransition.value == lic.StateTransition.ST_NO_TRANSITION:
-            self.setNextState(self.recvDemandActivePDU)
-        #not tested because i can't buy RDP license server
-        elif validClientPdu.bMsgtype.value == lic.MessageType.LICENSE_REQUEST:
-            newLicenseReq = lic.createNewLicenseRequest(validClientPdu.licensingMessage)
-            self._transport.send((UInt16Le(SecurityFlag.SEC_LICENSE_PKT), UInt16Le(), newLicenseReq))
-        else:
-            raise InvalidExpectedDataException("Not a valid license packet")
-        
-    def recvDemandActivePDU(self, data):
-        """
-        Receive demand active PDU which contains 
-        Server capabilities. In this version of RDPY only
-        Restricted group of capabilities are used.
-        Send confirm active PDU
-        @param data: Stream
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DEMANDACTIVEPDU:
-            raise InvalidExpectedDataException("Expected Demand Active PDU from server")
-        
-        self._shareId = pdu.pduMessage.shareId.value
-        
-        for cap in pdu.pduMessage.capabilitySets._array:
-            self._serverCapabilities[cap.capabilitySetType] = cap
-        
-        self.sendConfirmActivePDU()
-        #send synchronize
-        self.sendClientFinalizeSynchronizePDU()
-        self.setNextState(self.recvServerSynchronizePDU)
-        
-    def recvConfirmActivePDU(self, data):
-        """
-        Receive confirm active PDU from client
-        Capabilities exchange
-        @param data: Stream
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_CONFIRMACTIVEPDU:
-            raise InvalidExpectedDataException("Expected Confirm Active PDU from client")
-        
-        for cap in pdu.pduMessage.capabilitySets._array:
-            self._clientCapabilities[cap.capabilitySetType] = cap
-            
-        self.setNextState(self.recvClientSynchronizePDU)
-        
-    def recvServerSynchronizePDU(self, data):
-        """
-        Receive from server 
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_SYNCHRONIZE:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected synchronizePDU")
-        self.setNextState(self.recvServerControlCooperatePDU)
-        
-    def recvServerControlCooperatePDU(self, data):
-        """
-        Receive control cooperate PDU from server
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != Action.CTRLACTION_COOPERATE:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlCooperatePDU")
-        self.setNextState(self.recvServerControlGrantedPDU)
-        
-    def recvServerControlGrantedPDU(self, data):
-        """
-        Receive last control PDU the granted control PDU
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != Action.CTRLACTION_GRANTED_CONTROL:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlGrantedPDU")
-        self.setNextState(self.recvServerFontMapPDU)
-        
-    def recvServerFontMapPDU(self, data):
-        """
-        Last useless connection packet from server to client
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_FONTMAP:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected fontMapPDU")
-        
-        #here i'm connected
-        self._clientListener.onReady()
-        self.setNextState(self.recvPDU)
-        
-    def recvClientSynchronizePDU(self, data):
-        """
-        Receive from client 
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_SYNCHRONIZE:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected synchronizePDU")
-        self.setNextState(self.recvClientControlCooperatePDU)
-        
-    def recvClientControlCooperatePDU(self, data):
-        """
-        Receive control cooperate PDU from client
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != Action.CTRLACTION_COOPERATE:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlCooperatePDU")
-        self.setNextState(self.recvClientControlRequestPDU)
-        
-    def recvClientControlRequestPDU(self, data):
-        """
-        Receive last control PDU the request control PDU from client
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_CONTROL or pdu.pduMessage.pduData.action.value != Action.CTRLACTION_REQUEST_CONTROL:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected controlGrantedPDU")
-        self.setNextState(self.recvClientFontListPDU)
-        
-    def recvClientFontListPDU(self, data):
-        """
-        Last synchronize packet from client to server
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value != PDUType.PDUTYPE_DATAPDU or pdu.pduMessage.shareDataHeader.pduType2.value != PDUType2.PDUTYPE2_FONTLIST:
-            raise InvalidExpectedDataException("Error in PDU layer automata : expected fontMapPDU")
-        
-        #finalize server
-        self.sendServerFinalizeSynchronizePDU()
-        self.setNextState(self.recvPDU)
-        
-    def recvPDU(self, data):
-        """
-        Main receive function after connection sequence
-        @param data: Stream from transport layer
-        """
-        pdu = PDU()
-        data.readType(pdu)
-        if pdu.shareControlHeader.pduType.value == PDUType.PDUTYPE_DATAPDU:
-            self.readDataPDU(pdu.pduMessage)
-        elif pdu.shareControlHeader.pduType.value == PDUType.PDUTYPE_DEACTIVATEALLPDU:
-            #use in deactivation-reactivation sequence
-            #next state is either a capabilities re exchange or disconnection
-            #http://msdn.microsoft.com/en-us/library/cc240454.aspx
-            self.setNextState(self.recvDemandActivePDU)
-        
-    def recvFastPath(self, fastPathData):
-        """
-        Implement FastPathListener interface
-        Fast path is needed by RDP 8.0
-        @param fastPathData: Stream that contain fast path data
-        """
-        fastPathPDU = FastPathUpdatePDU()
-        fastPathData.readType(fastPathPDU)
-        if fastPathPDU.updateHeader.value == FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
-            self._clientListener.onUpdate(fastPathPDU.updateData[1].rectangles._array)
-            
-    def readDataPDU(self, dataPDU):
-        """
-        read a data PDU object
-        @param dataPDU: DataPDU object
-        """
-        if dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
-            message = "Unknown code %s"%hex(dataPDU.pduData.errorInfo.value)
-            if ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
-                message = ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
-                
-            log.error("INFO PDU : %s"%message)
-        elif dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_SHUTDOWN_DENIED:
-            #may be an event to ask to user
-            self._transport.close()
-        elif dataPDU.shareDataHeader.pduType2.value == PDUType2.PDUTYPE2_UPDATE:
-            self.readUpdateDataPDU(dataPDU.pduData)
-    
-    def readUpdateDataPDU(self, updateDataPDU):
-        """
-        Read an update data PDU message
-        dispatch update message
-        @param: UpdateDataPDU object
-        """
-        if updateDataPDU.updateType.value == UpdateType.UPDATETYPE_BITMAP:
-            self._clientListener.onUpdate(updateDataPDU.updateData.rectangles._array)
-        
-    def sendInfoPkt(self):
-        """
-        Send a logon info packet
-        client automata message
-        """
-        self._transport.send((UInt16Le(SecurityFlag.SEC_INFO_PKT), UInt16Le(), self._info))
-        
-    def sendLicensingErrorMessage(self):
-        """
-        Send a licensing error message
-        server automata message
-        """
-        self._transport.send((UInt16Le(SecurityFlag.SEC_LICENSE_PKT), UInt16Le(), lic.createValidClientLicensingErrorMessage()))
-        
-    def sendDemandActivePDU(self):
-        """
-        Send server capabilities
-        server automata PDU
-        """
-        #init general capability
-        generalCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
-        generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
-        generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
-        
-        #init bitmap capability
-        bitmapCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability
-        bitmapCapability.preferredBitsPerPixel.value = 16
-        bitmapCapability.desktopWidth.value = 800
-        bitmapCapability.desktopHeight.value = 600
-        
-        demandActivePDU = DemandActivePDU()
-        demandActivePDU.shareId.value = self._shareId
-        demandActivePDU.capabilitySets._array = self._serverCapabilities.values()
-        self.sendPDU(demandActivePDU)
-    
-    def sendPDU(self, pduMessage):
-        """
-        Send a PDU message to transport layer
-        """
-        self._transport.send(PDU(self._transport.getUserId(), pduMessage))
-        
-    def sendDataPDU(self, pduData):
-        """
-        Send an PDUData to transport layer
-        """
-        self.sendPDU(DataPDU(pduData, self._shareId))
-        
-    def sendConfirmActivePDU(self):
-        """
-        Send all client capabilities
-        """
-        #init general capability
-        generalCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
-        generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
-        generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
-        
-        #init bitmap capability
-        bitmapCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability
-        bitmapCapability.preferredBitsPerPixel = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).highColorDepth
-        bitmapCapability.desktopWidth = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).desktopWidth
-        bitmapCapability.desktopHeight = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).desktopHeight
-         
-        #init order capability
-        orderCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_ORDER].capability
-        orderCapability.orderFlags.value |= caps.OrderFlag.ZEROBOUNDSDELTASSUPPORT
-        
-        #init input capability
-        inputCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_INPUT].capability
-        inputCapability.inputFlags.value = caps.InputFlags.INPUT_FLAG_SCANCODES | caps.InputFlags.INPUT_FLAG_MOUSEX | caps.InputFlags.INPUT_FLAG_UNICODE
-        inputCapability.keyboardLayout = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).kbdLayout
-        inputCapability.keyboardType = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardType
-        inputCapability.keyboardSubType = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardSubType
-        inputCapability.keyboardrFunctionKey = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardFnKeys
-        inputCapability.imeFileName = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).imeFileName
-        
-        #make active PDU packet
-        confirmActivePDU = ConfirmActivePDU()
-        confirmActivePDU.shareId.value = self._shareId
-        confirmActivePDU.capabilitySets._array = self._clientCapabilities.values()
-        self.sendPDU(confirmActivePDU)
-        
-    def sendClientFinalizeSynchronizePDU(self):
-        """
-        send a synchronize PDU from client to server
-        """
-        synchronizePDU = SynchronizeDataPDU(self._transport.getChannelId())
-        self.sendDataPDU(synchronizePDU)
-        
-        #ask for cooperation
-        controlCooperatePDU = ControlDataPDU(Action.CTRLACTION_COOPERATE)
-        self.sendDataPDU(controlCooperatePDU)
-        
-        #request control
-        controlRequestPDU = ControlDataPDU(Action.CTRLACTION_REQUEST_CONTROL)
-        self.sendDataPDU(controlRequestPDU)
-        
-        #TODO persistent key list http://msdn.microsoft.com/en-us/library/cc240494.aspx
-        
-        #deprecated font list pdu
-        fontListPDU = FontListDataPDU()
-        self.sendDataPDU(fontListPDU)
-        
-    def sendServerFinalizeSynchronizePDU(self):
-        """
-        Send last synchronize packet from server to client
-        """
-        synchronizePDU = SynchronizeDataPDU(self._transport.getChannelId())
-        self.sendDataPDU(synchronizePDU)
-        
-        #ask for cooperation
-        controlCooperatePDU = ControlDataPDU(Action.CTRLACTION_COOPERATE)
-        self.sendDataPDU(controlCooperatePDU)
-        
-        #request control
-        controlRequestPDU = ControlDataPDU(Action.CTRLACTION_GRANTED_CONTROL)
-        self.sendDataPDU(controlRequestPDU)
-        
-        #TODO persistent key list http://msdn.microsoft.com/en-us/library/cc240494.aspx
-        
-        #deprecated font list pdu
-        fontMapPDU = FontMapDataPDU()
-        self.sendDataPDU(fontMapPDU)
-        
-    def sendInputEvents(self, pointerEvents):
-        """
-        send client input events
-        @param pointerEvents: list of pointer events
-        """
-        pdu = ClientInputEventPDU()
-        pdu.slowPathInputEvents._array = [SlowPathInputEvent(x) for x in pointerEvents]
-        self.sendDataPDU(pdu)
