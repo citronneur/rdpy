@@ -26,6 +26,14 @@ from rdpy.network.layer import RawLayer
 from rdpy.network.type import UInt8, UInt16Be, sizeof
 from rdpy.base.error import CallPureVirtualFuntion
 
+class Action(object):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc240621.aspx
+    @see: http://msdn.microsoft.com/en-us/library/cc240589.aspx
+    """
+    FASTPATH_ACTION_FASTPATH = 0x0
+    FASTPATH_ACTION_X224 = 0x3
+
 class FastPathListener(object):
     """
     Fast path packet listener
@@ -36,19 +44,33 @@ class FastPathListener(object):
         Call when fast path packet is received
         @param fastPathS: Stream
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "StreamListener"))
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recvFastPath", "recvFastPath"))
+    
+    def setFastPathSender(self, fastPathSender):
+        """
+        @param fastPathSender: FastPathSender
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "setFastPathSender", "recvFastPath"))
 
-class TPKT(RawLayer):
+class FastPathSender(object):
+    """
+    Fast path send capability
+    """
+    def sendFastPath(self, fastPathS):
+        """
+        @param fastPathS: type transform to stream and send as fastpath
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendFastPath", "FastPathSender"))
+
+class TPKT(RawLayer, FastPathSender):
     """
     TPKT layer in RDP protocol stack
     This layer only handle size of packet and determine if is a fast path packet
     """
-    #first byte of classic tpkt header
-    TPKT_PACKET = 3
-    
     def __init__(self, presentation, fastPathListener):
         """
         @param presentation: presentation layer, in RDP case is TPDU layer
+        @param fastPathListener: FastPathListener
         """
         RawLayer.__init__(self, presentation)
         #last packet version read from header
@@ -57,6 +79,8 @@ class TPKT(RawLayer):
         self._lastShortLength = UInt8()
         #fast path listener
         self._fastPathListener = fastPathListener
+        #set me as fast path sender
+        fastPathListener.setFastPathSender(self)
         
     def connect(self):
         """
@@ -77,7 +101,7 @@ class TPKT(RawLayer):
         #first read packet version
         data.readType(self._lastPacketVersion)
         #classic packet
-        if self._lastPacketVersion.value == TPKT.TPKT_PACKET:
+        if self._lastPacketVersion.value == Action.FASTPATH_ACTION_X224:
             #padding
             data.readType(UInt8())
             #read end header
@@ -136,4 +160,10 @@ class TPKT(RawLayer):
         Send encompassed data
         @param message: network.Type message to send
         """
-        RawLayer.send(self, (UInt8(TPKT.TPKT_PACKET), UInt8(0), UInt16Be(sizeof(message) + 4), message))
+        RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_X224), UInt8(0), UInt16Be(sizeof(message) + 4), message))
+        
+    def sendFastPath(self, fastPathS):
+        """
+        @param fastPathS: type transform to stream and send as fastpath
+        """
+        RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_FASTPATH), UInt16Be((sizeof(fastPathS) + 3) | 0x8000), fastPathS))

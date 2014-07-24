@@ -139,4 +139,3 @@ if __name__ == '__main__':
     reactor.connectTCP(ip, int(port), RDPClientQtFactory(width, height, username, password, domain))
     reactor.runReturn()
     app.exec_()
-    reactor.stop()

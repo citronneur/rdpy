@@ -25,7 +25,7 @@ The main channel is the graphical channel.
 It exist channel for file system order, audio channel, clipboard etc...
 """
 from rdpy.network.layer import LayerAutomata, StreamSender, Layer
-from rdpy.network.type import sizeof, Stream, UInt8, UInt16Le
+from rdpy.network.type import sizeof, Stream, UInt8, UInt16Le, String
 from rdpy.base.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
 import rdpy.base.log as log
@@ -136,6 +136,14 @@ class MCSLayer(LayerAutomata):
         self._sendOpcode = sendOpcode
         #receive opcode
         self._receiveOpcode = receiveOpcode
+        
+    def close(self):
+        """
+        Send disconnect provider ultimatum
+        """
+        self._transport.send((UInt8(self.writeMCSPDUHeader(DomainMCSPDU.DISCONNECT_PROVIDER_ULTIMATUM, 1)),
+                              per.writeEnumerates(0x80), String("\x00" * 6)))
+        self._transport.close()
         
     def allChannelConnected(self):
         """

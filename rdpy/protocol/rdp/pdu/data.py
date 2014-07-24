@@ -783,8 +783,8 @@ class ClientInputEventPDU(CompositeType):
 
 class ShutdownRequestPDU(CompositeType):
     """
-    PDU use to signal that the session will be closzed are connected
-    server -> client
+    PDU use to signal that the session will be closed
+    client -> server
     """  
     _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_REQUEST
     def __init__(self):
@@ -792,7 +792,7 @@ class ShutdownRequestPDU(CompositeType):
              
 class ShutdownDeniedPDU(CompositeType):
     """
-    PDU use to signal that the session will be closzed are connected
+    PDU use to signal which the session will be closed is connected
     server -> client
     """  
     _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_DENIED
@@ -842,17 +842,17 @@ class FastPathUpdatePDU(CompositeType):
         CompositeType.__init__(self)
         self.updateHeader = UInt8(lambda:updateData.__class__._FASTPATH_UPDATE_TYPE_)
         self.compressionFlags = UInt8(conditional = lambda:((self.updateHeader.value >> 4) & FastPathOutputCompression.FASTPATH_OUTPUT_COMPRESSION_USED))
-        self.size = UInt16Le()
+        self.size = UInt16Le(lambda:sizeof(self.updateData))
         
         def UpdateDataFactory():
             """
             Create correct object in accordance to self.updateHeader field
             """
-            if (self.updateHeader.value & 0xf) == FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
-                return (UInt16Le(FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP, constant = True), BitmapUpdateDataPDU(readLen = self.size - 2))
-            else:
-                log.debug("unknown Fast Path PDU update data type : %s"%hex(self.updateHeader.value & 0xf))
-                return String()
+            for c in [FastPathBitmapUpdateDataPDU]:
+                if (self.updateHeader.value & 0xf) == c._FASTPATH_UPDATE_TYPE_:
+                    return c()
+            log.debug("unknown Fast Path PDU update data type : %s"%hex(self.updateHeader.value & 0xf))
+            return String()
             
         if updateData is None:
             updateData = FactoryType(UpdateDataFactory)
@@ -867,7 +867,6 @@ class BitmapUpdateDataPDU(CompositeType):
     @see: http://msdn.microsoft.com/en-us/library/dd306368.aspx
     """
     _UPDATE_TYPE_ = UpdateType.UPDATETYPE_BITMAP
-    _FASTPATH_UPDATE_TYPE_ = FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP
     
     def __init__(self, readLen = None):
         """
@@ -946,7 +945,20 @@ class BitmapData(CompositeType):
         self.bitmapLength = UInt16Le(lambda:(sizeof(self.bitmapComprHdr) + sizeof(self.bitmapDataStream)))
         self.bitmapComprHdr = BitmapCompressedDataHeader(bodySize = lambda:sizeof(self.bitmapDataStream), scanWidth = lambda:self.width.value, uncompressedSize = lambda:(self.width.value * self.height.value * self.bitsPerPixel.value), conditional = lambda:((self.flags.value | BitmapFlag.BITMAP_COMPRESSION) and not (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
         self.bitmapDataStream = String(bitmapDataStream, readLen = UInt16Le(lambda:(self.bitmapLength.value if (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
-        
+
+class FastPathBitmapUpdateDataPDU(CompositeType):
+    """
+    Fast path version of bitmap update PDU
+    @see: http://msdn.microsoft.com/en-us/library/dd306368.aspx
+    """
+    _FASTPATH_UPDATE_TYPE_ = FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.header = UInt16Le(FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP, constant = True)
+        self.numberRectangles = UInt16Le(lambda:len(self.rectangles._array))
+        self.rectangles = ArrayType(BitmapData, readLen = self.numberRectangles)
+    
 class SlowPathInputEvent(CompositeType):
     """
     PDU use in slow-path sending client inputs

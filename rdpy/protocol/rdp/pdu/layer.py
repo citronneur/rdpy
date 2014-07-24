@@ -64,6 +64,12 @@ class PDUServerListener(object):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "PDUServerListener"))
     
+    def onSlowPathInput(self, slowPathInputEvents):
+        """
+        Event call when slow path input are available
+        @param slowPathInputEvents: [data.SlowPathInputEvent]
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onSlowPathInput", "PDUServerListener"))
     
 class PDULayer(LayerAutomata):
     """
@@ -128,6 +134,8 @@ class Client(PDULayer, tpkt.FastPathListener):
         """
         PDULayer.__init__(self)
         self._listener = listener
+        #enable or not fast path
+        self._fastPathSender = None
         
     def connect(self):
         """
@@ -138,12 +146,22 @@ class Client(PDULayer, tpkt.FastPathListener):
         self.sendInfoPkt()
         #next state is license info PDU
         self.setNextState(self.recvLicenceInfo)
+        #check if client support fast path message
+        self._clientFastPathSupported = False
         
     def close(self):
         """
         Send PDU close packet and call close method on transport method
         """
-        self.sendDataPDU(data.ShutdownRequestPDU())
+        self._transport.close()
+        #self.sendDataPDU(data.ShutdownRequestPDU())
+        
+    def setFastPathSender(self, fastPathSender):
+        """
+        @param fastPathSender: tpkt.FastPathSender
+        @note: implement tpkt.FastPathListener
+        """
+        self._fastPathSender = fastPathSender
         
     def recvLicenceInfo(self, s):
         """
@@ -290,7 +308,7 @@ class Client(PDULayer, tpkt.FastPathListener):
         fastPathPDU = data.FastPathUpdatePDU()
         fastPathS.readType(fastPathPDU)
         if fastPathPDU.updateHeader.value == data.FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
-            self._listener.onUpdate(fastPathPDU.updateData[1].rectangles._array)
+            self._listener.onUpdate(fastPathPDU.updateData.rectangles._array)
             
     def readDataPDU(self, dataPDU):
         """
@@ -333,7 +351,9 @@ class Client(PDULayer, tpkt.FastPathListener):
         generalCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
         generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
         generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
+        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR
+        if not self._fastPathSender is None:
+            generalCapability.extraFlags.value |= caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
         
         #init bitmap capability
         bitmapCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability
@@ -390,7 +410,7 @@ class Client(PDULayer, tpkt.FastPathListener):
         pdu.slowPathInputEvents._array = [data.SlowPathInputEvent(x) for x in pointerEvents]
         self.sendDataPDU(pdu)
         
-class Server(PDULayer):
+class Server(PDULayer, tpkt.FastPathListener):
     """
     Server Automata of PDU layer
     """
@@ -400,6 +420,8 @@ class Server(PDULayer):
         """
         PDULayer.__init__(self)
         self._listener = listener
+        #fast path layer
+        self._fastPathSender = None
         
     def connect(self):
         """
@@ -407,6 +429,13 @@ class Server(PDULayer):
         Wait Info Packet
         """
         self.setNextState(self.recvInfoPkt)
+        
+    def setFastPathSender(self, fastPathSender):
+        """
+        @param fastPathSender: tpkt.FastPathSender
+        @note: implement tpkt.FastPathListener
+        """
+        self._fastPathSender = fastPathSender
         
     def recvInfoPkt(self, s):
         """
@@ -448,6 +477,9 @@ class Server(PDULayer):
         
         for cap in pdu.pduMessage.capabilitySets._array:
             self._clientCapabilities[cap.capabilitySetType] = cap
+            
+        #find use full flag
+        self._clientFastPathSupported = self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags.value & caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
             
         self.setNextState(self.recvClientSynchronizePDU)
         
@@ -538,6 +570,18 @@ class Server(PDULayer):
                 errorMessage = data.ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
                 
             log.error("INFO PDU : %s"%errorMessage)
+        elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_INPUT:
+            self._listener.onSlowPathInput(dataPDU.pduData.slowPathInputEvents._array)
+        elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SHUTDOWN_REQUEST:
+            self._transport.close()
+            
+    def recvFastPath(self, fastPathS):
+        """
+        Implement FastPathListener interface
+        Fast path is needed by RDP 8.0
+        @param fastPathS: Stream that contain fast path data
+        """
+        pass
         
     def sendLicensingErrorMessage(self):
         """
@@ -604,7 +648,16 @@ class Server(PDULayer):
         #check bitmap header for client that want it (very old client)
         if self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags.value & caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR:
             for bitmapData in bitmapDatas:
-                bitmapData.flags.value |= data.BitmapFlag.NO_BITMAP_COMPRESSION_HDR
-        updateDataPDU = data.BitmapUpdateDataPDU()
-        updateDataPDU.rectangles._array = bitmapDatas
-        self.sendDataPDU(data.UpdateDataPDU(updateDataPDU))
+                if bitmapData.flags.value & data.BitmapFlag.BITMAP_COMPRESSION:
+                    bitmapData.flags.value |= data.BitmapFlag.NO_BITMAP_COMPRESSION_HDR
+        
+        if self._clientFastPathSupported and not self._fastPathSender is None:
+            #fast path case
+            fastPathUpdateDataPDU = data.FastPathBitmapUpdateDataPDU()
+            fastPathUpdateDataPDU.rectangles._array = bitmapDatas
+            self._fastPathSender.sendFastPath(data.FastPathUpdatePDU(fastPathUpdateDataPDU))
+        else:
+            #slow path case
+            updateDataPDU = data.BitmapUpdateDataPDU()
+            updateDataPDU.rectangles._array = bitmapDatas
+            self.sendDataPDU(data.UpdateDataPDU(updateDataPDU))

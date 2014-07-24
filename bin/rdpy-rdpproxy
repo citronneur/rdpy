@@ -21,8 +21,6 @@
 """
 RDP proxy recorder and spyer
 Proxy RDP protocol
-With admin account you can watch all currently session
-For special session you can record
 """
 
 import sys, os
@@ -43,14 +41,6 @@ class ProxyServer(rdp.RDPServerObserver):
         rdp.RDPServerObserver.__init__(self, controller)
         self._client = None
         
-    def onReady(self):
-        """
-        Event use to inform state of server stack
-        Use to connect client
-        """
-        width, height = self._controller.getScreen()
-        reactor.connectTCP("wav-glw-013", 3389, ProxyClientFactory(self, width, height))
-        
     def clientConnected(self, client):
         """
         Event throw by client when it's ready
@@ -58,6 +48,52 @@ class ProxyServer(rdp.RDPServerObserver):
         """
         self._client = client
         self._controller.setColorDepth(self._client._controller.getColorDepth())
+        
+    def onReady(self):
+        """
+        Event use to inform state of server stack
+        Use to connect client
+        """
+        width, height = self._controller.getScreen()
+        reactor.connectTCP("si-hyperv-002", 3389, ProxyClientFactory(self, width, height))
+        
+    def onKeyEventScancode(self, code, isPressed):
+        """
+        Event call when a keyboard event is catch in scan code format
+        @param code: scan code of key
+        @param isPressed: True if key is down
+        """
+        #no client connected
+        if self._client is None:
+            return
+        
+        self._client._controller.sendKeyEventScancode(code, isPressed)
+    
+    def onKeyEventUnicode(self, code, isPressed):
+        """
+        Event call when a keyboard event is catch in unicode format
+        @param code: unicode of key
+        @param isPressed: True if key is down
+        """
+        #no client connected
+        if self._client is None:
+            return
+        
+        self._client._controller.sendKeyEventUnicode(code, isPressed)
+        
+    def onPointerEvent(self, x, y, button, isPressed):
+        """
+        Event call on mouse event
+        @param x: x position
+        @param y: y position
+        @param button: 1, 2 or 3 button
+        @param isPressed: True if mouse button is pressed
+        """
+        #no client connected
+        if self._client is None:
+            return
+        
+        self._client._controller.sendPointerEvent(x, y, button, isPressed)
     
 class ProxyClient(rdp.RDPClientObserver):
     """

@@ -151,6 +151,12 @@ class RawLayer(protocol.Protocol, LayerAutomata, StreamSender):
         """
         #join two scheme
         self.connect()
+        
+    def close(self):
+        """
+        Close raw layer
+        """
+        self.transport.loseConnection()
             
     def expect(self, expectedLen, callback = None):
         """

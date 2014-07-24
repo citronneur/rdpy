@@ -60,6 +60,12 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @return: color depth set by the server (15, 16, 24)
         """
         return self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability.preferredBitsPerPixel.value
+    
+    def getKeyEventUniCodeSupport(self):
+        """
+        @return: True if server support unicode input
+        """
+        return self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_INPUT].capability.inputFlags.value & pdu.caps.InputFlags.INPUT_FLAG_UNICODE
         
     def setPerformanceSession(self):
         """
@@ -298,6 +304,12 @@ class RDPServerController(pdu.layer.PDUServerListener):
             #restart connection sequence
             self._isReady = False
             self._pduLayer.sendPDU(pdu.data.DeactiveAllPDU())
+            
+    def setKeyEventUnicodeSupport(self):
+        """
+        Enable key event in unicode format
+        """
+        self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_INPUT].capability.inputFlags.value |= pdu.caps.InputFlags.INPUT_FLAG_UNICODE
     
     def onReady(self):
         """
@@ -309,6 +321,31 @@ class RDPServerController(pdu.layer.PDUServerListener):
         self._sendReady = True
         for observer in self._serverObserver:
             observer.onReady()
+            
+    def onSlowPathInput(self, slowPathInputEvents):
+        """
+        Event call when slow path input are available
+        @param slowPathInputEvents: [data.SlowPathInputEvent]
+        """
+        for observer in self._serverObserver:
+            for event in slowPathInputEvents:
+                #scan code
+                if event.messageType.value == pdu.data.InputMessageType.INPUT_EVENT_SCANCODE:
+                    observer.onKeyEventScancode(event.slowPathInputData.keyCode.value, not (event.slowPathInputData.keyboardFlags.value & pdu.data.KeyboardFlag.KBDFLAGS_RELEASE))
+                #unicode
+                elif event.messageType.value == pdu.data.InputMessageType.INPUT_EVENT_UNICODE:
+                    observer.onKeyEventUnicode(event.slowPathInputData.unicode.value, not (event.slowPathInputData.keyboardFlags.value & pdu.data.KeyboardFlag.KBDFLAGS_RELEASE))
+                #mouse event    
+                elif event.messageType.value == pdu.data.InputMessageType.INPUT_EVENT_MOUSE:
+                    isPressed = event.slowPathInputData.pointerFlags.value & pdu.data.PointerFlag.PTRFLAGS_DOWN
+                    button = 0
+                    if event.slowPathInputData.pointerFlags.value & pdu.data.PointerFlag.PTRFLAGS_BUTTON1:
+                        button = 1
+                    elif event.slowPathInputData.pointerFlags.value & pdu.data.PointerFlag.PTRFLAGS_BUTTON2:
+                        button = 2
+                    elif event.slowPathInputData.pointerFlags.value & pdu.data.PointerFlag.PTRFLAGS_BUTTON3:
+                        button = 3
+                    observer.onPointerEvent(event.slowPathInputData.xPos.value, event.slowPathInputData.yPos.value, button, isPressed)
     
     def sendUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
@@ -428,4 +465,30 @@ class RDPServerObserver(object):
         """
         Stack is ready and connected
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPServerObserver"))  
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPServerObserver"))
+    
+    def onKeyEventScancode(self, code, isPressed):
+        """
+        Event call when a keyboard event is catch in scan code format
+        @param code: scan code of key
+        @param isPressed: True if key is down
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onKeyEventScanCode", "RDPServerObserver"))
+    
+    def onKeyEventUnicode(self, code, isPressed):
+        """
+        Event call when a keyboard event is catch in unicode format
+        @param code: unicode of key
+        @param isPressed: True if key is down
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onKeyEventUnicode", "RDPServerObserver"))
+    
+    def onPointerEvent(self, x, y, button, isPressed):
+        """
+        Event call on mouse event
+        @param x: x position
+        @param y: y position
+        @param button: 1, 2 or 3 button
+        @param isPressed: True if mouse button is pressed
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onPointerEvent", "RDPServerObserver"))
