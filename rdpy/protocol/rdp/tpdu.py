@@ -103,7 +103,7 @@ class Negotiation(CompositeType):
         self.code = UInt8()
         self.flag = UInt8(0)
         #always 8
-        self.len = UInt16Le(0x0008, constant = True)
+        self.len = UInt16Le(0x0008)#not constant because freerdp send me random value...
         self.selectedProtocol = UInt32Le(conditional = lambda: (self.code.value != NegociationType.TYPE_RDP_NEG_FAILURE))
         self.failureCode = UInt32Le(conditional = lambda: (self.code.value == NegociationType.TYPE_RDP_NEG_FAILURE))
 

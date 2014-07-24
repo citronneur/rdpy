@@ -23,22 +23,25 @@ RDP proxy recorder and spyer
 Proxy RDP protocol
 """
 
-import sys, os
+import sys, os, getopt, json
 # Change path so we find rdpy
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
+from rdpy.base import log, error
 from rdpy.protocol.rdp import rdp
 from twisted.internet import reactor
-
+clientMacro = None
 class ProxyServer(rdp.RDPServerObserver):
     """
     Server side of proxy
     """
-    def __init__(self, controller):
+    def __init__(self, controller, credentialProvider):
         """
         @param controller: RDPServerController
+        @param credentialProvider: CredentialProvider
         """
         rdp.RDPServerObserver.__init__(self, controller)
+        self._credentialProvider = credentialProvider
         self._client = None
         
     def clientConnected(self, client):
@@ -46,7 +49,9 @@ class ProxyServer(rdp.RDPServerObserver):
         Event throw by client when it's ready
         @param client: ProxyClient
         """
+        global clientMacro
         self._client = client
+        clientMacro = client
         self._controller.setColorDepth(self._client._controller.getColorDepth())
         
     def onReady(self):
@@ -54,8 +59,21 @@ class ProxyServer(rdp.RDPServerObserver):
         Event use to inform state of server stack
         Use to connect client
         """
+        domain, username, password = self._controller.getCredentials()
+        
+        if self._credentialProvider.isAdmin(domain, username, password):
+            self.clientConnected(ProxyClient(clientMacro._controller, self))
+            return
+        
+        try:
+            ip, port, domain, username, password = self._credentialProvider.getCredentials(domain, username, password)
+        except error.InvalidExpectedDataException as e:
+            log.info(e.message)
+            self._controller.close()
+            return
+        
         width, height = self._controller.getScreen()
-        reactor.connectTCP("si-hyperv-002", 3389, ProxyClientFactory(self, width, height))
+        reactor.connectTCP(ip, port, ProxyClientFactory(self, width, height))
         
     def onKeyEventScancode(self, code, isPressed):
         """
@@ -75,7 +93,7 @@ class ProxyServer(rdp.RDPServerObserver):
         @param code: unicode of key
         @param isPressed: True if key is down
         """
-        #no client connected
+        #no client connectedomaind
         if self._client is None:
             return
         
@@ -132,11 +150,20 @@ class ProxyClient(rdp.RDPClientObserver):
         self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
 
 class ProxyServerFactory(rdp.ServerFactory):
-    def __init__(self):
-        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt", 16)
+    def __init__(self, credentialProvider):
+        """
+        @param config: rdp-proxy configuration
+        @param credentialProvider: CredentialProvider
+        """
+        rdp.ServerFactory.__init__(self, "/home/sylvain/dev/certificate/rdpy.key", "/home/sylvain/dev/certificate/rdpy.crt", 16)
+        self._credentialProvider = credentialProvider
         
     def buildObserver(self, controller):
-        return ProxyServer(controller)
+        """
+        Implement rdp.ServerFactory
+        @param controller: rdp.RDPServerController
+        """
+        return ProxyServer(controller, self._credentialProvider)
     
     def startedConnecting(self, connector):
         pass
@@ -166,7 +193,90 @@ class ProxyClientFactory(rdp.ClientFactory):
     def clientConnectionFailed(self, connector, reason):
         pass
 
-if __name__ == '__main__':
+def help():
+    """
+    Print help in consoe
+    """
+    print "Usage: rdpy-rdpproxy -f config_file_path listen_port"
     
-    reactor.listenTCP(33389, ProxyServerFactory())
+def loadConfig(configFilePath):
+    """
+    Load and check config file
+    @param configFilePath: config file path
+    """
+    if not os.path.isfile(configFilePath):
+        log.error("File %s doesn't exist"%configFilePath)
+        return None
+    
+    f = open(configFilePath, 'r')
+    config = json.load(f)
+    f.close()
+    
+    if not config.has_key('domain'):
+        log.error("Need domain definition in config file")
+        return None
+    
+    #check admin account
+    if not config.has_key('admin') or not config['admin'].has_key('domain') or not config['admin'].has_key('username') or not config['admin'].has_key('password'):
+        log.error("Bad admin account definition in config file")
+        return None
+    
+    return config
+
+class CredentialProvider(object):
+    """
+    Credential provider for proxy
+    """
+    def __init__(self, config):
+        """
+        @param config: rdp proxy config
+        """
+        self._config = config
+        
+    def getCredentials(self, domain, username, password):
+        """
+        @param condig: rdp config
+        @param domain: domain to check
+        @param username: username in domain
+        @param password: password in domain
+        @return: (ip, port, domain, username, password) or None if error
+        """
+        if not self._config['domain'].has_key(domain):
+            raise error.InvalidExpectedDataException("Unknown domain %s"%(domain))
+        for user in self._config['domain'][domain]:
+            if user['username'] == username and user['password'] == password:
+                return user['credentials']['ip'], user['credentials']['port'], user['credentials']['domain'], user['credentials']['username'], user['credentials']['password']
+        raise error.InvalidExpectedDataException("Unknown credential %s\%s"%(domain, username))
+
+    def isAdmin(self, domain, username, password):
+        """
+        @return: True if credential match admin credential
+        """
+        return self._config['admin']['domain'] == domain and self._config['admin']['username'] == username and self._config['admin']['password'] == password
+
+if __name__ == '__main__':
+    configFilePath = None
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "hf:")
+    except getopt.GetoptError:
+        help()
+    for opt, arg in opts:
+        if opt == "-h":
+            help()
+            sys.exit()
+        elif opt == "-f":
+            configFilePath = arg
+            
+    if configFilePath is None:
+        print "Config file is mandatory"
+        help()
+        sys.exit()
+    
+    #load config file
+    config = loadConfig(configFilePath)
+    if config is None:
+        log.error("Bad configuration file")
+        sys.exit()
+    
+    reactor.listenTCP(int(args[0]), ProxyServerFactory(CredentialProvider(config)))
     reactor.run()
