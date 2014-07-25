@@ -299,6 +299,7 @@ class QRemoteDesktop(QtGui.QWidget):
         #draw in widget
         with QtGui.QPainter(self) as qp:
             qp.drawImage(0, 0, self._buffer)
+
         self._refresh = []
         
     def mouseMoveEvent(self, event):

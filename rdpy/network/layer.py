@@ -25,7 +25,7 @@ RDPY use Layer Protocol design (like twisted)
 
 from rdpy.base.error import CallPureVirtualFuntion
 
-class StreamListener(object):
+class IStreamListener(object):
     """
     Interface use to inform that we can handle receive stream
     """
@@ -36,9 +36,9 @@ class StreamListener(object):
         default is to pass data to presentation layer
         @param s: raw Stream receive from transport layer
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "StreamListener"))
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
     
-class StreamSender(object):
+class IStreamSender(object):
     """
     Interface use to show stream sender capability 
     """
@@ -47,7 +47,7 @@ class StreamSender(object):
         Send Stream on layer
         @param data: Type or tuple element handle by transport layer
         '''
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "send", "StreamSender"))
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "send", "IStreamSender"))
     
 class Layer(object):
     """
@@ -82,7 +82,7 @@ class Layer(object):
         if not self._transport is None:
             self._transport.close()
             
-class LayerAutomata(Layer, StreamListener):
+class LayerAutomata(Layer, IStreamListener):
     """
     Layer with automata state
     we can set next recv function used for Stream packet
@@ -111,7 +111,7 @@ from twisted.internet import protocol
 #first that handle stream     
 from type import Stream
 
-class RawLayer(protocol.Protocol, LayerAutomata, StreamSender):
+class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
     """
     Inherit from protocol twisted class
     allow this protocol to wait until expected size of packet

@@ -213,6 +213,23 @@ class RDPClientController(pdu.layer.PDUClientListener):
         except InvalidValue:
             log.info("try send bad key event")
             
+    def sendRefreshOrder(self, left, top, right, bottom):
+        """
+        Force server to resend a particular zone
+        @param left: left coordinate
+        @param top: top coordinate
+        @param right: right coordinate
+        @param bottom: bottom coordinate
+        """
+        refreshPDU = pdu.data.RefreshRectPDU()
+        rect = pdu.data.InclusiveRectangle()
+        rect.left.value = left
+        rect.top.value = top
+        rect.right.value = right
+        rect.bottom.value = bottom
+        refreshPDU.areasToRefresh._array.append(rect)
+        self._pduLayer.sendDataPDU(refreshPDU)
+            
     def close(self):
         """
         Close protocol stack
@@ -279,6 +296,12 @@ class RDPServerController(pdu.layer.PDUServerListener):
         """
         return (self.getDomain(), self.getUsername(), self.getPassword())
     
+    def getColorDepth(self):
+        """
+        @return: color depth define by server
+        """
+        return self._colorDepth
+    
     def getScreen(self):
         """
         @return: tuple(width, height) of client asked screen
@@ -299,6 +322,9 @@ class RDPServerController(pdu.layer.PDUServerListener):
         if PDU stack is already connected send a deactive-reactive sequence
         @param colorDepth: depth of session (15, 16, 24)
         """
+        self._colorDepth = colorDepth
+        if self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability.preferredBitsPerPixel.value == colorDepth:
+            return
         self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability.preferredBitsPerPixel.value = colorDepth
         if self._isReady:
             #restart connection sequence

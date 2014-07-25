@@ -260,6 +260,14 @@ class FastPathOutputCompression(object):
     """
     FASTPATH_OUTPUT_COMPRESSION_USED = 0x2
     
+class Display(object):
+    """
+    Use in supress output PDU
+    @see: http://msdn.microsoft.com/en-us/library/cc240648.aspx
+    """
+    SUPPRESS_DISPLAY_UPDATES = 0x00
+    ALLOW_DISPLAY_UPDATES = 0x01
+    
 class ErrorInfo(object):
     """
     Error code use in Error info PDU
@@ -638,7 +646,7 @@ class DataPDU(CompositeType):
             """
             Create object in accordance self.shareDataHeader.pduType2 value
             """
-            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU]:
+            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SuppressOutputDataPDU]:
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
                     return c()
             log.debug("unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value))
@@ -798,6 +806,41 @@ class ShutdownDeniedPDU(CompositeType):
     _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_DENIED
     def __init__(self):
         CompositeType.__init__(self)
+
+class InclusiveRectangle(CompositeType):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc240643.aspx
+    """
+    def __init__(self, conditional = lambda:True):
+        CompositeType.__init__(self)
+        self.left = UInt16Le()
+        self.top = UInt16Le()
+        self.right = UInt16Le()
+        self.bottom = UInt16Le()
+        
+class SuppressOutputDataPDU(CompositeType):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc240648.aspx
+    """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_SUPPRESS_OUTPUT
+    
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.allowDisplayUpdates = UInt8()
+        self.pad3Octets = (UInt8(), UInt8(), UInt8())
+        self.desktopRect = InclusiveRectangle(conditional = lambda:(self.allowDisplayUpdates.value == Display.ALLOW_DISPLAY_UPDATES))
+        
+class RefreshRectPDU(CompositeType):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc240646.aspx
+    """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_REFRESH_RECT
+    
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.numberOfAreas = UInt8(lambda:len(self.areasToRefresh._array))
+        self.pad3Octets = (UInt8(), UInt8(), UInt8())
+        self.areasToRefresh = ArrayType(InclusiveRectangle, readLen = self.numberOfAreas)
 
 class UpdateDataPDU(CompositeType):
     """

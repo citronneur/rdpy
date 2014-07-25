@@ -19,7 +19,7 @@
 #
 
 """
-RDP proxy recorder and spyer
+RDP proxy recorder and spy function
 Proxy RDP protocol
 """
 
@@ -29,8 +29,10 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 from rdpy.base import log, error
 from rdpy.protocol.rdp import rdp
+from rdpy.network.proxy import IProxyClient
 from twisted.internet import reactor
-clientMacro = None
+from PyQt4 import QtCore, QtGui
+
 class ProxyServer(rdp.RDPServerObserver):
     """
     Server side of proxy
@@ -49,10 +51,8 @@ class ProxyServer(rdp.RDPServerObserver):
         Event throw by client when it's ready
         @param client: ProxyClient
         """
-        global clientMacro
         self._client = client
-        clientMacro = client
-        self._controller.setColorDepth(self._client._controller.getColorDepth())
+        self._controller.setColorDepth(self._client.getColorDepth())
         
     def onReady(self):
         """
@@ -62,18 +62,18 @@ class ProxyServer(rdp.RDPServerObserver):
         domain, username, password = self._controller.getCredentials()
         
         if self._credentialProvider.isAdmin(domain, username, password):
-            self.clientConnected(ProxyClient(clientMacro._controller, self))
+            self.clientConnected(AdminGUI(self))
             return
         
         try:
-            ip, port, domain, username, password = self._credentialProvider.getCredentials(domain, username, password)
+            dstIp, dstPort, dstDomain, dstUsername, dstPassword = self._credentialProvider.getCredentials(domain, username, password)
         except error.InvalidExpectedDataException as e:
             log.info(e.message)
-            self._controller.close()
+            #self._controller.close()
             return
         
         width, height = self._controller.getScreen()
-        reactor.connectTCP(ip, port, ProxyClientFactory(self, width, height))
+        reactor.connectTCP(dstIp, dstPort, ProxyClientFactory(self, width, height, dstDomain, dstUsername, dstPassword, "%s/%s -> %s %s/%s"%(domain, username, dstIp, dstDomain, dstUsername)))
         
     def onKeyEventScancode(self, code, isPressed):
         """
@@ -85,7 +85,7 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             return
         
-        self._client._controller.sendKeyEventScancode(code, isPressed)
+        self._client.sendKeyEventScancode(code, isPressed)
     
     def onKeyEventUnicode(self, code, isPressed):
         """
@@ -97,7 +97,7 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             return
         
-        self._client._controller.sendKeyEventUnicode(code, isPressed)
+        self._client.sendKeyEventUnicode(code, isPressed)
         
     def onPointerEvent(self, x, y, button, isPressed):
         """
@@ -111,9 +111,9 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             return
         
-        self._client._controller.sendPointerEvent(x, y, button, isPressed)
+        self._client.sendPointerEvent(x, y, button, isPressed)
     
-class ProxyClient(rdp.RDPClientObserver):
+class ProxyClient(rdp.RDPClientObserver, IProxyClient):
     """
     Client side of proxy
     """
@@ -121,9 +121,33 @@ class ProxyClient(rdp.RDPClientObserver):
         """
         @param controller: RDPClientObserver
         @param server: ProxyServer
+        @param name: name of session
         """
         rdp.RDPClientObserver.__init__(self, controller)
         self._server = server
+        
+    def getColorDepth(self):
+        """
+        @return: color depth of session (15,16,24,32)
+        """
+        return self._controller.getColorDepth()
+    
+    def sendKeyEventScancode(self, code, isPressed):
+        """
+        Send key event with scan code
+        @param code: scan code
+        @param isPressed: True if keyboard key is pressed
+        """
+        self._controller.sendKeyEventScancode(code, isPressed)
+        
+    def sendPointerEvent(self, x, y, button, isPressed):
+        """
+        Send Pointer event
+        @param x: x position
+        @param y: y position
+        @param button: mouse button 1|2|3
+        """
+        self._controller.sendPointerEvent(x, y, button, isPressed)
         
     def onReady(self):
         """
@@ -150,12 +174,15 @@ class ProxyClient(rdp.RDPClientObserver):
         self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
 
 class ProxyServerFactory(rdp.ServerFactory):
+    """
+    Factory on listening events
+    """
     def __init__(self, credentialProvider):
         """
         @param config: rdp-proxy configuration
         @param credentialProvider: CredentialProvider
         """
-        rdp.ServerFactory.__init__(self, "/home/sylvain/dev/certificate/rdpy.key", "/home/sylvain/dev/certificate/rdpy.crt", 16)
+        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt", 16)
         self._credentialProvider = credentialProvider
         
     def buildObserver(self, controller):
@@ -175,27 +202,144 @@ class ProxyServerFactory(rdp.ServerFactory):
         pass
 
 class ProxyClientFactory(rdp.ClientFactory):
-    def __init__(self, server, width, height):
+    """
+    Factory for proxy client
+    """
+    _CLIENT_PROXY_ = {}
+    def __init__(self, server, width, height, domain, username, password, name):
+        """
+        @param server: ProxyServer
+        @param width: screen width
+        @param height: screen height
+        @param domain: domain session
+        @param username: username session
+        @param password: password session
+        """
         self._server = server
         self._width = width
         self._height = height
+        self._domain = domain
+        self._username = username
+        self._password = password
+        self._name = name
         
     def buildObserver(self, controller):
+        """
+        Implement rdp.ClientFactory
+        Build observer (ProxyClient)
+        @param controller: rdp.RDPClientController
+        """
+        #set screen resolution
         controller.setScreen(self._width, self._height)
-        return ProxyClient(controller, self._server)
+        #set credential
+        controller.setDomain(self._domain)
+        controller.setUsername(self._username)
+        controller.setPassword(self._password)
+        proxy = ProxyClient(controller, self._server)
+        ProxyClientFactory._CLIENT_PROXY_[self._name] = proxy
+        return proxy
     
     def startedConnecting(self, connector):
         pass
     
     def clientConnectionLost(self, connector, reason):
-        pass
+        if ProxyClientFactory._CLIENT_PROXY_.has_key(self._name):
+            del ProxyClientFactory._CLIENT_PROXY_[self._name]
         
     def clientConnectionFailed(self, connector, reason):
+        if ProxyClientFactory._CLIENT_PROXY_.has_key(self._name):
+            del ProxyClientFactory._CLIENT_PROXY_[self._name]
+    
+class CredentialProvider(object):
+    """
+    Credential provider for proxy
+    """
+    def __init__(self, config):
+        """
+        @param config: rdp proxy config
+        """
+        self._config = config
+        
+    def getCredentials(self, domain, username, password):
+        """
+        @param condig: rdp config
+        @param domain: domain to check
+        @param username: username in domain
+        @param password: password in domain
+        @return: (ip, port, domain, username, password) or None if error
+        """
+        if not self._config['domain'].has_key(domain):
+            raise error.InvalidExpectedDataException("Unknown domain %s"%(domain))
+        for user in self._config['domain'][domain]:
+            if user['username'] == username and user['password'] == password:
+                return str(user['credentials']['ip']), user['credentials']['port'], str(user['credentials']['domain']), str(user['credentials']['username']), str(user['credentials']['password'])
+        raise error.InvalidExpectedDataException("Unknown credential %s\%s"%(domain, username))
+
+    def isAdmin(self, domain, username, password):
+        """
+        @return: True if credential match admin credential
+        """
+        return self._config['admin']['domain'] == domain and self._config['admin']['username'] == username and self._config['admin']['password'] == password
+
+class AdminGUI(IProxyClient):
+    """
+    Simple Administration GUI
+    """
+    def __init__(self, server):
+        """
+        @param server: ProxyServer
+        @param colorDepth: color depth use to generate screen
+        """
+        self._server = server
+        self._colorDepth = self._server._controller.getColorDepth()
+        self._activeSessions = [ (x, y) for x, y in ProxyClientFactory._CLIENT_PROXY_.iteritems() ]
+        self._current = 0
+        self.display()
+        
+    def getColorDepth(self):
+        return self._colorDepth
+    
+    def sendKeyEventScancode(self, code, isPressed):
+        #enter key
+        if code == 28:
+            clientController = self._activeSessions[self._current][1]._controller
+            self._server.clientConnected(ProxyClient(clientController, self._server))
+            #force refresh for new admin screen
+            width, height = self._server._controller.getScreen()
+            clientController.sendRefreshOrder(0, 0, width, height)
+    
+    def sendPointerEvent(self, x, y, button, isPressed):
         pass
+        
+    def display(self):
+        """
+        Draw GUI that list active session
+        """
+        i = 0
+        for name, session in self._activeSessions:
+            screen = QtGui.QImage(200, 20, QtGui.QImage.Format_RGB16)
+            if i == self._current:
+                screen.fill(QtCore.Qt.darkGray)
+            else:
+                screen.fill(QtCore.Qt.black)
+                
+            with QtGui.QPainter(screen) as qp:
+                if i == self._current:
+                    qp.setPen(QtCore.Qt.black)
+                else:
+                    qp.setPen(QtCore.Qt.gray)
+                qp.setFont(QtGui.QFont('arial', 12))
+                qp.drawText(screen.rect(), QtCore.Qt.AlignCenter, name)
+                
+            ptr = screen.bits()
+            ptr.setsize(screen.byteCount())
+            self._server._controller.sendUpdate(0, i*25, 199, 19, 200, 20, self._colorDepth, False, ptr.asstring())
+            
+            i+= 1
 
 def help():
     """
-    Print help in consoe
+    Print help in console
     """
     print "Usage: rdpy-rdpproxy -f config_file_path listen_port"
     
@@ -223,37 +367,6 @@ def loadConfig(configFilePath):
     
     return config
 
-class CredentialProvider(object):
-    """
-    Credential provider for proxy
-    """
-    def __init__(self, config):
-        """
-        @param config: rdp proxy config
-        """
-        self._config = config
-        
-    def getCredentials(self, domain, username, password):
-        """
-        @param condig: rdp config
-        @param domain: domain to check
-        @param username: username in domain
-        @param password: password in domain
-        @return: (ip, port, domain, username, password) or None if error
-        """
-        if not self._config['domain'].has_key(domain):
-            raise error.InvalidExpectedDataException("Unknown domain %s"%(domain))
-        for user in self._config['domain'][domain]:
-            if user['username'] == username and user['password'] == password:
-                return user['credentials']['ip'], user['credentials']['port'], user['credentials']['domain'], user['credentials']['username'], user['credentials']['password']
-        raise error.InvalidExpectedDataException("Unknown credential %s\%s"%(domain, username))
-
-    def isAdmin(self, domain, username, password):
-        """
-        @return: True if credential match admin credential
-        """
-        return self._config['admin']['domain'] == domain and self._config['admin']['username'] == username and self._config['admin']['password'] == password
-
 if __name__ == '__main__':
     configFilePath = None
     try:
@@ -277,6 +390,9 @@ if __name__ == '__main__':
     if config is None:
         log.error("Bad configuration file")
         sys.exit()
+    
+    #use to init font
+    app = QtGui.QApplication(sys.argv)
     
     reactor.listenTCP(int(args[0]), ProxyServerFactory(CredentialProvider(config)))
     reactor.run()

@@ -24,7 +24,7 @@ Each channel have a particular role.
 The main channel is the graphical channel.
 It exist channel for file system order, audio channel, clipboard etc...
 """
-from rdpy.network.layer import LayerAutomata, StreamSender, Layer
+from rdpy.network.layer import LayerAutomata, IStreamSender, Layer
 from rdpy.network.type import sizeof, Stream, UInt8, UInt16Le, String
 from rdpy.base.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
@@ -65,7 +65,7 @@ class MCSLayer(LayerAutomata):
     the main layer of RDP protocol
     is why he can do everything and more!
     """
-    class MCSProxySender(Layer, StreamSender):
+    class MCSProxySender(Layer, IStreamSender):
         """
         Proxy use to set as transport layer for upper channel
         use to abstract channel id for presentation layer

@@ -34,7 +34,7 @@ class Action(object):
     FASTPATH_ACTION_FASTPATH = 0x0
     FASTPATH_ACTION_X224 = 0x3
 
-class FastPathListener(object):
+class IFastPathListener(object):
     """
     Fast path packet listener
     Usually PDU layer
@@ -48,11 +48,11 @@ class FastPathListener(object):
     
     def setFastPathSender(self, fastPathSender):
         """
-        @param fastPathSender: FastPathSender
+        @param fastPathSender: IFastPathSender
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "setFastPathSender", "recvFastPath"))
 
-class FastPathSender(object):
+class IFastPathSender(object):
     """
     Fast path send capability
     """
@@ -60,9 +60,9 @@ class FastPathSender(object):
         """
         @param fastPathS: type transform to stream and send as fastpath
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendFastPath", "FastPathSender"))
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendFastPath", "IFastPathSender"))
 
-class TPKT(RawLayer, FastPathSender):
+class TPKT(RawLayer, IFastPathSender):
     """
     TPKT layer in RDP protocol stack
     This layer only handle size of packet and determine if is a fast path packet
@@ -70,7 +70,7 @@ class TPKT(RawLayer, FastPathSender):
     def __init__(self, presentation, fastPathListener):
         """
         @param presentation: presentation layer, in RDP case is TPDU layer
-        @param fastPathListener: FastPathListener
+        @param fastPathListener: IFastPathListener
         """
         RawLayer.__init__(self, presentation)
         #last packet version read from header

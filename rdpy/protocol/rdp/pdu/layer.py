@@ -124,7 +124,7 @@ class PDULayer(LayerAutomata):
         """
         self.sendPDU(data.DataPDU(pduData, self._shareId))
 
-class Client(PDULayer, tpkt.FastPathListener):
+class Client(PDULayer, tpkt.IFastPathListener):
     """
     Client automata of PDU layer
     """
@@ -159,7 +159,7 @@ class Client(PDULayer, tpkt.FastPathListener):
     def setFastPathSender(self, fastPathSender):
         """
         @param fastPathSender: tpkt.FastPathSender
-        @note: implement tpkt.FastPathListener
+        @note: implement tpkt.IFastPathListener
         """
         self._fastPathSender = fastPathSender
         
@@ -301,7 +301,7 @@ class Client(PDULayer, tpkt.FastPathListener):
         
     def recvFastPath(self, fastPathS):
         """
-        Implement FastPathListener interface
+        Implement IFastPathListener interface
         Fast path is needed by RDP 8.0
         @param fastPathS: Stream that contain fast path data
         """
@@ -410,7 +410,7 @@ class Client(PDULayer, tpkt.FastPathListener):
         pdu.slowPathInputEvents._array = [data.SlowPathInputEvent(x) for x in pointerEvents]
         self.sendDataPDU(pdu)
         
-class Server(PDULayer, tpkt.FastPathListener):
+class Server(PDULayer, tpkt.IFastPathListener):
     """
     Server Automata of PDU layer
     """
@@ -433,7 +433,7 @@ class Server(PDULayer, tpkt.FastPathListener):
     def setFastPathSender(self, fastPathSender):
         """
         @param fastPathSender: tpkt.FastPathSender
-        @note: implement tpkt.FastPathListener
+        @note: implement tpkt.IFastPathListener
         """
         self._fastPathSender = fastPathSender
         
@@ -577,7 +577,7 @@ class Server(PDULayer, tpkt.FastPathListener):
             
     def recvFastPath(self, fastPathS):
         """
-        Implement FastPathListener interface
+        Implement IFastPathListener interface
         Fast path is needed by RDP 8.0
         @param fastPathS: Stream that contain fast path data
         """
