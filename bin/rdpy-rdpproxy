@@ -80,14 +80,14 @@ class ProxyServer(rdp.RDPServerObserver):
                 return
             
             try:
-                dstIp, dstPort, dstDomain, dstUsername, dstPassword = self._credentialProvider.getCredentials(domain, username, password)
+                ip, port = self._credentialProvider.getProxyPass(domain, username)
             except error.InvalidExpectedDataException as e:
                 log.info(e.message)
                 #self._controller.close()
                 return
             
             width, height = self._controller.getScreen()
-            reactor.connectTCP(dstIp, dstPort, ProxyClientFactory(self, width, height, dstDomain, dstUsername, dstPassword, "%s/%s -> %s %s/%s"%(domain, username, dstIp, dstDomain, dstUsername)))
+            reactor.connectTCP(ip, port, ProxyClientFactory(self, width, height, domain, username, password, "%s\\%s on %s:%s"%(domain, username, ip, port)))
         else:
             #refresh client
             width, height = self._controller.getScreen()
@@ -192,7 +192,7 @@ class ProxyServerFactory(rdp.ServerFactory):
         @param config: rdp-proxy configuration
         @param credentialProvider: CredentialProvider
         """
-        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt", 16)
+        rdp.ServerFactory.__init__(self, "/home/sylvain/dev/certificate/rdpy.key", "/home/sylvain/dev/certificate/rdpy.crt", 16)
         self._credentialProvider = credentialProvider
         
     def buildObserver(self, controller):
@@ -270,26 +270,29 @@ class CredentialProvider(object):
         """
         self._config = config
         
-    def getCredentials(self, domain, username, password):
+    def getAccount(self, domain, username):
+        if not self._config.has_key(domain) or not self._config[domain].has_key(username):
+            raise error.InvalidExpectedDataException("Invalid credentials %s\\%s"%(domain, username))
+        
+        return self._config[domain][username]
+        
+    def getProxyPass(self, domain, username):
         """
-        @param condig: rdp config
         @param domain: domain to check
         @param username: username in domain
-        @param password: password in domain
-        @return: (ip, port, domain, username, password) or None if error
+        @return: (ip, port) or None if error
         """
-        if not self._config['domain'].has_key(domain):
-            raise error.InvalidExpectedDataException("Unknown domain %s"%(domain))
-        for user in self._config['domain'][domain]:
-            if user['username'] == username and user['password'] == password:
-                return str(user['credentials']['ip']), user['credentials']['port'], str(user['credentials']['domain']), str(user['credentials']['username']), str(user['credentials']['password'])
-        raise error.InvalidExpectedDataException("Unknown credential %s\%s"%(domain, username))
-
+        account = self.getAccount(domain, username)
+        if not account.has_key("ip") or not account.has_key("port"):
+            raise error.InvalidExpectedDataException("Invalid credentials declaration %s\\%s"%(domain, username))
+        return str(account['ip']), account['port']
+    
     def isAdmin(self, domain, username, password):
         """
         @return: True if credential match admin credential
         """
-        return self._config['admin']['domain'] == domain and self._config['admin']['username'] == username and self._config['admin']['password'] == password
+        account = self.getAccount(domain, username)
+        return account.has_key("admin") and account["admin"] and account.has_key("password") and str(account["password"]) == password
 
 class ProxyAdmin(IProxyClient):
     """
@@ -312,7 +315,6 @@ class ProxyAdmin(IProxyClient):
     def sendPointerEvent(self, x, y, button, isPressed):
         pass
     def sendRefreshOrder(self, left, top, right, bottom):
-        self._list.keyEvent(code)
         self._list.update(self._render)
     def onSelect(self, name):
         if ProxyClientFactory._CLIENT_PROXY_.has_key(name):
@@ -336,15 +338,6 @@ def loadConfig(configFilePath):
     f = open(configFilePath, 'r')
     config = json.load(f)
     f.close()
-    
-    if not config.has_key('domain'):
-        log.error("Need domain definition in config file")
-        return None
-    
-    #check admin account
-    if not config.has_key('admin') or not config['admin'].has_key('domain') or not config['admin'].has_key('username') or not config['admin'].has_key('password'):
-        log.error("Bad admin account definition in config file")
-        return None
     
     return config
 

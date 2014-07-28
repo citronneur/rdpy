@@ -322,8 +322,6 @@ class RDPServerController(pdu.layer.PDUServerListener):
         @param colorDepth: depth of session (15, 16, 24)
         """
         self._colorDepth = colorDepth
-        if self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability.preferredBitsPerPixel.value == colorDepth:
-            return
         self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability.preferredBitsPerPixel.value = colorDepth
         if self._isReady:
             #restart connection sequence
