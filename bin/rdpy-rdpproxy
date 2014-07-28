@@ -29,7 +29,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 from rdpy.base import log, error
 from rdpy.protocol.rdp import rdp
-from rdpy.ui import widget
+from rdpy.ui import view
 from twisted.internet import reactor
 from PyQt4 import QtCore, QtGui
 
@@ -41,6 +41,8 @@ class IProxyClient(object):
     def sendKeyEventUnicode(self, code, isPressed):
         pass
     def sendPointerEvent(self, x, y, button, isPressed):
+        pass
+    def sendRefreshOrder(self, left, top, right, bottom):
         pass
 
 class ProxyServer(rdp.RDPServerObserver):
@@ -69,21 +71,27 @@ class ProxyServer(rdp.RDPServerObserver):
         Event use to inform state of server stack
         Use to connect client
         """
-        domain, username, password = self._controller.getCredentials()
-        
-        if self._credentialProvider.isAdmin(domain, username, password):
-            self.clientConnected(ProxyAdmin(self))
-            return
-        
-        try:
-            dstIp, dstPort, dstDomain, dstUsername, dstPassword = self._credentialProvider.getCredentials(domain, username, password)
-        except error.InvalidExpectedDataException as e:
-            log.info(e.message)
-            #self._controller.close()
-            return
-        
-        width, height = self._controller.getScreen()
-        reactor.connectTCP(dstIp, dstPort, ProxyClientFactory(self, width, height, dstDomain, dstUsername, dstPassword, "%s/%s -> %s %s/%s"%(domain, username, dstIp, dstDomain, dstUsername)))
+        if self._client is None:
+            #try a connection
+            domain, username, password = self._controller.getCredentials()
+            
+            if self._credentialProvider.isAdmin(domain, username, password):
+                self.clientConnected(ProxyAdmin(self))
+                return
+            
+            try:
+                dstIp, dstPort, dstDomain, dstUsername, dstPassword = self._credentialProvider.getCredentials(domain, username, password)
+            except error.InvalidExpectedDataException as e:
+                log.info(e.message)
+                #self._controller.close()
+                return
+            
+            width, height = self._controller.getScreen()
+            reactor.connectTCP(dstIp, dstPort, ProxyClientFactory(self, width, height, dstDomain, dstUsername, dstPassword, "%s/%s -> %s %s/%s"%(domain, username, dstIp, dstDomain, dstUsername)))
+        else:
+            #refresh client
+            width, height = self._controller.getScreen()
+            self._client.sendRefreshOrder(0, 0, width, height)
         
     def onKeyEventScancode(self, code, isPressed):
         """
@@ -159,14 +167,21 @@ class ProxyClient(rdp.RDPClientObserver, IProxyClient):
         @param data: bitmap data
         """
         self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
+        
     def getColorDepth(self):
         return self._controller.getColorDepth() 
+    
     def sendKeyEventScancode(self, code, isPressed):
         self._controller.sendKeyEventScancode(code, isPressed)
+        
     def sendKeyEventUnicode(self, code, isPressed):
         self._controller.sendKeyEventUnicode(code, isPressed)
+        
     def sendPointerEvent(self, x, y, button, isPressed):
         self._controller.sendPointerEvent(x, y, button, isPressed)
+        
+    def sendRefreshOrder(self, left, top, right, bottom):
+        self._controller.sendRefreshOrder(left, top, right, bottom)
 
 class ProxyServerFactory(rdp.ServerFactory):
     """
@@ -177,7 +192,7 @@ class ProxyServerFactory(rdp.ServerFactory):
         @param config: rdp-proxy configuration
         @param credentialProvider: CredentialProvider
         """
-        rdp.ServerFactory.__init__(self, "/home/sylvain/dev/certificate/rdpy.key", "/home/sylvain/dev/certificate/rdpy.crt", 16)
+        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt", 16)
         self._credentialProvider = credentialProvider
         
     def buildObserver(self, controller):
@@ -277,19 +292,28 @@ class CredentialProvider(object):
         return self._config['admin']['domain'] == domain and self._config['admin']['username'] == username and self._config['admin']['password'] == password
 
 class ProxyAdmin(IProxyClient):
+    """
+    Use to manage client side of admin session
+    Add GUI to select wich session to see
+    """
     def __init__(self, server):
         self._server = server
-        #self._list = widget.List(ProxyClientFactory._CLIENT_PROXY_.keys(), 100, 100, self.onSelect, widget.Anchor(0, 0, widget.RDPWidgetListener(self._server._controller)))
-        self._list = widget.List(["salut les copains"], 300, 300, self.onSelect, widget.Anchor(0, 0, widget.RDPWidgetListener(self._server._controller)))
+        self._list = view.ListView(ProxyClientFactory._CLIENT_PROXY_.keys(), 300, 300, self.onSelect)
+        self._render = view.RDPRenderer(self._server._controller)
+        self._list.update(self._render)
     def getColorDepth(self):
         return 16
     def sendKeyEventScancode(self, code, isPressed):
         if isPressed:
             self._list.keyEvent(code)
+            self._list.update(self._render)
     def sendKeyEventUnicode(self, code, isPressed):
         pass
     def sendPointerEvent(self, x, y, button, isPressed):
         pass
+    def sendRefreshOrder(self, left, top, right, bottom):
+        self._list.keyEvent(code)
+        self._list.update(self._render)
     def onSelect(self, name):
         if ProxyClientFactory._CLIENT_PROXY_.has_key(name):
             self._server.clientConnected(ProxyClient(ProxyClientFactory._CLIENT_PROXY_[name]._controller, self._server))

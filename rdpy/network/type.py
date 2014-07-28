@@ -668,7 +668,7 @@ class String(Type, CallableValue):
     """
     String network type
     """
-    def __init__(self, value = "", readLen = None, conditional = lambda:True, optional = False, constant = False, unicode = False):
+    def __init__(self, value = "", readLen = None, conditional = lambda:True, optional = False, constant = False, unicode = False, until = None):
         """
         @param value: python string use for inner value
         @param readLen: length use to read in stream (SimpleType) if 0 read entire stream
@@ -676,12 +676,14 @@ class String(Type, CallableValue):
         @param optional: boolean check before read if there is still data in stream
         @param constant: if true check any changement of object during reading
         @param unicode: Encode and decode value as unicode
+        @param until: read until sequence is readed or write sequence at the end of string
         """
         Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
         CallableValue.__init__(self, value)
         #type use to know read length
         self._readLen = readLen
         self._unicode = unicode
+        self._until = until
         
     def __eq__(self, other):
         '''
@@ -710,6 +712,11 @@ class String(Type, CallableValue):
         Write the entire raw value
         @param s: Stream
         """
+        toWrite = self.value
+        
+        if not self._until is None:
+            toWrite += self._until
+            
         if self._unicode:
             s.write(encodeUnicode(self.value))
         else:
@@ -722,7 +729,12 @@ class String(Type, CallableValue):
         @param s: Stream
         """
         if self._readLen is None:
-            self.value = s.getvalue()
+            if self._until is None:
+                self.value = s.getvalue()
+            else:
+                self.value = ""
+                while self.value[-len(self._until):] != self._until or s.dataLen() == 0:
+                    self.value += s.read(1)
         else:
             self.value = s.read(self._readLen.value)
         

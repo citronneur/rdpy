@@ -25,7 +25,7 @@ RDP basic security is not supported by RDPY (because is not a true security laye
 """
 
 from rdpy.network.layer import LayerAutomata, IStreamSender
-from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof
+from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
 from rdpy.base.error import InvalidExpectedDataException
 
 class MessageType(object):
@@ -66,17 +66,30 @@ class NegotiationFailureCode(object):
     HYBRID_REQUIRED_BY_SERVER = 0x00000005
     SSL_WITH_USER_AUTH_REQUIRED_BY_SERVER = 0x00000006
     
-class TPDUConnectMessage(CompositeType):
+class ClientConnectionRequestPDU(CompositeType):
     """
-    Header of TPDU connection messages 
+    Connection request
+    client -> server
+    @see: http://msdn.microsoft.com/en-us/library/cc240470.aspx
     """
-    def __init__(self, code):
-        """
-        @param code: MessageType
-        """
+    def __init__(self):
         CompositeType.__init__(self)
         self.len = UInt8(lambda:sizeof(self) - 1)
-        self.code = UInt8(code, constant = True)
+        self.code = UInt8(MessageType.X224_TPDU_CONNECTION_REQUEST, constant = True)
+        self.padding = (UInt16Be(), UInt16Be(), UInt8())
+        self.cookie = String(until = "\x0d\x0a", conditional = lambda:(self.len._is_readed and self.len.value > 14))
+        #read if there is enough data
+        self.protocolNeg = Negotiation(optional = True)
+
+class ServerConnectionConfirm(CompositeType):
+    """
+    Server response
+    @see: http://msdn.microsoft.com/en-us/library/cc240506.aspx
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.len = UInt8(lambda:sizeof(self) - 1)
+        self.code = UInt8(MessageType.X224_TPDU_CONNECTION_CONFIRM, constant = True)
         self.padding = (UInt16Be(), UInt16Be(), UInt8())
         #read if there is enough data
         self.protocolNeg = Negotiation(optional = True)
@@ -103,7 +116,7 @@ class Negotiation(CompositeType):
         self.code = UInt8()
         self.flag = UInt8(0)
         #always 8
-        self.len = UInt16Le(0x0008)#not constant because freerdp send me random value...
+        self.len = UInt16Le(0x0008, constant = True)#not constant because freerdp send me random value...
         self.selectedProtocol = UInt32Le(conditional = lambda: (self.code.value != NegociationType.TYPE_RDP_NEG_FAILURE))
         self.failureCode = UInt32Le(conditional = lambda: (self.code.value == NegociationType.TYPE_RDP_NEG_FAILURE))
 
@@ -164,7 +177,7 @@ class Client(TPDULayer):
         Next state is recvConnectionConfirm
         @see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
         """
-        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_REQUEST)
+        message = ClientConnectionRequestPDU()
         message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_REQ
         message.protocolNeg.selectedProtocol.value = self._requestedProtocol
         self._transport.send(message)
@@ -179,7 +192,7 @@ class Client(TPDULayer):
         @see: response -> http://msdn.microsoft.com/en-us/library/cc240506.aspx
         @see: failure ->http://msdn.microsoft.com/en-us/library/cc240507.aspx
         """
-        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_CONFIRM)
+        message = ServerConnectionConfirm()
         data.readType(message)
         
         #check presence of negotiation response
@@ -231,7 +244,7 @@ class Server(TPDULayer):
         @param data: Stream
         @see : http://msdn.microsoft.com/en-us/library/cc240470.aspx
         """
-        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_REQUEST)
+        message = ClientConnectionRequestPDU()
         data.readType(message)
         
         if not message.protocolNeg._is_readed or message.protocolNeg.failureCode._is_readed:
@@ -241,8 +254,7 @@ class Server(TPDULayer):
         
         if not self._requestedProtocol & Protocols.PROTOCOL_SSL:
             #send error message and quit
-            message = TPDUConnectMessage()
-            message.code.value = MessageType.X224_TPDU_CONNECTION_CONFIRM
+            message = ServerConnectionConfirm()
             message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_FAILURE
             message.protocolNeg.failureCode.value = NegotiationFailureCode.SSL_REQUIRED_BY_SERVER
             self._transport.send(message)
@@ -258,7 +270,7 @@ class Server(TPDULayer):
         Next state is recvData
         @see : http://msdn.microsoft.com/en-us/library/cc240501.aspx
         """
-        message = TPDUConnectMessage(MessageType.X224_TPDU_CONNECTION_CONFIRM)
+        message = ServerConnectionConfirm()
         message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_RSP
         message.protocolNeg.selectedProtocol.value = self._selectedProtocol
         self._transport.send(message)

@@ -247,7 +247,6 @@ class RDPServerController(pdu.layer.PDUServerListener):
         @param colorDepth: 15, 16, 24
         """
         self._isReady = False
-        self._sendReady = False
         #list of observer
         self._serverObserver = []
         #build RDP protocol stack
@@ -342,9 +341,6 @@ class RDPServerController(pdu.layer.PDUServerListener):
         RDP stack is now ready
         """
         self._isReady = True
-        if self._sendReady:
-            return
-        self._sendReady = True
         for observer in self._serverObserver:
             observer.onReady()
             
@@ -490,6 +486,7 @@ class RDPServerObserver(object):
     def onReady(self):
         """
         Stack is ready and connected
+        May be called after an setColorDepth too
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPServerObserver"))
     

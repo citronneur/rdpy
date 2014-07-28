@@ -179,7 +179,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param e: QKeyEvent
         @param isPressed: event come from press or release action
         """
-        self._controller.sendKeyEventUnicode(ord(unicode(e.text().toUtf8(), encoding="UTF-8")), isPressed)
+        self._controller.sendKeyEventScancode(e.nativeScanCode(), isPressed)
     
     def closeEvent(self, e):
         """
@@ -207,28 +207,28 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB555)
                 data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
             else:
-                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB555)
+                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB555).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
         
         elif bitsPerPixel == 16:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB16)
                 data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
             else:
-                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16)
+                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
         
         elif bitsPerPixel == 24:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB24)
                 data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 3)
             else:
-                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24)
+                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
                 
         elif bitsPerPixel == 32:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
                 data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 4)
             else:
-                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32)
+                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
         else:
             log.error("Receive image in bad format")
             return
@@ -288,9 +288,6 @@ class QRemoteDesktop(QtGui.QWidget):
         Call when Qt renderer engine estimate that is needed
         @param e: QEvent
         """
-        #if there is no refresh -> done
-        if self._refresh == []:
-            return
         #fill buffer image
         with QtGui.QPainter(self._buffer) as qp:
         #draw image

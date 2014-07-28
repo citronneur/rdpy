@@ -576,7 +576,7 @@ class Server(PDULayer, tpkt.IFastPathListener):
             self._transport.close()
             
     def recvFastPath(self, fastPathS):
-        """
+        """r
         Implement IFastPathListener interface
         Fast path is needed by RDP 8.0
         @param fastPathS: Stream that contain fast path data
