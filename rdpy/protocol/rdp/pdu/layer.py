@@ -573,10 +573,11 @@ class Server(PDULayer, tpkt.IFastPathListener):
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_INPUT:
             self._listener.onSlowPathInput(dataPDU.pduData.slowPathInputEvents._array)
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SHUTDOWN_REQUEST:
+            log.debug("Receive Shutdown Request")
             self._transport.close()
             
     def recvFastPath(self, fastPathS):
-        """r
+        """
         Implement IFastPathListener interface
         Fast path is needed by RDP 8.0
         @param fastPathS: Stream that contain fast path data

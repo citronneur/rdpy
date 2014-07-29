@@ -20,7 +20,7 @@
 """
 Fake widget
 """
-from rdpy.base.error import CallPureVirtualFuntion
+from rdpy.base.error import CallPureVirtualFuntion, InvalidExpectedDataException
 from PyQt4 import QtGui, QtCore
 
 
@@ -33,6 +33,8 @@ class IRender(object):
     def translate(self, dx, dy):
         pass
     def drawImage(self, image):
+        pass
+    def getImageFormat(self):
         pass
 
 class IView(object):
@@ -54,20 +56,19 @@ class AnchorView(IView):
         self._view.pointerEvent(x - self._x, y - self._y)
     def update(self, render):
         render.translate(self._x, self._y)
-        self._view.update(self._view, render)
+        self._view.update(render)
         render.translate(- self._x, - self._y)
-    
 
 class ListView(IView):
     """
     List widget simulate by QT painter
     """
-    def __init__(self, labels, width, height, callback):
+    def __init__(self, labels, width, height, callback, backgroudColor = QtCore.Qt.black):
         self._labels = labels
         self._width = width
         self._height = height
         self._cellHeight = 25
-        self._backGroudColor = QtGui.QColor(24, 93, 123)
+        self._backgroudColor = backgroudColor
         self._fontSize = 14
         self._current = 0
         self._callback = callback
@@ -91,9 +92,9 @@ class ListView(IView):
         Draw GUI that list active session
         """
         i = 0
-        drawArea = QtGui.QImage(self._width, self._height, QtGui.QImage.Format_RGB16)
+        drawArea = QtGui.QImage(self._width, self._height, render.getImageFormat())
         #fill with background Color
-        drawArea.fill(self._backGroudColor)
+        drawArea.fill(self._backgroudColor)
         with QtGui.QPainter(drawArea) as qp:
             for label in self._labels:
                 rect = QtCore.QRect(0, i * self._cellHeight, self._width, self._cellHeight)
@@ -105,6 +106,29 @@ class ListView(IView):
                 qp.drawText(rect, QtCore.Qt.AlignCenter, label)
                 i += 1
         render.drawImage(drawArea)
+        
+class WindowView(IView):
+    def __init__(self, width, height, backgroundColor = QtCore.Qt.black):
+        self._views = []
+        self._focusIndex = 0
+        self._width = width
+        self._height = height
+        self._backgroundColor = backgroundColor
+    def addView(self, view):
+        self._views.append(view)
+    def keyEvent(self, code):
+        if self._focusIndex < len(self._views):
+            self._views[self._focusIndex].keyEvent(code)
+    def pointerEvent(self, x, y, button):
+        if self._focusIndex < len(self._views):
+            self._views[self._focusIndex].pointerEvent(x, y, button)
+    def update(self, render):
+        drawArea = QtGui.QImage(self._width, self._height, render.getImageFormat())
+        #fill with background Color
+        drawArea.fill(self._backgroundColor)
+        render.drawImage(drawArea)
+        for view in self._views:
+            view.update(render)
 
 class RDPRenderer(object):
     def __init__(self, server):
@@ -112,9 +136,20 @@ class RDPRenderer(object):
         @param server: RDPServerController
         """
         self._server = server
+        self._colorDepth = self._server.getColorDepth()
         self._dx = 0
         self._dy = 0
         self._renderSize = 64
+        
+    def getImageFormat(self):
+        if self._colorDepth == 15:
+            return QtGui.QImage.Format_RGB15
+        elif self._colorDepth == 16:
+            return QtGui.QImage.Format_RGB16
+        elif self._colorDepth == 24:
+            return QtGui.QImage.Format_RGB24
+        elif self._colorDepth == 32:
+            return QtGui.QImage.Format_RGB32
         
     def translate(self, dx, dy):
         self._dx += dx
@@ -133,5 +168,5 @@ class RDPRenderer(object):
                 tmp = tmp.transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
                 ptr = tmp.bits()
                 ptr.setsize(tmp.byteCount())
-                self._server.sendUpdate(i * self._renderSize + self._dx, j * self._renderSize + self._dy, min((i + 1) * self._renderSize, image.width()) + self._dx - 1, min((j + 1) * self._renderSize, image.height()) + self._dy - 1, tmp.width(), tmp.height(), 16, False, ptr.asstring())
+                self._server.sendUpdate(i * self._renderSize + self._dx, j * self._renderSize + self._dy, min((i + 1) * self._renderSize, image.width()) + self._dx - 1, min((j + 1) * self._renderSize, image.height()) + self._dy - 1, tmp.width(), tmp.height(), self._colorDepth, False, ptr.asstring())
         

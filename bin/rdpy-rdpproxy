@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
+from twisted.mail.pop3client import ERR
 
 """
 RDP proxy recorder and spy function
@@ -34,16 +35,56 @@ from twisted.internet import reactor
 from PyQt4 import QtCore, QtGui
 
 class IProxyClient(object):
+    """
+    Interface use by Proxy server to interact with client
+    """
+    def close(self):
+        """
+        Close proxy client
+        """
+        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getColorDepth", "IProxyClient"))
+    
     def getColorDepth(self):
-        pass
+        """
+        Color depth client, Use to re-negociate color depth with server
+        """
+        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getColorDepth", "IProxyClient"))
+    
     def sendKeyEventScancode(self, code, isPressed):
-        pass
+        """
+        Key event as scan code
+        @param code: scan code of key
+        @param isPressed: True if key is down
+        """
+        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendKeyEventScancode", "IProxyClient"))
+    
     def sendKeyEventUnicode(self, code, isPressed):
-        pass
+        """
+        Key event as unicode
+        @param code: unicode of key
+        @param isPressed: True if key is down
+        """
+        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendKeyEventUnicode", "IProxyClient"))
+    
     def sendPointerEvent(self, x, y, button, isPressed):
-        pass
+        """
+        Mouse event
+        @param x: x position
+        @param y: y position
+        @param isPressed: True if button is down
+        """
+        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendPointerEvent", "IProxyClient"))
+    
     def sendRefreshOrder(self, left, top, right, bottom):
-        pass
+        """
+        Refresh zone
+        @param left: left postion
+        @param top: top position
+        @param right: right position
+        @param bottom: bottom position
+        """
+        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendRefreshOrder", "IProxyClient"))
+    
 
 class ProxyServer(rdp.RDPServerObserver):
     """
@@ -92,6 +133,13 @@ class ProxyServer(rdp.RDPServerObserver):
             #refresh client
             width, height = self._controller.getScreen()
             self._client.sendRefreshOrder(0, 0, width, height)
+            
+    def onClose(self):
+        """
+        Call when client close connection
+        """
+        if not self._client is None:
+            self._client.close()
         
     def onKeyEventScancode(self, code, isPressed):
         """
@@ -111,7 +159,7 @@ class ProxyServer(rdp.RDPServerObserver):
         @param code: unicode of key
         @param isPressed: True if key is down
         """
-        #no client connectedomaind
+        #no client connected domain
         if self._client is None:
             return
         
@@ -135,7 +183,8 @@ class ProxyClient(rdp.RDPClientObserver, IProxyClient):
     """
     Client side of proxy
     """
-    def __init__(self, controller, server):
+    _CONNECTED_ = {}
+    def __init__(self, controller, server, name):
         """
         @param controller: RDPClientObserver
         @param server: ProxyServer
@@ -143,6 +192,7 @@ class ProxyClient(rdp.RDPClientObserver, IProxyClient):
         """
         rdp.RDPClientObserver.__init__(self, controller)
         self._server = server
+        self._name = name
         
     def onReady(self):
         """
@@ -150,7 +200,22 @@ class ProxyClient(rdp.RDPClientObserver, IProxyClient):
         Inform proxy server that i'm connected
         implement RDPClientObserver
         """
+        ProxyClient._CONNECTED_[self._name] = self
         self._server.clientConnected(self)
+        
+    def onClose(self):
+        """
+        Stack is closes
+        """
+        if ProxyClient._CONNECTED_.has_key(self._name):
+            del ProxyClient._CONNECTED_[self._name]
+            self._server._controller.close()
+        
+    def close(self):
+        """
+        Close proxy client
+        """
+        self._controller.close()
         
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
@@ -169,18 +234,44 @@ class ProxyClient(rdp.RDPClientObserver, IProxyClient):
         self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
         
     def getColorDepth(self):
+        """
+        Color depth client, Use to re-negociate color depth with server
+        """
         return self._controller.getColorDepth() 
     
     def sendKeyEventScancode(self, code, isPressed):
+        """
+        Key event as scan code
+        @param code: scan code of key
+        @param isPressed: True if key is down
+        """
         self._controller.sendKeyEventScancode(code, isPressed)
         
     def sendKeyEventUnicode(self, code, isPressed):
+        """
+        Key event as uni code
+        @param code: uni code of key
+        @param isPressed: True if key is down
+        """
         self._controller.sendKeyEventUnicode(code, isPressed)
         
     def sendPointerEvent(self, x, y, button, isPressed):
+        """
+        Mouse event
+        @param x: x position
+        @param y: y position
+        @param isPressed: True if button is down
+        """
         self._controller.sendPointerEvent(x, y, button, isPressed)
         
     def sendRefreshOrder(self, left, top, right, bottom):
+        """
+        Refresh zone
+        @param left: left postion
+        @param top: top position
+        @param right: right position
+        @param bottom: bottom position
+        """
         self._controller.sendRefreshOrder(left, top, right, bottom)
 
 class ProxyServerFactory(rdp.ServerFactory):
@@ -192,7 +283,7 @@ class ProxyServerFactory(rdp.ServerFactory):
         @param config: rdp-proxy configuration
         @param credentialProvider: CredentialProvider
         """
-        rdp.ServerFactory.__init__(self, "/home/sylvain/dev/certificate/rdpy.key", "/home/sylvain/dev/certificate/rdpy.crt", 16)
+        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt", 16)
         self._credentialProvider = credentialProvider
         
     def buildObserver(self, controller):
@@ -201,21 +292,11 @@ class ProxyServerFactory(rdp.ServerFactory):
         @param controller: rdp.RDPServerController
         """
         return ProxyServer(controller, self._credentialProvider)
-    
-    def startedConnecting(self, connector):
-        pass
-    
-    def clientConnectionLost(self, connector, reason):
-        pass
-        
-    def clientConnectionFailed(self, connector, reason):
-        pass
 
 class ProxyClientFactory(rdp.ClientFactory):
     """
     Factory for proxy client
     """
-    _CLIENT_PROXY_ = {}
     def __init__(self, server, width, height, domain, username, password, name):
         """
         @param server: ProxyServer
@@ -224,6 +305,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         @param domain: domain session
         @param username: username session
         @param password: password session
+        @param name: name of session
         """
         self._server = server
         self._width = width
@@ -245,21 +327,128 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setDomain(self._domain)
         controller.setUsername(self._username)
         controller.setPassword(self._password)
-        proxy = ProxyClient(controller, self._server)
-        ProxyClientFactory._CLIENT_PROXY_[self._name] = proxy
+        proxy = ProxyClient(controller, self._server, self._name)
         return proxy
     
     def startedConnecting(self, connector):
         pass
     
     def clientConnectionLost(self, connector, reason):
-        if ProxyClientFactory._CLIENT_PROXY_.has_key(self._name):
-            del ProxyClientFactory._CLIENT_PROXY_[self._name]
+        pass
         
     def clientConnectionFailed(self, connector, reason):
-        if ProxyClientFactory._CLIENT_PROXY_.has_key(self._name):
-            del ProxyClientFactory._CLIENT_PROXY_[self._name]
+        pass
+            
     
+class ProxyAdmin(IProxyClient):
+    """
+    Use to manage client side of admin session
+    Add GUI to select which session to see
+    And manage see session
+    Just escape key is authorized during see session
+    """
+    class State(object):
+        """
+        GUI state -> list of active session
+        SPY state -> watch active session
+        """
+        GUI = 0
+        SPY = 1
+        
+    def __init__(self, server):
+        """
+        @param server: rdp.RDPServerController
+        """
+        self._server = server
+        self._spyProxy = None
+        self.initView()
+        self._state = ProxyAdmin.State.GUI
+        
+    def initView(self):
+        """
+        Init GUI view
+        """
+        width, height = self._server._controller.getScreen()
+        self._window = view.WindowView(width, height, QtGui.QColor(24, 93, 123))
+        self._window.addView(view.AnchorView(width / 2 - 250, height / 2 - 250, view.ListView(ProxyClient._CONNECTED_.keys(), 500, 500, self.onSelect, QtGui.QColor(24, 93, 123)))) 
+        self._render = view.RDPRenderer(self._server._controller)
+    
+    def close(self):
+        """
+        Close proxy client
+        """
+        pass
+    
+    def getColorDepth(self):
+        """
+        Use same Color depth as server init
+        @return color depth of GUI
+        """
+        if self._state == ProxyAdmin.State.GUI:
+            return self._server._controller.getColorDepth()
+        elif self._state == ProxyAdmin.State.SPY:
+            return self._spyProxy.getColorDepth()
+    
+    def sendKeyEventScancode(self, code, isPressed):
+        """
+        IProxyClient implement is unauthorized during admin session
+        Only for GUI
+        @param code: scan code of key
+        @param isPressed: True if key is down
+        """
+        if self._state == ProxyAdmin.State.GUI:
+            if not isPressed:
+                return
+            self._window.keyEvent(code)
+            self._window.update(self._render)
+        elif code == 1:
+            #escape button refresh GUI
+            self._spyProxy._controller.removeClientObserver(self._spyProxy)
+            self._state = ProxyAdmin.State.GUI
+            self._server.clientConnected(self)
+            
+    def sendKeyEventUnicode(self, code, isPressed):
+        """
+        Key event as uni code is unauthorized during admin session
+        @param code: uni code of key
+        @param isPressed: True if key is down
+        """
+        pass
+    
+    def sendPointerEvent(self, x, y, button, isPressed):
+        """
+        Mouse event is unauthorized during admin session
+        @param x: x position
+        @param y: y position
+        @param isPressed: True if button is down
+        """
+        pass
+    
+    def sendRefreshOrder(self, left, top, right, bottom):
+        """
+        Refresh zone
+        @param left: left postion
+        @param top: top position
+        @param right: right position
+        @param bottom: bottom position
+        """
+        if self._state == ProxyAdmin.State.GUI:
+            self._window.update(self._render)
+        elif self._state == ProxyAdmin.State.SPY:
+            self._spyProxy.sendRefreshOrder(left, top, right, bottom)
+        
+    def onSelect(self, name):
+        """
+        Call back of list view
+        @param name: name selected by user
+        """
+        if not ProxyClient._CONNECTED_.has_key(name):
+            return
+        self._spyProxy = ProxyClient(ProxyClient._CONNECTED_[name]._controller, self._server, "Admin")
+        self._state = ProxyAdmin.State.SPY
+        #reconnect me
+        self._server.clientConnected(self)
+
 class CredentialProvider(object):
     """
     Credential provider for proxy
@@ -293,33 +482,7 @@ class CredentialProvider(object):
         """
         account = self.getAccount(domain, username)
         return account.has_key("admin") and account["admin"] and account.has_key("password") and str(account["password"]) == password
-
-class ProxyAdmin(IProxyClient):
-    """
-    Use to manage client side of admin session
-    Add GUI to select wich session to see
-    """
-    def __init__(self, server):
-        self._server = server
-        self._list = view.ListView(ProxyClientFactory._CLIENT_PROXY_.keys(), 300, 300, self.onSelect)
-        self._render = view.RDPRenderer(self._server._controller)
-        self._list.update(self._render)
-    def getColorDepth(self):
-        return 16
-    def sendKeyEventScancode(self, code, isPressed):
-        if isPressed:
-            self._list.keyEvent(code)
-            self._list.update(self._render)
-    def sendKeyEventUnicode(self, code, isPressed):
-        pass
-    def sendPointerEvent(self, x, y, button, isPressed):
-        pass
-    def sendRefreshOrder(self, left, top, right, bottom):
-        self._list.update(self._render)
-    def onSelect(self, name):
-        if ProxyClientFactory._CLIENT_PROXY_.has_key(name):
-            self._server.clientConnected(ProxyClient(ProxyClientFactory._CLIENT_PROXY_[name]._controller, self._server))
-            
+       
 def help():
     """
     Print help in console

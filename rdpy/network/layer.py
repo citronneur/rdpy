@@ -108,8 +108,62 @@ class LayerAutomata(Layer, IStreamListener):
 
 #twisted layer concept
 from twisted.internet import protocol
+from twisted.internet.abstract import FileDescriptor
 #first that handle stream     
 from type import Stream
+
+class RawLayerClientFactory(protocol.ClientFactory):
+    """
+    Abstract class for Raw layer client factory
+    """
+    def buildProtocol(self, addr):
+        """
+        Function call from twisted and build rdp protocol stack
+        @param addr: destination address
+        """
+        rawLayer = self.buildRawLayer(addr)
+        rawLayer.setFactory(self)
+        return rawLayer
+        
+    def buildRawLayer(self, addr):
+        """
+        Override this function to build raw layer
+        @param addr: destination address
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
+    
+    def connectionLost(self, rawlayer):
+        """
+        Overirde this method to handle connection lost
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
+    
+class RawLayerServerFactory(protocol.ClientFactory):
+    """
+    Abstract class for Raw layer server factory
+    """
+    def buildProtocol(self, addr):
+        """
+        Function call from twisted and build rdp protocol stack
+        @param addr: destination address
+        """
+        rawLayer = self.buildRawLayer(addr)
+        rawLayer.setFactory(self)
+        return rawLayer
+    
+    def buildRawLayer(self, addr):
+        """
+        Override this function to build raw layer
+        @param addr: destination address
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
+    
+    def connectionLost(self, rawlayer):
+        """
+        Overirde this method to handle connection lost
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
+    
 
 class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
     """
@@ -127,6 +181,14 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         self._buffer = ""
         #len of next packet pass to next state function
         self._expectedLen = 0
+        self._factory = None
+        
+    def setFactory(self, factory):
+        """
+        Call by RawLayer Factory
+        @param param: RawLayerClientFactory or RawLayerFactory
+        """
+        self._factory = factory
         
     def dataReceived(self, data):
         """
@@ -152,11 +214,14 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         #join two scheme
         self.connect()
         
+    def connectionLost(self, reason):
+        self._factory.connectionLost(self)
+        
     def close(self):
         """
         Close raw layer
         """
-        self.transport.loseConnection()
+        FileDescriptor.loseConnection(self.transport)
             
     def expect(self, expectedLen, callback = None):
         """

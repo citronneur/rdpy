@@ -21,7 +21,7 @@
 Use to manage RDP stack in twisted
 """
 
-from twisted.internet import protocol
+from rdpy.network import layer
 from rdpy.base.error import CallPureVirtualFuntion, InvalidValue
 import pdu.layer
 import pdu.data
@@ -46,7 +46,6 @@ class RDPClientController(pdu.layer.PDUClientListener):
         self._tpktLayer = tpkt.TPKT(self._tpduLayer, self._pduLayer)
         #is pdu layer is ready to send
         self._isReady = False
-        self._sendReady = False
         
     def getProtocol(self):
         """
@@ -112,6 +111,16 @@ class RDPClientController(pdu.layer.PDUClientListener):
         """
         self._clientObserver.append(observer)
         
+    def removeClientObserver(self, observer):
+        """
+        Remove observer to RDP protocol stack
+        @param observer: observer to remove
+        """
+        for i in range(0, len(self._clientObserver)):
+            if self._clientObserver[i] == observer:
+                del self._clientObserver[i]
+                return
+        
     def onUpdate(self, rectangles):
         """
         Call when a bitmap data is received from update PDU
@@ -127,12 +136,17 @@ class RDPClientController(pdu.layer.PDUClientListener):
         Call when PDU layer is connected
         """
         self._isReady = True
-        if self._sendReady:
-            return
-        self._sendReady = False
         #signal all listener
         for observer in self._clientObserver:
             observer.onReady()
+            
+    def onClose(self):
+        """
+        Event call when RDP stack is closed
+        """
+        self._isReady = False
+        for observer in self._clientObserver:
+            observer.onClose()
     
     def sendPointerEvent(self, x, y, button, isPressed):
         """
@@ -260,6 +274,12 @@ class RDPServerController(pdu.layer.PDUServerListener):
         #set color depth of session
         self.setColorDepth(colorDepth)
         
+    def close(self):
+        """
+        Close protocol stack
+        """
+        self._pduLayer.close()
+        
     def getProtocol(self):
         """
         @return: the twisted protocol layer
@@ -342,6 +362,14 @@ class RDPServerController(pdu.layer.PDUServerListener):
         for observer in self._serverObserver:
             observer.onReady()
             
+    def onClose(self):
+        """
+        Event call when RDP stack is closed
+        """
+        self._isReady = False
+        for observer in self._serverObserver:
+            observer.onClose()
+            
     def onSlowPathInput(self, slowPathInputEvents):
         """
         Event call when slow path input are available
@@ -388,27 +416,36 @@ class RDPServerController(pdu.layer.PDUServerListener):
         
         self._pduLayer.sendBitmapUpdatePDU([bitmapData])
 
-class ClientFactory(protocol.Factory):
+class ClientFactory(layer.RawLayerClientFactory):
     """
     Factory of Client RDP protocol
     """
-    def buildProtocol(self, addr):
+    def connectionLost(self, tpktLayer):
+        #retrieve controller
+        tpduLayer = tpktLayer._presentation
+        mcsLayer = tpduLayer._presentation
+        pduLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
+        controller = pduLayer._listener
+        controller.onClose()
+        
+    def buildRawLayer(self, addr):
         """
         Function call from twisted and build rdp protocol stack
         @param addr: destination address
         """
         controller = RDPClientController()
         self.buildObserver(controller)
-        
-        return controller.getProtocol();
+        controller.getProtocol()._factory = self
+        return controller.getProtocol()
     
     def buildObserver(self, controller):
-        '''
-        build observer use for connection
-        '''
+        """
+        Build observer use for connection
+        @param controller: RDPClientController
+        """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ClientFactory"))
 
-class ServerFactory(protocol.Factory):
+class ServerFactory(layer.RawLayerServerFactory):
     """
     Factory of Server RDP protocol
     """
@@ -421,14 +458,23 @@ class ServerFactory(protocol.Factory):
         self._privateKeyFileName = privateKeyFileName
         self._certificateFileName = certificateFileName
         self._colorDepth = colorDepth
-        
-    def buildProtocol(self, addr):
+    
+    def connectionLost(self, tpktLayer):
+        #retrieve controller
+        tpduLayer = tpktLayer._presentation
+        mcsLayer = tpduLayer._presentation
+        pduLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
+        controller = pduLayer._listener
+        controller.onClose()
+    
+    def buildRawLayer(self, addr):
         """
         Function call from twisted and build rdp protocol stack
         @param addr: destination address
         """
         controller = RDPServerController(self._privateKeyFileName, self._certificateFileName, self._colorDepth)
         self.buildObserver(controller)
+        controller.getProtocol()._factory = self
         return controller.getProtocol()
     
     def buildObserver(self, controller):
@@ -454,6 +500,12 @@ class RDPClientObserver(object):
         Stack is ready and connected
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPClientObserver")) 
+    
+    def onClose(self):
+        """
+        Stack is closes
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onClose", "RDPClientObserver")) 
     
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
@@ -487,6 +539,12 @@ class RDPServerObserver(object):
         May be called after an setColorDepth too
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPServerObserver"))
+    
+    def onClose(self):
+        """
+        Stack is closes
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onClose", "RDPClientObserver")) 
     
     def onKeyEventScancode(self, code, isPressed):
         """
