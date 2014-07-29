@@ -20,44 +20,88 @@
 """
 Fake widget
 """
-from rdpy.base.error import CallPureVirtualFuntion, InvalidExpectedDataException
+from rdpy.base.error import CallPureVirtualFuntion
 from PyQt4 import QtGui, QtCore
 
 
 class KeyCode(object):
+    """
+    Interesting Scan code
+    """
     ENTER = 28
-    UP = 328
-    DOWN = 336
+    UP = 72
+    DOWN = 80
 
 class IRender(object):
+    """
+    Render Interface
+    """
     def translate(self, dx, dy):
-        pass
+        """
+        Translate next render
+        @param dx: delta x
+        @param dy: delta y
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "translate", "IRender"))
+    
     def drawImage(self, image):
-        pass
+        """
+        Draw QImage
+        @param image: QImage
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "drawImage", "IRender"))
+    
     def getImageFormat(self):
-        pass
+        """
+        @return: Image format use for render
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getImageFormat", "IRender"))
 
 class IView(object):
+    """
+    View interface
+    """
     def keyEvent(self, code):
-        pass
+        """
+        Key event notification
+        @param code: scan code
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "keyEvent", "IView"))
+
     def pointerEvent(self, x, y, button):
-        pass
-    def update(self, render):
-        pass
+        """
+        Pointer event notification
+        @param x: x position
+        @param y: y position
+        @param button: button pressed
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "pointerEvent", "IView"))
+
+    def update(self, render, force = False):
+        """
+        Update view
+        @param render: IRender
+        @param force: force update
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "update", "IView"))
+
 
 class AnchorView(IView):
     def __init__(self, x, y, view):
         self._x = x
         self._y = y
         self._view = view
+        
     def keyEvent(self, code):
         self._view.keyEvent(code)
+        
     def pointerEvent(self, x, y, button):
         self._view.pointerEvent(x - self._x, y - self._y)
-    def update(self, render):
+        
+    def update(self, render, force = False):
         render.translate(self._x, self._y)
-        self._view.update(render)
-        render.translate(- self._x, - self._y)
+        self._view.update(render, force)
+        render.translate(-self._x, -self._y)
 
 class ListView(IView):
     """
@@ -72,6 +116,7 @@ class ListView(IView):
         self._fontSize = 14
         self._current = 0
         self._callback = callback
+        self._needUpdate = False
     
     def keyEvent(self, code):
         #enter key
@@ -81,26 +126,32 @@ class ListView(IView):
             self._callback(self._labels[self._current])
         elif code == KeyCode.DOWN:
             self._current = min(len(self._labels) - 1, self._current + 1)
+            self._needUpdate = True
         elif code == KeyCode.UP:
             self._current = max(0, self._current - 1)
+            self._needUpdate = True
     
     def pointerEvent(self, x, y, button):
         pass
         
-    def update(self, render):
+    def update(self, render, force = False):
         """
         Draw GUI that list active session
         """
+        if not force and not self._needUpdate:
+            return
+        self._needUpdate = False
+        
         i = 0
         drawArea = QtGui.QImage(self._width, self._height, render.getImageFormat())
         #fill with background Color
         drawArea.fill(self._backgroudColor)
         with QtGui.QPainter(drawArea) as qp:
             for label in self._labels:
-                rect = QtCore.QRect(0, i * self._cellHeight, self._width, self._cellHeight)
+                rect = QtCore.QRect(0, i * self._cellHeight, self._width - 2, self._cellHeight)
                 if i == self._current:
                     qp.setPen(QtCore.Qt.darkGreen)
-                    qp.drawRoundedRect(rect, 0.2, 0.2)
+                    qp.drawRoundedRect(rect, 5.0, 5.0)
                 qp.setPen(QtCore.Qt.white)  
                 qp.setFont(QtGui.QFont('arial', self._fontSize, QtGui.QFont.Bold))
                 qp.drawText(rect, QtCore.Qt.AlignCenter, label)
@@ -122,13 +173,14 @@ class WindowView(IView):
     def pointerEvent(self, x, y, button):
         if self._focusIndex < len(self._views):
             self._views[self._focusIndex].pointerEvent(x, y, button)
-    def update(self, render):
+    def update(self, render, force = False):
         drawArea = QtGui.QImage(self._width, self._height, render.getImageFormat())
         #fill with background Color
-        drawArea.fill(self._backgroundColor)
-        render.drawImage(drawArea)
+        if force:
+            drawArea.fill(self._backgroundColor)
+            render.drawImage(drawArea)
         for view in self._views:
-            view.update(render)
+            view.update(render, force)
 
 class RDPRenderer(object):
     def __init__(self, server):

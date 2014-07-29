@@ -245,6 +245,13 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         """
         #do something maybe a loader
         pass
+    
+    def onClose(self):
+        """
+        Call when stack is ready
+        """
+        #do something maybe a loader
+        pass
 
         
 class QRemoteDesktop(QtGui.QWidget):

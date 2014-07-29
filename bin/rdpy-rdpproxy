@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-from twisted.mail.pop3client import ERR
 
 """
 RDP proxy recorder and spy function
@@ -124,7 +123,6 @@ class ProxyServer(rdp.RDPServerObserver):
                 ip, port = self._credentialProvider.getProxyPass(domain, username)
             except error.InvalidExpectedDataException as e:
                 log.info(e.message)
-                #self._controller.close()
                 return
             
             width, height = self._controller.getScreen()
@@ -278,12 +276,12 @@ class ProxyServerFactory(rdp.ServerFactory):
     """
     Factory on listening events
     """
-    def __init__(self, credentialProvider):
+    def __init__(self, credentialProvider, privateKeyFilePath, certificateFilePath):
         """
         @param config: rdp-proxy configuration
         @param credentialProvider: CredentialProvider
         """
-        rdp.ServerFactory.__init__(self, "/home/speyrefitte/dev/certificate/rdpy.key", "/home/speyrefitte/dev/certificate/rdpy.crt", 16)
+        rdp.ServerFactory.__init__(self, privateKeyFilePath, certificateFilePath, 16)
         self._credentialProvider = credentialProvider
         
     def buildObserver(self, controller):
@@ -370,7 +368,8 @@ class ProxyAdmin(IProxyClient):
         """
         width, height = self._server._controller.getScreen()
         self._window = view.WindowView(width, height, QtGui.QColor(24, 93, 123))
-        self._window.addView(view.AnchorView(width / 2 - 250, height / 2 - 250, view.ListView(ProxyClient._CONNECTED_.keys(), 500, 500, self.onSelect, QtGui.QColor(24, 93, 123)))) 
+        self._list = view.ListView(ProxyClient._CONNECTED_.keys(), 500, 500, self.onSelect, QtGui.QColor(24, 93, 123))
+        self._window.addView(view.AnchorView(width / 2 - 250, height / 2 - 250, self._list)) 
         self._render = view.RDPRenderer(self._server._controller)
     
     def close(self):
@@ -405,6 +404,7 @@ class ProxyAdmin(IProxyClient):
             #escape button refresh GUI
             self._spyProxy._controller.removeClientObserver(self._spyProxy)
             self._state = ProxyAdmin.State.GUI
+            self._list._labels = ProxyClient._CONNECTED_.keys()
             self._server.clientConnected(self)
             
     def sendKeyEventUnicode(self, code, isPressed):
@@ -433,7 +433,7 @@ class ProxyAdmin(IProxyClient):
         @param bottom: bottom position
         """
         if self._state == ProxyAdmin.State.GUI:
-            self._window.update(self._render)
+            self._window.update(self._render, True)
         elif self._state == ProxyAdmin.State.SPY:
             self._spyProxy.sendRefreshOrder(left, top, right, bottom)
         
@@ -487,7 +487,7 @@ def help():
     """
     Print help in console
     """
-    print "Usage: rdpy-rdpproxy -f config_file_path listen_port"
+    print "Usage: rdpy-rdpproxy -f credential_file_path -k private_key_file_path -c certificate_file_path listen_port"
     
 def loadConfig(configFilePath):
     """
@@ -506,8 +506,11 @@ def loadConfig(configFilePath):
 
 if __name__ == '__main__':
     configFilePath = None
+    privateKeyFilePath = None
+    certificateFilePath = None
+    
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hf:")
+        opts, args = getopt.getopt(sys.argv[1:], "hf:k:c:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:
@@ -516,9 +519,23 @@ if __name__ == '__main__':
             sys.exit()
         elif opt == "-f":
             configFilePath = arg
+        elif opt == "-k":
+            privateKeyFilePath = arg
+        elif opt == "-c":
+            certificateFilePath = arg
             
     if configFilePath is None:
         print "Config file is mandatory"
+        help()
+        sys.exit()
+        
+    if certificateFilePath is None:
+        print "Certificate file is mandatory"
+        help()
+        sys.exit()
+        
+    if  privateKeyFilePath is None:
+        print "Private key file is mandatory"
         help()
         sys.exit()
     
@@ -531,5 +548,5 @@ if __name__ == '__main__':
     #use to init font
     app = QtGui.QApplication(sys.argv)
     
-    reactor.listenTCP(int(args[0]), ProxyServerFactory(CredentialProvider(config)))
+    reactor.listenTCP(int(args[0]), ProxyServerFactory(CredentialProvider(config), privateKeyFilePath, certificateFilePath))
     reactor.run()
