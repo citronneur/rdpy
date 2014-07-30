@@ -205,28 +205,28 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         if bitsPerPixel == 15:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB555)
-                data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
+                rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
             else:
                 image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB555).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
         
         elif bitsPerPixel == 16:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB16)
-                data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
+                rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
             else:
                 image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
         
         elif bitsPerPixel == 24:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB24)
-                data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 3)
+                rle.bitmap_decompress(image.bits(), width, height, data, len(data), 3)
             else:
                 image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
                 
         elif bitsPerPixel == 32:
             if isCompress:
                 image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
-                data = rle.bitmap_decompress(image.bits(), width, height, data, len(data), 4)
+                rle.bitmap_decompress(image.bits(), width, height, data, len(data), 4)
             else:
                 image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
         else:
