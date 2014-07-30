@@ -976,8 +976,8 @@ class BitmapData(CompositeType):
         self.bitsPerPixel = UInt16Le(bitsPerPixel)
         self.flags = UInt16Le()
         self.bitmapLength = UInt16Le(lambda:(sizeof(self.bitmapComprHdr) + sizeof(self.bitmapDataStream)))
-        self.bitmapComprHdr = BitmapCompressedDataHeader(bodySize = lambda:sizeof(self.bitmapDataStream), scanWidth = lambda:self.width.value, uncompressedSize = lambda:(self.width.value * self.height.value * self.bitsPerPixel.value), conditional = lambda:((self.flags.value | BitmapFlag.BITMAP_COMPRESSION) and not (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
-        self.bitmapDataStream = String(bitmapDataStream, readLen = UInt16Le(lambda:(self.bitmapLength.value if (self.flags.value | BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
+        self.bitmapComprHdr = BitmapCompressedDataHeader(bodySize = lambda:sizeof(self.bitmapDataStream), scanWidth = lambda:self.width.value, uncompressedSize = lambda:(self.width.value * self.height.value * self.bitsPerPixel.value), conditional = lambda:((self.flags.value & BitmapFlag.BITMAP_COMPRESSION) and not (self.flags.value & BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
+        self.bitmapDataStream = String(bitmapDataStream, readLen = UInt16Le(lambda:(self.bitmapLength.value if (not self.flags.value & BitmapFlag.BITMAP_COMPRESSION or self.flags.value & BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
 
 class FastPathBitmapUpdateDataPDU(CompositeType):
     """

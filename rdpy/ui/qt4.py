@@ -235,9 +235,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         
         #if image need to be cut
         #For bit alignement server may send more than image pixel
-        if width != destRight - destLeft + 1 or height != destBottom - destTop + 1:
-            image = image.copy(0, 0, destRight - destLeft + 1, destBottom - destTop + 1)
-        self._widget.notifyImage(destLeft, destTop, image)
+        self._widget.notifyImage(destLeft, destTop, image, destRight - destLeft + 1, destBottom - destTop + 1)
     
     def onReady(self):
         """
@@ -278,7 +276,7 @@ class QRemoteDesktop(QtGui.QWidget):
         #buffer image
         self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
     
-    def notifyImage(self, x, y, qimage):
+    def notifyImage(self, x, y, qimage, width, height):
         """
         Function call from QAdaptor
         @param x: x position of new image
@@ -286,7 +284,7 @@ class QRemoteDesktop(QtGui.QWidget):
         @param qimage: new QImage
         """
         #save in refresh list (order is important)
-        self._refresh.append({"x" : x, "y" : y, "image" : qimage})
+        self._refresh.append((x, y, qimage, width, height))
         #force update
         self.update()
         
@@ -298,8 +296,8 @@ class QRemoteDesktop(QtGui.QWidget):
         #fill buffer image
         with QtGui.QPainter(self._buffer) as qp:
         #draw image
-            for image in self._refresh:
-                qp.drawImage(image["x"], image["y"], image["image"])
+            for (x, y, image, width, height) in self._refresh:
+                qp.drawImage(x, y, image, 0, 0, width, height)
         #draw in widget
         with QtGui.QPainter(self) as qp:
             qp.drawImage(0, 0, self._buffer)
