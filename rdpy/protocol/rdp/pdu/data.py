@@ -646,7 +646,7 @@ class DataPDU(CompositeType):
             """
             Create object in accordance self.shareDataHeader.pduType2 value
             """
-            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SuppressOutputDataPDU]:
+            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SupressOutputDataPDU]:
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
                     return c()
             log.debug("unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value))
@@ -812,13 +812,13 @@ class InclusiveRectangle(CompositeType):
     @see: http://msdn.microsoft.com/en-us/library/cc240643.aspx
     """
     def __init__(self, conditional = lambda:True):
-        CompositeType.__init__(self)
+        CompositeType.__init__(self, conditional = conditional)
         self.left = UInt16Le()
         self.top = UInt16Le()
         self.right = UInt16Le()
         self.bottom = UInt16Le()
         
-class SuppressOutputDataPDU(CompositeType):
+class SupressOutputDataPDU(CompositeType):
     """
     @see: http://msdn.microsoft.com/en-us/library/cc240648.aspx
     """

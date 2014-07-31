@@ -86,7 +86,7 @@ class IView(object):
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "update", "IView"))
 
 
-class AnchorView(IView):
+class Anchor(IView):
     def __init__(self, x, y, view):
         self._x = x
         self._y = y
@@ -103,7 +103,7 @@ class AnchorView(IView):
         self._view.update(render, force)
         render.translate(-self._x, -self._y)
 
-class ListView(IView):
+class List(IView):
     """
     List widget simulate by QT painter
     """
@@ -158,15 +158,17 @@ class ListView(IView):
                 i += 1
         render.drawImage(drawArea)
         
-class WindowView(IView):
+class Window(IView):
     def __init__(self, width, height, backgroundColor = QtCore.Qt.black):
         self._views = []
         self._focusIndex = 0
         self._width = width
         self._height = height
         self._backgroundColor = backgroundColor
-    def addView(self, view):
+    def addView(self, view, focus = False):
         self._views.append(view)
+        if focus:
+            self._focusIndex = len(self._views) - 1
     def keyEvent(self, code):
         if self._focusIndex < len(self._views):
             self._views[self._focusIndex].keyEvent(code)
@@ -181,6 +183,43 @@ class WindowView(IView):
             render.drawImage(drawArea)
         for view in self._views:
             view.update(render, force)
+            
+class Label(IView):
+    def __init__(self, label, width, height, font = QtGui.QFont(), fontColor = QtCore.Qt.white, backgroundColor = QtCore.Qt.black):
+        self._label = label
+        self._width = width
+        self._height = height
+        self._font = font
+        self._fontColor = fontColor
+        self._backgroundColor = backgroundColor
+        
+    def keyEvent(self, code):
+        """
+        Nothing to do
+        """
+        pass
+
+    def pointerEvent(self, x, y, button):
+        """
+        Nothing to do
+        """
+        pass
+
+    def update(self, render, force = False):
+        """
+        Update view
+        @param render: IRender
+        @param force: force update
+        """
+        if not force:
+            return;
+        drawArea = QtGui.QImage(self._width, self._height, render.getImageFormat())
+        drawArea.fill(self._backgroundColor)
+        with QtGui.QPainter(drawArea) as qp:
+            qp.setFont(self._font)
+            qp.setPen(self._fontColor) 
+            qp.drawText(drawArea.rect(), QtCore.Qt.AlignCenter, self._label)
+        render.drawImage(drawArea)
 
 class RDPRenderer(object):
     def __init__(self, controller, colorDepth):
@@ -192,7 +231,6 @@ class RDPRenderer(object):
         self._colorDepth = colorDepth
         self._dx = 0
         self._dy = 0
-        self._renderSize = 64
         
     def getImageFormat(self):
         if self._colorDepth == 15:
@@ -212,14 +250,11 @@ class RDPRenderer(object):
         """
         Render of widget
         """
-        nbWidth = image.width() / self._renderSize + 1
-        nbHeight = image.height() / self._renderSize + 1
-        for i in range(0, nbWidth):
-            for j in range(0, nbHeight):
-                tmp = image.copy(i * self._renderSize, j * self._renderSize, self._renderSize, self._renderSize)
-                #in RDP image or bottom top encoded
-                tmp = tmp.transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
-                ptr = tmp.bits()
-                ptr.setsize(tmp.byteCount())
-                self._controller.sendUpdate(i * self._renderSize + self._dx, j * self._renderSize + self._dy, min((i + 1) * self._renderSize, image.width()) + self._dx - 1, min((j + 1) * self._renderSize, image.height()) + self._dy - 1, tmp.width(), tmp.height(), self._colorDepth, False, ptr.asstring())
+        padding = image.width() % 4
+        for i in range(0, image.height()):
+            tmp = image.copy(0, i, image.width() + padding, 1)
+            #in RDP image or bottom top encoded
+            ptr = tmp.bits()
+            ptr.setsize(tmp.byteCount())
+            self._controller.sendUpdate(self._dx, i + self._dy, image.width() + self._dx - 1, i + self._dy, tmp.width(), tmp.height(), self._colorDepth, False, ptr.asstring())
         

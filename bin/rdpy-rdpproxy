@@ -45,7 +45,22 @@ class ProxyServer(rdp.RDPServerObserver):
         rdp.RDPServerObserver.__init__(self, controller)
         self._credentialProvider = credentialProvider
         self._client = None
-        
+        self._window = None
+    
+    def showSelectView(self, machines):
+        self._machines = dict([("%s:%s"%(ip, port), (ip, port)) for ip, port in machines])
+        width, height = self._controller.getScreen()
+        self._window = view.Window(width, height, QtGui.QColor(24, 93, 123))
+        self._window.addView(view.Anchor(width / 2 - 250, 100, view.Label("Please select following server", 500, 50, QtGui.QFont('arial', 18, QtGui.QFont.Bold), backgroundColor = QtGui.QColor(24, 93, 123))))
+        self._window.addView(view.Anchor(width / 2 - 250, 150, view.List(self._machines.keys(), 500, 500, self.onSelectMachine, QtGui.QColor(24, 93, 123))), True)
+        self._window.update(view.RDPRenderer(self._controller, self._controller.getColorDepth()), True) 
+    
+    def onSelectMachine(self, machine):
+        ip, port = self._machines[machine]
+        width, height = self._controller.getScreen()
+        domain, username, password = self._controller.getCredentials()
+        reactor.connectTCP(ip, port, ProxyClientFactory(self, width, height, domain, username, password, "%s\\%s on %s:%s"%(domain, username, ip, port)))
+    
     def clientConnected(self, client):
         """
         Event throw by client when it's ready
@@ -54,23 +69,35 @@ class ProxyServer(rdp.RDPServerObserver):
         self._client = client
         self._controller.setColorDepth(self._client._controller.getColorDepth())
         
+    def showErrorMessage(self, message):
+        """
+        Print a message to the client
+        @param message: string
+        """
+        width, height = self._controller.getScreen()
+        popup = view.Window(width, height, QtGui.QColor(24, 93, 123))
+        popup.addView(view.Anchor(width / 2 - 250, height / 2 - 25, view.Label(message, 500, 50, QtGui.QFont('arial', 18, QtGui.QFont.Bold), backgroundColor = QtGui.QColor(24, 93, 123))))
+        popup.update(view.RDPRenderer(self._controller, self._controller.getColorDepth()), True)
+        
     def onReady(self):
         """
         Event use to inform state of server stack
         Use to connect client
-        On ready is not launch only on connection but after a reactivation process
+        On ready is not launch only after connection sequence but after a reactivation sequence too
         """
         if self._client is None:
             #try a connection
             domain, username, password = self._controller.getCredentials()
-            try:
-                ip, port = self._credentialProvider.getProxyPass(domain, username)
-            except error.InvalidExpectedDataException as e:
-                log.info(e.message)
-                return
+            machines = self._credentialProvider.getProxyPass(domain, username)
             
-            width, height = self._controller.getScreen()
-            reactor.connectTCP(ip, port, ProxyClientFactory(self, width, height, domain, username, password, "%s\\%s on %s:%s"%(domain, username, ip, port)))
+            if len(machines) == 0:
+                self.showErrorMessage("No servers attach to account %s\\%s"%(domain, username))
+            elif len(machines) == 1: 
+                ip, port = machines[0]
+                width, height = self._controller.getScreen()
+                reactor.connectTCP(ip, port, ProxyClientFactory(self, width, height, domain, username, password, "%s\\%s on %s:%s"%(domain, username, ip, port)))
+            else:
+                self.showSelectView(machines)
         else:
             #refresh client
             width, height = self._controller.getScreen()
@@ -91,9 +118,12 @@ class ProxyServer(rdp.RDPServerObserver):
         @param isPressed: True if key is down
         """
         #no client connected
-        if self._client is None:
-            return
-        self._client._controller.sendKeyEventScancode(code, isPressed)
+        if not self._client is None:
+            self._client._controller.sendKeyEventScancode(code, isPressed)
+        elif not self._window is None and isPressed:
+            self._window.keyEvent(code)
+            self._window.update(view.RDPRenderer(self._controller, self._controller.getColorDepth()))
+        
     
     def onKeyEventUnicode(self, code, isPressed):
         """
@@ -262,10 +292,9 @@ class ProxyAdmin(rdp.RDPServerObserver):
         Init GUI view
         """
         width, height = self._controller.getScreen()
-        self._window = view.WindowView(width, height, QtGui.QColor(24, 93, 123))
-        self._list = view.ListView(ProxyClient._CONNECTED_.keys(), 500, 500, self.onSelect, QtGui.QColor(24, 93, 123))
-        self._window.addView(view.AnchorView(width / 2 - 250, height / 2 - 250, self._list)) 
-        self._render = view.RDPRenderer(self._controller, self._controller.getColorDepth())
+        self._window = view.Window(width, height, QtGui.QColor(24, 93, 123))
+        self._window.addView(view.Anchor(width / 2 - 250, 100, view.Label("Please select following session", 500, 50, QtGui.QFont('arial', 18, QtGui.QFont.Bold), backgroundColor = QtGui.QColor(24, 93, 123))))
+        self._window.addView(view.Anchor(width / 2 - 250, 150, view.List(ProxyClient._CONNECTED_.keys(), 500, 500, self.onSelect, QtGui.QColor(24, 93, 123))), True) 
         
     def onReady(self):
         """
@@ -274,7 +303,7 @@ class ProxyAdmin(rdp.RDPServerObserver):
         """
         if self._state == ProxyAdmin.State.GUI:
             self.initView()
-            self._window.update(self._render, True)
+            self._window.update(view.RDPRenderer(self._controller, self._controller.getColorDepth()), True)
         elif self._state == ProxyAdmin.State.SPY:
             #refresh client
             width, height = self._controller.getScreen()
@@ -296,7 +325,7 @@ class ProxyAdmin(rdp.RDPServerObserver):
             if not isPressed:
                 return
             self._window.keyEvent(code)
-            self._window.update(self._render)
+            self._window.update(view.RDPRenderer(self._controller, self._controller.getColorDepth()))
         elif code == 1:
             #escape button refresh GUI
             self._state = ProxyAdmin.State.GUI
@@ -364,20 +393,19 @@ class CredentialProvider(object):
         
     def getAccount(self, domain, username):
         if not self._config.has_key(domain) or not self._config[domain].has_key(username):
-            raise error.InvalidExpectedDataException("Invalid credentials %s\\%s"%(domain, username))
-        
+            return None
         return self._config[domain][username]
         
     def getProxyPass(self, domain, username):
         """
         @param domain: domain to check
         @param username: username in domain
-        @return: (ip, port) or None if error
+        @return: [(ip, port)]
         """
         account = self.getAccount(domain, username)
-        if not account.has_key("ip") or not account.has_key("port"):
-            raise error.InvalidExpectedDataException("Invalid credentials declaration %s\\%s"%(domain, username))
-        return str(account['ip']), account['port']
+        if account is None:
+            return []
+        return [(str(machine["ip"]), machine["port"]) for machine in account]
        
 def help():
     """
