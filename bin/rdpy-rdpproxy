@@ -33,58 +33,6 @@ from rdpy.ui import view
 from twisted.internet import reactor
 from PyQt4 import QtCore, QtGui
 
-class IProxyClient(object):
-    """
-    Interface use by Proxy server to interact with client
-    """
-    def close(self):
-        """
-        Close proxy client
-        """
-        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getColorDepth", "IProxyClient"))
-    
-    def getColorDepth(self):
-        """
-        Color depth client, Use to re-negociate color depth with server
-        """
-        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getColorDepth", "IProxyClient"))
-    
-    def sendKeyEventScancode(self, code, isPressed):
-        """
-        Key event as scan code
-        @param code: scan code of key
-        @param isPressed: True if key is down
-        """
-        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendKeyEventScancode", "IProxyClient"))
-    
-    def sendKeyEventUnicode(self, code, isPressed):
-        """
-        Key event as unicode
-        @param code: unicode of key
-        @param isPressed: True if key is down
-        """
-        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendKeyEventUnicode", "IProxyClient"))
-    
-    def sendPointerEvent(self, x, y, button, isPressed):
-        """
-        Mouse event
-        @param x: x position
-        @param y: y position
-        @param isPressed: True if button is down
-        """
-        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendPointerEvent", "IProxyClient"))
-    
-    def sendRefreshOrder(self, left, top, right, bottom):
-        """
-        Refresh zone
-        @param left: left postion
-        @param top: top position
-        @param right: right position
-        @param bottom: bottom position
-        """
-        raise error.CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendRefreshOrder", "IProxyClient"))
-    
-
 class ProxyServer(rdp.RDPServerObserver):
     """
     Server side of proxy
@@ -104,21 +52,17 @@ class ProxyServer(rdp.RDPServerObserver):
         @param client: ProxyClient
         """
         self._client = client
-        self._controller.setColorDepth(self._client.getColorDepth())
+        self._controller.setColorDepth(self._client._controller.getColorDepth())
         
     def onReady(self):
         """
         Event use to inform state of server stack
         Use to connect client
+        On ready is not launch only on connection but after a reactivation process
         """
         if self._client is None:
             #try a connection
             domain, username, password = self._controller.getCredentials()
-            
-            if self._credentialProvider.isAdmin(domain, username, password):
-                self.clientConnected(ProxyAdmin(self))
-                return
-            
             try:
                 ip, port = self._credentialProvider.getProxyPass(domain, username)
             except error.InvalidExpectedDataException as e:
@@ -130,14 +74,15 @@ class ProxyServer(rdp.RDPServerObserver):
         else:
             #refresh client
             width, height = self._controller.getScreen()
-            self._client.sendRefreshOrder(0, 0, width, height)
+            self._client._controller.sendRefreshOrder(0, 0, width, height)
             
     def onClose(self):
         """
         Call when client close connection
         """
-        if not self._client is None:
-            self._client.close()
+        if self._client is None:
+            return
+        self._client._controller.close()
         
     def onKeyEventScancode(self, code, isPressed):
         """
@@ -148,8 +93,7 @@ class ProxyServer(rdp.RDPServerObserver):
         #no client connected
         if self._client is None:
             return
-        
-        self._client.sendKeyEventScancode(code, isPressed)
+        self._client._controller.sendKeyEventScancode(code, isPressed)
     
     def onKeyEventUnicode(self, code, isPressed):
         """
@@ -160,8 +104,7 @@ class ProxyServer(rdp.RDPServerObserver):
         #no client connected domain
         if self._client is None:
             return
-        
-        self._client.sendKeyEventUnicode(code, isPressed)
+        self._client._controller.sendKeyEventUnicode(code, isPressed)
         
     def onPointerEvent(self, x, y, button, isPressed):
         """
@@ -174,10 +117,28 @@ class ProxyServer(rdp.RDPServerObserver):
         #no client connected
         if self._client is None:
             return
+        self._client._controller.sendPointerEvent(x, y, button, isPressed)
         
-        self._client.sendPointerEvent(x, y, button, isPressed)
+class ProxyServerFactory(rdp.ServerFactory):
+    """
+    Factory on listening events
+    """
+    def __init__(self, credentialProvider, privateKeyFilePath, certificateFilePath):
+        """
+        @param config: rdp-proxy configuration
+        @param credentialProvider: CredentialProvider
+        """
+        rdp.ServerFactory.__init__(self, privateKeyFilePath, certificateFilePath, 16)
+        self._credentialProvider = credentialProvider
+        
+    def buildObserver(self, controller):
+        """
+        Implement rdp.ServerFactory
+        @param controller: rdp.RDPServerController
+        """
+        return ProxyServer(controller, self._credentialProvider)
     
-class ProxyClient(rdp.RDPClientObserver, IProxyClient):
+class ProxyClient(rdp.RDPClientObserver):
     """
     Client side of proxy
     """
@@ -209,12 +170,6 @@ class ProxyClient(rdp.RDPClientObserver, IProxyClient):
             del ProxyClient._CONNECTED_[self._name]
             self._server._controller.close()
         
-    def close(self):
-        """
-        Close proxy client
-        """
-        self._controller.close()
-        
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
         Event use to inform bitmap update
@@ -230,66 +185,6 @@ class ProxyClient(rdp.RDPClientObserver, IProxyClient):
         @param data: bitmap data
         """
         self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
-        
-    def getColorDepth(self):
-        """
-        Color depth client, Use to re-negociate color depth with server
-        """
-        return self._controller.getColorDepth() 
-    
-    def sendKeyEventScancode(self, code, isPressed):
-        """
-        Key event as scan code
-        @param code: scan code of key
-        @param isPressed: True if key is down
-        """
-        self._controller.sendKeyEventScancode(code, isPressed)
-        
-    def sendKeyEventUnicode(self, code, isPressed):
-        """
-        Key event as uni code
-        @param code: uni code of key
-        @param isPressed: True if key is down
-        """
-        self._controller.sendKeyEventUnicode(code, isPressed)
-        
-    def sendPointerEvent(self, x, y, button, isPressed):
-        """
-        Mouse event
-        @param x: x position
-        @param y: y position
-        @param isPressed: True if button is down
-        """
-        self._controller.sendPointerEvent(x, y, button, isPressed)
-        
-    def sendRefreshOrder(self, left, top, right, bottom):
-        """
-        Refresh zone
-        @param left: left postion
-        @param top: top position
-        @param right: right position
-        @param bottom: bottom position
-        """
-        self._controller.sendRefreshOrder(left, top, right, bottom)
-
-class ProxyServerFactory(rdp.ServerFactory):
-    """
-    Factory on listening events
-    """
-    def __init__(self, credentialProvider, privateKeyFilePath, certificateFilePath):
-        """
-        @param config: rdp-proxy configuration
-        @param credentialProvider: CredentialProvider
-        """
-        rdp.ServerFactory.__init__(self, privateKeyFilePath, certificateFilePath, 16)
-        self._credentialProvider = credentialProvider
-        
-    def buildObserver(self, controller):
-        """
-        Implement rdp.ServerFactory
-        @param controller: rdp.RDPServerController
-        """
-        return ProxyServer(controller, self._credentialProvider)
 
 class ProxyClientFactory(rdp.ClientFactory):
     """
@@ -305,7 +200,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         @param password: password session
         @param name: name of session
         """
-        self._server = server
+        self._controller = server
         self._width = width
         self._height = height
         self._domain = domain
@@ -325,7 +220,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setDomain(self._domain)
         controller.setUsername(self._username)
         controller.setPassword(self._password)
-        proxy = ProxyClient(controller, self._server, self._name)
+        proxy = ProxyClient(controller, self._controller, self._name)
         return proxy
     
     def startedConnecting(self, connector):
@@ -338,12 +233,12 @@ class ProxyClientFactory(rdp.ClientFactory):
         pass
             
     
-class ProxyAdmin(IProxyClient):
+class ProxyAdmin(rdp.RDPServerObserver):
     """
     Use to manage client side of admin session
     Add GUI to select which session to see
     And manage see session
-    Just escape key is authorized during see session
+    Just escape key is authorized during spy session
     """
     class State(object):
         """
@@ -353,45 +248,47 @@ class ProxyAdmin(IProxyClient):
         GUI = 0
         SPY = 1
         
-    def __init__(self, server):
+    def __init__(self, controller):
         """
         @param server: rdp.RDPServerController
         """
-        self._server = server
-        self._spyProxy = None
-        self.initView()
+        rdp.RDPServerObserver.__init__(self, controller)
+        self._controller = controller
+        self._spy = None
         self._state = ProxyAdmin.State.GUI
         
     def initView(self):
         """
         Init GUI view
         """
-        width, height = self._server._controller.getScreen()
+        width, height = self._controller.getScreen()
         self._window = view.WindowView(width, height, QtGui.QColor(24, 93, 123))
         self._list = view.ListView(ProxyClient._CONNECTED_.keys(), 500, 500, self.onSelect, QtGui.QColor(24, 93, 123))
         self._window.addView(view.AnchorView(width / 2 - 250, height / 2 - 250, self._list)) 
-        self._render = view.RDPRenderer(self._server._controller)
-    
-    def close(self):
+        self._render = view.RDPRenderer(self._controller, self._controller.getColorDepth())
+        
+    def onReady(self):
         """
-        Close proxy client
+        Stack is ready and connected
+        May be called after an setColorDepth too
+        """
+        if self._state == ProxyAdmin.State.GUI:
+            self.initView()
+            self._window.update(self._render, True)
+        elif self._state == ProxyAdmin.State.SPY:
+            #refresh client
+            width, height = self._controller.getScreen()
+            self._spy._controller.sendRefreshOrder(0, 0, width, height)
+    
+    def onClose(self):
+        """
+        Stack is closes
         """
         pass
     
-    def getColorDepth(self):
+    def onKeyEventScancode(self, code, isPressed):
         """
-        Use same Color depth as server init
-        @return color depth of GUI
-        """
-        if self._state == ProxyAdmin.State.GUI:
-            return self._server._controller.getColorDepth()
-        elif self._state == ProxyAdmin.State.SPY:
-            return self._spyProxy.getColorDepth()
-    
-    def sendKeyEventScancode(self, code, isPressed):
-        """
-        IProxyClient implement is unauthorized during admin session
-        Only for GUI
+        Event call when a keyboard event is catch in scan code format
         @param code: scan code of key
         @param isPressed: True if key is down
         """
@@ -402,40 +299,29 @@ class ProxyAdmin(IProxyClient):
             self._window.update(self._render)
         elif code == 1:
             #escape button refresh GUI
-            self._spyProxy._controller.removeClientObserver(self._spyProxy)
             self._state = ProxyAdmin.State.GUI
-            self._list._labels = ProxyClient._CONNECTED_.keys()
-            self._server.clientConnected(self)
-            
-    def sendKeyEventUnicode(self, code, isPressed):
+            self._spy._controller.removeClientObserver(self._spy)
+            self.onReady()
+    
+    def onKeyEventUnicode(self, code, isPressed):
         """
-        Key event as uni code is unauthorized during admin session
-        @param code: uni code of key
+        Event call when a keyboard event is catch in unicode format
+        In admin mode is forbidden
+        @param code: unicode of key
         @param isPressed: True if key is down
         """
         pass
     
-    def sendPointerEvent(self, x, y, button, isPressed):
+    def onPointerEvent(self, x, y, button, isPressed):
         """
-        Mouse event is unauthorized during admin session
+        Event call on mouse event
+        In admin mode is forbidden
         @param x: x position
         @param y: y position
-        @param isPressed: True if button is down
+        @param button: 1, 2 or 3 button
+        @param isPressed: True if mouse button is pressed
         """
         pass
-    
-    def sendRefreshOrder(self, left, top, right, bottom):
-        """
-        Refresh zone
-        @param left: left postion
-        @param top: top position
-        @param right: right position
-        @param bottom: bottom position
-        """
-        if self._state == ProxyAdmin.State.GUI:
-            self._window.update(self._render, True)
-        elif self._state == ProxyAdmin.State.SPY:
-            self._spyProxy.sendRefreshOrder(left, top, right, bottom)
         
     def onSelect(self, name):
         """
@@ -444,10 +330,27 @@ class ProxyAdmin(IProxyClient):
         """
         if not ProxyClient._CONNECTED_.has_key(name):
             return
-        self._spyProxy = ProxyClient(ProxyClient._CONNECTED_[name]._controller, self._server, "Admin")
         self._state = ProxyAdmin.State.SPY
-        #reconnect me
-        self._server.clientConnected(self)
+        self._spy = ProxyClient(ProxyClient._CONNECTED_[name]._controller, self, "Admin")
+        self._controller.setColorDepth(self._spy._controller.getColorDepth())
+        
+class ProxyAdminFactory(rdp.ServerFactory):
+    """
+    Factory for admin
+    """
+    def __init__(self, privateKeyFilePath, certificateFilePath):
+        """
+        @param privateKeyFilePath: private key for admin session
+        @param certificateFilePath: certificate for admin session
+        """
+        rdp.ServerFactory.__init__(self, privateKeyFilePath, certificateFilePath, 16)
+        
+    def buildObserver(self, controller):
+        """
+        Implement rdp.ServerFactory
+        @param controller: rdp.RDPServerController
+        """
+        return ProxyAdmin(controller)
 
 class CredentialProvider(object):
     """
@@ -475,13 +378,6 @@ class CredentialProvider(object):
         if not account.has_key("ip") or not account.has_key("port"):
             raise error.InvalidExpectedDataException("Invalid credentials declaration %s\\%s"%(domain, username))
         return str(account['ip']), account['port']
-    
-    def isAdmin(self, domain, username, password):
-        """
-        @return: True if credential match admin credential
-        """
-        account = self.getAccount(domain, username)
-        return account.has_key("admin") and account["admin"] and account.has_key("password")# and str(account["password"]) == password
        
 def help():
     """
@@ -508,9 +404,10 @@ if __name__ == '__main__':
     configFilePath = None
     privateKeyFilePath = None
     certificateFilePath = None
+    adminInterface = None
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hf:k:c:")
+        opts, args = getopt.getopt(sys.argv[1:], "hf:k:c:i:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:
@@ -523,6 +420,8 @@ if __name__ == '__main__':
             privateKeyFilePath = arg
         elif opt == "-c":
             certificateFilePath = arg
+        elif opt == "-i":
+            adminInterface = arg
             
     if configFilePath is None:
         print "Config file is mandatory"
@@ -549,4 +448,12 @@ if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     
     reactor.listenTCP(int(args[0]), ProxyServerFactory(CredentialProvider(config), privateKeyFilePath, certificateFilePath))
+    
+    if not adminInterface is None:
+        if ':' in adminInterface:
+            adminInterface, adminPort = adminInterface.split(':')
+        else:
+            adminInterface, adminPort = adminInterface, "3390"
+        log.info("Admin listen on %s:%s"%(adminInterface, adminPort))
+        reactor.listenTCP(int(adminPort), ProxyAdminFactory(privateKeyFilePath, certificateFilePath), interface = adminInterface)
     reactor.run()

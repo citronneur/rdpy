@@ -183,12 +183,13 @@ class WindowView(IView):
             view.update(render, force)
 
 class RDPRenderer(object):
-    def __init__(self, server):
+    def __init__(self, controller, colorDepth):
         """
         @param server: RDPServerController
+        @param colorDepth: color depth
         """
-        self._server = server
-        self._colorDepth = self._server.getColorDepth()
+        self._controller = controller
+        self._colorDepth = colorDepth
         self._dx = 0
         self._dy = 0
         self._renderSize = 64
@@ -220,5 +221,5 @@ class RDPRenderer(object):
                 tmp = tmp.transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
                 ptr = tmp.bits()
                 ptr.setsize(tmp.byteCount())
-                self._server.sendUpdate(i * self._renderSize + self._dx, j * self._renderSize + self._dy, min((i + 1) * self._renderSize, image.width()) + self._dx - 1, min((j + 1) * self._renderSize, image.height()) + self._dy - 1, tmp.width(), tmp.height(), self._colorDepth, False, ptr.asstring())
+                self._controller.sendUpdate(i * self._renderSize + self._dx, j * self._renderSize + self._dy, min((i + 1) * self._renderSize, image.width()) + self._dx - 1, min((j + 1) * self._renderSize, image.height()) + self._dy - 1, tmp.width(), tmp.height(), self._colorDepth, False, ptr.asstring())
         

@@ -83,29 +83,29 @@ class PDULayer(LayerAutomata):
         self._info = data.RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_CORE).rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
         #server capabilities
         self._serverCapabilities = {
-            caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.CapsType.CAPSTYPE_GENERAL, caps.GeneralCapability()),
-            caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.CapsType.CAPSTYPE_BITMAP, caps.BitmapCapability()),
-            caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.CapsType.CAPSTYPE_ORDER, caps.OrderCapability()),
-            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.CapsType.CAPSTYPE_POINTER, caps.PointerCapability()),
-            caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.CapsType.CAPSTYPE_INPUT, caps.InputCapability()),
-            caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.CapsType.CAPSTYPE_VIRTUALCHANNEL, caps.VirtualChannelCapability()),
-            caps.CapsType.CAPSTYPE_FONT : caps.Capability(caps.CapsType.CAPSTYPE_FONT, caps.FontCapability()),
-            caps.CapsType.CAPSTYPE_COLORCACHE : caps.Capability(caps.CapsType.CAPSTYPE_COLORCACHE, caps.ColorCacheCapability()),
-            caps.CapsType.CAPSTYPE_SHARE : caps.Capability(caps.CapsType.CAPSTYPE_SHARE, caps.ShareCapability())
+            caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.GeneralCapability()),
+            caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.BitmapCapability()),
+            caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.OrderCapability()),
+            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.PointerCapability()),
+            caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.InputCapability()),
+            caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.VirtualChannelCapability()),
+            caps.CapsType.CAPSTYPE_FONT : caps.Capability(caps.FontCapability()),
+            caps.CapsType.CAPSTYPE_COLORCACHE : caps.Capability(caps.ColorCacheCapability()),
+            caps.CapsType.CAPSTYPE_SHARE : caps.Capability(caps.ShareCapability())
         }
         #client capabilities
         self._clientCapabilities = {
-            caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.CapsType.CAPSTYPE_GENERAL, caps.GeneralCapability()),
-            caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.CapsType.CAPSTYPE_BITMAP, caps.BitmapCapability()),
-            caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.CapsType.CAPSTYPE_ORDER, caps.OrderCapability()),
-            caps.CapsType.CAPSTYPE_BITMAPCACHE : caps.Capability(caps.CapsType.CAPSTYPE_BITMAPCACHE, caps.BitmapCacheCapability()),
-            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.CapsType.CAPSTYPE_POINTER, caps.PointerCapability()),
-            caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.CapsType.CAPSTYPE_INPUT, caps.InputCapability()),
-            caps.CapsType.CAPSTYPE_BRUSH : caps.Capability(caps.CapsType.CAPSTYPE_BRUSH, caps.BrushCapability()),
-            caps.CapsType.CAPSTYPE_GLYPHCACHE : caps.Capability(caps.CapsType.CAPSTYPE_GLYPHCACHE, caps.GlyphCapability()),
-            caps.CapsType.CAPSTYPE_OFFSCREENCACHE : caps.Capability(caps.CapsType.CAPSTYPE_OFFSCREENCACHE, caps.OffscreenBitmapCacheCapability()),
-            caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.CapsType.CAPSTYPE_VIRTUALCHANNEL, caps.VirtualChannelCapability()),
-            caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.CapsType.CAPSTYPE_SOUND, caps.SoundCapability())
+            caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.GeneralCapability()),
+            caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.BitmapCapability()),
+            caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.OrderCapability()),
+            caps.CapsType.CAPSTYPE_BITMAPCACHE : caps.Capability(caps.BitmapCacheCapability()),
+            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.PointerCapability()),
+            caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.InputCapability()),
+            caps.CapsType.CAPSTYPE_BRUSH : caps.Capability(caps.BrushCapability()),
+            caps.CapsType.CAPSTYPE_GLYPHCACHE : caps.Capability(caps.GlyphCapability()),
+            caps.CapsType.CAPSTYPE_OFFSCREENCACHE : caps.Capability(caps.OffscreenBitmapCacheCapability()),
+            caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.VirtualChannelCapability()),
+            caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.SoundCapability())
         }
         #share id between client and server
         self._shareId = 0x103EA

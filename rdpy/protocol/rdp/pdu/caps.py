@@ -226,9 +226,9 @@ class Capability(CompositeType):
     A capability
     @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
     """
-    def __init__(self, capabilitySetType = 0, capability = None):
+    def __init__(self, capability = None):
         CompositeType.__init__(self)
-        self.capabilitySetType = UInt16Le(capabilitySetType, constant = (not capability is None))
+        self.capabilitySetType = UInt16Le(lambda:capability.__class__._TYPE_)
         self.lengthCapability = UInt16Le(lambda:sizeof(self))
         
         def CapabilityFactory():
