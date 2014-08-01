@@ -125,8 +125,7 @@ class ProxyServer(rdp.RDPServerObserver):
                 ip, port = machines[0]
                 width, height = self._controller.getScreen()
                 reactor.connectTCP(ip, port, ProxyClientFactory(self, width, height, 
-                                                                domain, username, password, 
-                                                                "%s\\%s on %s:%s"%(domain, username, ip, port)))
+                                                                domain, username, password))
             else:
                 self.showSelectView(machines)
         else:
