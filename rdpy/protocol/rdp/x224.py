@@ -48,7 +48,7 @@ class NegociationType(object):
 
 class Protocols(object):
     """
-    Protocols available for TPDU layer
+    Protocols available for x224 layer
     """
     PROTOCOL_RDP = 0x00000000
     PROTOCOL_SSL = 0x00000001
@@ -94,9 +94,9 @@ class ServerConnectionConfirm(CompositeType):
         #read if there is enough data
         self.protocolNeg = Negotiation(optional = True)
         
-class TPDUDataHeader(CompositeType):
+class X224DataHeader(CompositeType):
     """
-    Header send when TPDU exchange application data
+    Header send when x224 exchange application data
     """
     def __init__(self):
         CompositeType.__init__(self)
@@ -116,13 +116,13 @@ class Negotiation(CompositeType):
         self.code = UInt8()
         self.flag = UInt8(0)
         #always 8
-        self.len = UInt16Le(0x0008, constant = True)#not constant because freerdp send me random value...
+        self.len = UInt16Le(0x0008, constant = True)
         self.selectedProtocol = UInt32Le(conditional = lambda: (self.code.value != NegociationType.TYPE_RDP_NEG_FAILURE))
         self.failureCode = UInt32Le(conditional = lambda: (self.code.value == NegociationType.TYPE_RDP_NEG_FAILURE))
 
-class TPDULayer(LayerAutomata, IStreamSender):
+class X224Layer(LayerAutomata, IStreamSender):
     """
-    TPDU layer management
+    x224 layer management
     there is an connection automata
     """
     def __init__(self, presentation):
@@ -143,7 +143,7 @@ class TPDULayer(LayerAutomata, IStreamSender):
         And pass to presentation layer
         @param data: Stream
         """
-        header = TPDUDataHeader()
+        header = X224DataHeader()
         data.readType(header)
         self._presentation.recv(data)
         
@@ -153,9 +153,9 @@ class TPDULayer(LayerAutomata, IStreamSender):
         Add TPDU header
         @param message: network.Type message
         """
-        self._transport.send((TPDUDataHeader(), message))
+        self._transport.send((X224DataHeader(), message))
         
-class Client(TPDULayer):
+class Client(X224Layer):
     """
     Client automata of TPDU layer
     """
@@ -163,7 +163,7 @@ class Client(TPDULayer):
         """
         @param presentation: upper layer, MCS layer in RDP case
         """
-        TPDULayer.__init__(self, presentation)
+        X224Layer.__init__(self, presentation)
         
     def connect(self):
         """
@@ -216,9 +216,9 @@ class Client(TPDULayer):
         #connection is done send to presentation
         self._presentation.connect()
 
-class Server(TPDULayer):
+class Server(X224Layer):
     """
-    Server automata of TPDU layer
+    Server automata of X224 layer
     """
     def __init__(self, presentation, privateKeyFileName, certificateFileName):
         """
@@ -226,7 +226,7 @@ class Server(TPDULayer):
         @param privateKeyFileName: file contain server private key
         @param certficiateFileName: file that contain public key
         """
-        TPDULayer.__init__(self, presentation)
+        X224Layer.__init__(self, presentation)
         #Server mode informations for TLS connection
         self._serverPrivateKeyFileName = privateKeyFileName
         self._serverCertificateFileName = certificateFileName

@@ -36,40 +36,43 @@ class Action(object):
 
 class IFastPathListener(object):
     """
-    Fast path packet listener
-    Usually PDU layer
+    @summary:  Fast path packet listener
+                Usually X224 layer
     """
     def recvFastPath(self, fastPathS):
         """
-        Call when fast path packet is received
+        @summary: Call when fast path packet is received
         @param fastPathS: Stream
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recvFastPath", "recvFastPath"))
     
     def setFastPathSender(self, fastPathSender):
         """
+        @summary: Call to set a fast path sender to listener
         @param fastPathSender: IFastPathSender
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "setFastPathSender", "recvFastPath"))
 
 class IFastPathSender(object):
     """
-    Fast path send capability
+    @summary: Fast path send capability
     """
     def sendFastPath(self, fastPathS):
         """
+        @summary: Send fastPathS Type as fast path packet
         @param fastPathS: type transform to stream and send as fastpath
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendFastPath", "IFastPathSender"))
 
 class TPKT(RawLayer, IFastPathSender):
     """
-    TPKT layer in RDP protocol stack
-    This layer only handle size of packet and determine if is a fast path packet
+    @summary:  TPKT layer in RDP protocol stack
+                represent the Raw Layer in stack (first layer)
+                This layer only handle size of packet and determine if is a fast path packet
     """
     def __init__(self, presentation, fastPathListener):
         """
-        @param presentation: presentation layer, in RDP case is TPDU layer
+        @param presentation: presentation layer, in RDP case is x224 layer
         @param fastPathListener: IFastPathListener
         """
         RawLayer.__init__(self, presentation)
@@ -84,8 +87,8 @@ class TPKT(RawLayer, IFastPathSender):
         
     def connect(self):
         """
-        Call when transport layer connection
-        is made (inherit from RawLayer)
+        @summary:  Call when transport layer connection
+                    is made (inherit from RawLayer)
         """
         #header is on two bytes
         self.expect(2, self.readHeader)

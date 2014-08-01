@@ -24,42 +24,45 @@ Const it's use to create fake object enum in python
 from copy import deepcopy
 
 class Constant(object):
-    '''
-    Constant descriptor that deep copy value on get
-    '''
+    """
+    @summary: Constant descriptor that deep copy value on get
+    """
     def __init__(self, value):
-        '''
-        Constructor keep value
-        '''
+        """
+        @param value: value to protect
+        """
         self._value = value
         
     def __get__(self, obj, objType):
-        '''
-        on get constant return deep copy of wrapped value
-        '''
+        """
+        @summary: on get constant return deep copy of wrapped value
+        @param obj: unknown
+        @param objType: unknown
+        """
         return deepcopy(self._value)
     
     def __set__(self, obj, value):
-        '''
-        set is forbidden
-        in python 2.7 this function work only
-        on instanciate object
-        '''
+        """
+        @summary:  Try to set a protect value is forbidden
+                    in python 2.7 this function work only
+                    on instanciate object
+        @param obj: 
+        """
         raise Exception("can't assign constant")
     
     def __delete__(self, obj):
-        '''
-        delete is forbidden on constant
-        '''
+        """
+        @summary: delete is forbidden on constant
+        """
         raise Exception("can't delete constant")
 
 def TypeAttributes(typeClass):
-    '''
-    call typeClass ctor on each attributes
-    to uniform atributes type on class
+    """
+    @summary:  Call typeClass ctor on each attributes
+                to uniform atributes type on class
     @param typeClass: class use to construct each class attributes
     @return: class decorator
-    '''
+    """
     def wrapper(cls):
         for c_name, c_value in cls.__dict__.iteritems():
             if c_name[0] != '_' and not callable(c_value):
@@ -68,11 +71,11 @@ def TypeAttributes(typeClass):
     return wrapper
 
 def ConstAttributes(cls):
-    '''
-    copy on read attributes
-    transform all attributes of class 
-    in constant attribute
-    only attributes which are not begining with '_' char
-    and are not callable
-    '''
+    """
+    @summary:  Copy on read attributes
+                transform all attributes of class 
+                in constant attribute
+                only attributes which are not begining with '_' char
+                and are not callable
+    """
     return TypeAttributes(Constant)(cls)

@@ -24,7 +24,7 @@ Actually very basic log engine
 
 class Level(object):
     """
-    Level log
+    @summary: Level log
     """
     DEBUG = 0
     INFO = 1
@@ -34,24 +34,44 @@ class Level(object):
 _LOG_LEVEL = Level.DEBUG
 
 def log(message):
+    """
+    @summary: Main log function
+    @param message: string to print
+    """
     print message
 
 def error(message):
+    """
+    @summary: Log error message
+    @param message: string to print as error log
+    """
     if _LOG_LEVEL > Level.ERROR:
         return
     log("ERROR : %s"%message)
     
 def warning(message):
+    """
+    @summary: Log warning message
+    @param message: string to print as warning log
+    """
     if _LOG_LEVEL > Level.WARNING:
         return
     log("WARNING : %s"%message)
 
 def info(message):
+    """
+    @summary: Log info message
+    @param message: string to print as info log
+    """
     if _LOG_LEVEL > Level.INFO:
         return
     log("INFO : %s"%message)
     
 def debug(message):
+    """
+    @summary: Log debug message
+    @param message: string to print as debug log
+    """
     if _LOG_LEVEL > Level.DEBUG:
         return
     log("DEBUG : %s"%message)

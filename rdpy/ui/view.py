@@ -123,7 +123,7 @@ class List(IView):
         if len(self._labels) == 0:
             return
         if code == KeyCode.ENTER:
-            self._callback(self._labels[self._current])
+            self._callback(self._current)
         elif code == KeyCode.DOWN:
             self._current = min(len(self._labels) - 1, self._current + 1)
             self._needUpdate = True
@@ -221,14 +221,13 @@ class Label(IView):
             qp.drawText(drawArea.rect(), QtCore.Qt.AlignCenter, self._label)
         render.drawImage(drawArea)
 
-class RDPRenderer(object):
-    def __init__(self, controller, colorDepth):
+class RDPRenderer(IRender):
+    def __init__(self, controller):
         """
         @param server: RDPServerController
-        @param colorDepth: color depth
         """
         self._controller = controller
-        self._colorDepth = colorDepth
+        self._colorDepth = controller.getColorDepth()
         self._dx = 0
         self._dy = 0
         

@@ -23,7 +23,7 @@ All exceptions error use in RDPY
 
 class CallPureVirtualFuntion(Exception):
     """
-    Raise when a virtual function is called and not implemented
+    @summary: Raise when a virtual function is called and not implemented
     """
     def __init__(self, message = ""):
         """
@@ -33,7 +33,7 @@ class CallPureVirtualFuntion(Exception):
 
 class InvalidValue(Exception):
     """
-    Raise when invalid value type occurred
+    @summary: Raise when invalid value type occurred
     """
     def __init__(self, message = ""):
         """
@@ -43,7 +43,7 @@ class InvalidValue(Exception):
 
 class InvalidExpectedDataException(Exception):
     """
-    Raise when expected data on network is invalid
+    @summary: Raise when expected data on network is invalid
     """
     def __init__(self, message = ""):
         """
@@ -53,7 +53,7 @@ class InvalidExpectedDataException(Exception):
         
 class NegotiationFailure(Exception):
     """
-    Raise when negotiation failure in different protocols
+    @summary: Raise when negotiation failure in different protocols
     """
     def __init__(self, message = ""):
         """
@@ -63,7 +63,7 @@ class NegotiationFailure(Exception):
         
 class InvalidType(Exception):
     """
-    Raise when invalid value type occured
+    @summary: Raise when invalid value type occured
     """
     def __init__(self, message = ""):
         """
@@ -73,7 +73,7 @@ class InvalidType(Exception):
         
 class InvalidSize(Exception):
     """
-    Raise when invalid size is present in packet type occured
+    @summary: Raise when invalid size is present in packet type occured
     """
     def __init__(self, message = ""):
         """
@@ -83,7 +83,7 @@ class InvalidSize(Exception):
         
 class ErrorReportedFromPeer(Exception):
     """
-    Raise when peer send an error
+    @summary: Raise when peer send an error
     """
     def __init__(self, message = ""):
         """

@@ -27,7 +27,7 @@ import pdu.layer
 import pdu.data
 import pdu.caps
 import rdpy.base.log as log
-import tpkt, tpdu, mcs, gcc
+import tpkt, x224, mcs, gcc
 
 class RDPClientController(pdu.layer.PDUClientListener):
     """
@@ -41,9 +41,9 @@ class RDPClientController(pdu.layer.PDUClientListener):
         #multi channel service
         self._mcsLayer = mcs.Client(self._pduLayer)
         #transport pdu layer
-        self._tpduLayer = tpdu.Client(self._mcsLayer)
+        self._x224Layer = x224.Client(self._mcsLayer)
         #transport packet (protocol layer)
-        self._tpktLayer = tpkt.TPKT(self._tpduLayer, self._pduLayer)
+        self._tpktLayer = tpkt.TPKT(self._x224Layer, self._pduLayer)
         #is pdu layer is ready to send
         self._isReady = False
         
@@ -268,9 +268,9 @@ class RDPServerController(pdu.layer.PDUServerListener):
         #multi channel service
         self._mcsLayer = mcs.Server(self._pduLayer)
         #transport pdu layer
-        self._tpduLayer = tpdu.Server(self._mcsLayer, privateKeyFileName, certificateFileName)
+        self._x224Layer = x224.Server(self._mcsLayer, privateKeyFileName, certificateFileName)
         #transport packet (protocol layer)
-        self._tpktLayer = tpkt.TPKT(self._tpduLayer, self._pduLayer)
+        self._tpktLayer = tpkt.TPKT(self._x224Layer, self._pduLayer)
         #set color depth of session
         self.setColorDepth(colorDepth)
         
@@ -422,8 +422,8 @@ class ClientFactory(layer.RawLayerClientFactory):
     """
     def connectionLost(self, tpktLayer):
         #retrieve controller
-        tpduLayer = tpktLayer._presentation
-        mcsLayer = tpduLayer._presentation
+        x224Layer = tpktLayer._presentation
+        mcsLayer = x224Layer._presentation
         pduLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
         controller = pduLayer._listener
         controller.onClose()
@@ -434,14 +434,14 @@ class ClientFactory(layer.RawLayerClientFactory):
         @param addr: destination address
         """
         controller = RDPClientController()
-        self.buildObserver(controller)
-        controller.getProtocol()._factory = self
+        self.buildObserver(controller, addr)
         return controller.getProtocol()
     
-    def buildObserver(self, controller):
+    def buildObserver(self, controller, addr):
         """
         Build observer use for connection
         @param controller: RDPClientController
+        @param addr: destination address
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ClientFactory"))
 
@@ -461,8 +461,8 @@ class ServerFactory(layer.RawLayerServerFactory):
     
     def connectionLost(self, tpktLayer):
         #retrieve controller
-        tpduLayer = tpktLayer._presentation
-        mcsLayer = tpduLayer._presentation
+        x224Layer = tpktLayer._presentation
+        mcsLayer = x224Layer._presentation
         pduLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
         controller = pduLayer._listener
         controller.onClose()
@@ -473,14 +473,14 @@ class ServerFactory(layer.RawLayerServerFactory):
         @param addr: destination address
         """
         controller = RDPServerController(self._privateKeyFileName, self._certificateFileName, self._colorDepth)
-        self.buildObserver(controller)
-        controller.getProtocol()._factory = self
+        self.buildObserver(controller, addr)
         return controller.getProtocol()
     
-    def buildObserver(self, controller):
+    def buildObserver(self, controller, addr):
         """
         Build observer use for connection
         @param controller: RDP stack controller
+        @param addr: destination address
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ServerFactory")) 
         

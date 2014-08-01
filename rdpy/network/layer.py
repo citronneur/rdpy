@@ -27,32 +27,30 @@ from rdpy.base.error import CallPureVirtualFuntion
 
 class IStreamListener(object):
     """
-    Interface use to inform that we can handle receive stream
+    @summary: Interface use to inform stream receiver capability
     """
     def recv(self, s):
         """
-        Signal that data is available for this layer
-        call by transport layer
-        default is to pass data to presentation layer
-        @param s: raw Stream receive from transport layer
+        @summary: Signal that data is available
+        @param s: Stream
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
     
 class IStreamSender(object):
     """
-    Interface use to show stream sender capability 
+    @summary: Interface use to inform stream sender capability 
     """
     def send(self, data):
-        '''
-        Send Stream on layer
+        """
+        @summary: Send Stream on layer
         @param data: Type or tuple element handle by transport layer
-        '''
+        """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "send", "IStreamSender"))
     
 class Layer(object):
     """
-    A simple double linked list with presentation and transport layer
-    and a subset of event (connect and close)
+    @summary:  A simple double linked list with presentation and transport layer
+                and a subset of event (connect and close)
     """
     def __init__(self, presentation = None):
         """
@@ -68,24 +66,25 @@ class Layer(object):
     
     def connect(self):
         """
-        Call when transport layer is connected
-        default is send connect event to presentation layer
+        @summary:  Call when transport layer is connected
+                    default is send connect event to presentation layer
         """
         if not self._presentation is None:
             self._presentation.connect()
     
     def close(self):
         """
-        Close layer event
-        default is sent to transport layer
+        @summary:  Close layer event
+                    default is sent to transport layer
         """
         if not self._transport is None:
             self._transport.close()
             
 class LayerAutomata(Layer, IStreamListener):
     """
-    Layer with automata state
-    we can set next recv function used for Stream packet
+    @summary:  Layer with automata callback
+                we can set next recv function used for Stream packet
+                Usefull for event driven engine as twisted
     """
     def __init__(self, presentation = None):
         """
@@ -96,10 +95,8 @@ class LayerAutomata(Layer, IStreamListener):
         
     def setNextState(self, callback = None):
         """
-        Set receive function to next callback or
-        current self.recv function if it's None
-        @param callback: a callable object that can 
-        receive Layer, Stream parameters
+        @summary: Set the next callback in automata
+        @param callback: a callable object
         """
         if callback is None:
             callback = self.__class__.recv
@@ -114,11 +111,11 @@ from type import Stream
 
 class RawLayerClientFactory(protocol.ClientFactory):
     """
-    Abstract class for Raw layer client factory
+    @summary: Abstract class for Raw layer client factory
     """
     def buildProtocol(self, addr):
         """
-        Function call from twisted and build rdp protocol stack
+        @summary: Function call from twisted
         @param addr: destination address
         """
         rawLayer = self.buildRawLayer(addr)
@@ -127,24 +124,25 @@ class RawLayerClientFactory(protocol.ClientFactory):
         
     def buildRawLayer(self, addr):
         """
-        Override this function to build raw layer
+        @summary: Override this function to build raw layer
         @param addr: destination address
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
     
     def connectionLost(self, rawlayer):
         """
-        Overirde this method to handle connection lost
+        @summary: Override this method to handle connection lost
+        @param rawlayer: rawLayer that cause connectionLost event
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
     
 class RawLayerServerFactory(protocol.ClientFactory):
     """
-    Abstract class for Raw layer server factory
+    @summary: Abstract class for Raw layer server factory
     """
     def buildProtocol(self, addr):
         """
-        Function call from twisted and build rdp protocol stack
+        @summary: Function call from twisted
         @param addr: destination address
         """
         rawLayer = self.buildRawLayer(addr)
@@ -153,23 +151,24 @@ class RawLayerServerFactory(protocol.ClientFactory):
     
     def buildRawLayer(self, addr):
         """
-        Override this function to build raw layer
+        @summary: Override this function to build raw layer
         @param addr: destination address
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
     
     def connectionLost(self, rawlayer):
         """
-        Overirde this method to handle connection lost
+        @summary: Override this method to handle connection lost
+        @param rawlayer: rawLayer that cause connectionLost event
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
     
 
 class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
     """
-    Inherit from protocol twisted class
-    allow this protocol to wait until expected size of packet
-    and use Layer automata to call next automata state
+    @summary:  Wait event from twisted engine
+                And format correct size packet
+                And send correct packet to next automata callback
     """
     def __init__(self, presentation = None):
         """
@@ -185,15 +184,15 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         
     def setFactory(self, factory):
         """
-        Call by RawLayer Factory
+        @summary: Call by RawLayer Factory
         @param param: RawLayerClientFactory or RawLayerFactory
         """
         self._factory = factory
         
     def dataReceived(self, data):
         """
-        Inherit from protocol class
-        main event of received data
+        @summary:  Inherit from twisted.protocol class
+                    main event of received data
         @param data: string data receive from twisted
         """
         #add in buffer
@@ -209,24 +208,31 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
             
     def connectionMade(self):
         """
-        inherit from twisted protocol
+        @summary: inherit from twisted protocol
         """
         #join two scheme
         self.connect()
         
     def connectionLost(self, reason):
+        """
+        @summary: Call from twisted engine when protocol is closed
+        @param reason: str represent reason of close connection
+        """
         self._factory.connectionLost(self)
         
     def close(self):
         """
-        Close raw layer
+        @summary:  Close raw layer
+                    Use File descriptor directly to not use TLS close
+                    Because is bugged
         """
         FileDescriptor.loseConnection(self.transport)
             
     def expect(self, expectedLen, callback = None):
         """
-        Configure layer to change next state with callback only
-        when expectLen bytes is received from transport layer
+        @summary:  Set next automata callback, 
+                    But this callback will be only called when
+                    data have expectedLen
         @param expectedLen: in bytes length use to call next state
         @param callback: callback call when expected length bytes is received
         """
@@ -236,8 +242,9 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         
     def send(self, message):
         """
-        Send Stream on TCP layer
-        format message into raw stream understood by transport layer
+        @summary:  Send Stream on TCP layer
+                    write rdpy Stream message to str
+                    And send it to transport layer
         @param message: (tuple | Type)
         """
         s = Stream()

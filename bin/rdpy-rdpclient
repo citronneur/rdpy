@@ -33,11 +33,15 @@ from rdpy.protocol.rdp import rdp
 
 class RDPClientQtFactory(rdp.ClientFactory):
     """
-    Factory create a RDP GUI client
+    @summary: Factory create a RDP GUI client
     """
     def __init__(self, width, height, username, password, domain):
         """
-        init client with correct definition
+        @param width: width of client
+        @param heigth: heigth of client
+        @param username: username present to the server
+        @param password: password present to the server
+        @param domain: microsoft domain
         """
         self._width = width
         self._height = height
@@ -46,10 +50,13 @@ class RDPClientQtFactory(rdp.ClientFactory):
         self._domain = domain
         self._w = None
         
-    def buildObserver(self, controller):
+    def buildObserver(self, controller, addr):
         """
-        Build RFB observer
+        @summary:  Build RFB observer
+                    We use a RDPClientQt as RDP observer
         @param controller: build factory and needed by observer
+        @param addr: destination address
+        @return: RDPClientQt
         """
         #create client observer
         client = RDPClientQt(controller, self._width, self._height)
@@ -70,7 +77,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
     
     def clientConnectionLost(self, connector, reason):
         """
-        Connection lost event
+        @summary: Connection lost event
         @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
         """
@@ -80,7 +87,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
         
     def clientConnectionFailed(self, connector, reason):
         """
-        Connection failed event
+        @summary: Connection failed event
         @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
         """
