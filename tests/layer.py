@@ -35,7 +35,7 @@ class LayerCase(unittest.TestCase):
                 if data.dataLen() == 4:
                     raise LayerCase.LayerCaseException()
             
-        t = TestAutomata(rdpy.network.layer.LayerMode.NONE)
+        t = TestAutomata()
         t.expect(4, t.expectedCallBack)
         self.assertRaises(LayerCase.LayerCaseException, t.dataReceived, "\x00\x00\x00\x00\x00")
         
@@ -48,6 +48,6 @@ class LayerCase(unittest.TestCase):
                 if data.dataLen() == 4:
                     raise LayerCase.LayerCaseException()
             
-        t = TestAutomata(rdpy.network.layer.LayerMode.NONE)
+        t = TestAutomata()
         t.expect(4, t.expectedCallBack)
         self.assertEqual(t.dataReceived("\x00\x00\x00"), None, "Not enough dada")

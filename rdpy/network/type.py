@@ -18,9 +18,9 @@
 #
 
 """
-Raw type use un RDPY
+Raw type use in RDPY
 
-It's a basic implementation looks like protobuf but dynamically
+It's a basic implementation looks like google protobuf but dynamically
 We are in python!
 """
 
@@ -130,9 +130,9 @@ class Type(object):
 class CallableValue(object):
     """
     @summary:  Expression evaluate when is get or set
-                Ex: Type contain lenght of array and array
+                Ex: Type contain length of array and array
                 To know the size of array you need to read 
-                length field before. A ctor time no length was readed.
+                length field before. At ctor time no length was read.
                 You need a callable object that will be evaluate when it will be used
     """
     def __init__(self, value):
@@ -191,7 +191,7 @@ class SimpleType(Type, CallableValue):
         @param structFormat: letter that represent type in struct package
         @param typeSize: size in byte of type
         @param signed: true if type represent a signed type
-        @param value: value recorded in this object (raw python type | lambda | function)
+        @param value: value recorded in this object (raw Python type | lambda | function)
         @param conditional :    Callable object
                                  Read and Write operation depend on return of this function
         @param optional:   If there is no enough byte in current stream
@@ -437,7 +437,7 @@ class CompositeType(Type):
         """
         @summary:  Track Type field
                     For Type field record it in same order as declared
-                    Keep other but bot handle in read or write functino
+                    Keep other but bot handle in read or write function
         @param name: name of new attribute
         @param value: value of new attribute
         """
@@ -452,7 +452,7 @@ class CompositeType(Type):
                     And check read length parameter
                     If an error occurred rollback type already read
         @param s: Stream
-        @raise InvalidSize: if stream is greatter than readLen parameter
+        @raise InvalidSize: if stream is greater than readLen parameter
         """
         readLen = 0
         for name in self._typeName:            

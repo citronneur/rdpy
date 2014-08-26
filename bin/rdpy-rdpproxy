@@ -62,13 +62,16 @@ class ProxyServer(rdp.RDPServerObserver):
         width, height = self._controller.getScreen()
         self._window = view.Window(width, height, QtGui.QColor(8, 24, 66))
         
-        self._window.addView(view.Anchor(width / 2 - 250, 100, view.Label("Please select following server", 
-                                                                          500, 50, QtGui.QFont('arial', 18, QtGui.QFont.Bold), 
-                                                                          backgroundColor = QtGui.QColor(8, 24, 66))))
+        self._window.addView(view.Anchor(width / 2 - 250, 100, 
+                                         view.Label("Please select following server", 
+                                                    500, 50, QtGui.QFont('arial', 18, QtGui.QFont.Bold),
+                                                    backgroundColor = QtGui.QColor(8, 24, 66))))
         
-        self._window.addView(view.Anchor(width / 2 - 250, 150, view.List(["%s:%s"%(ip, port) for ip, port in machines], 
-                                                                         500, 500, self.onSelectMachine, 
-                                                                         QtGui.QColor(8, 24, 66))), True)
+        self._window.addView(view.Anchor(width / 2 - 250, 150, 
+                                         view.List(["%s:%s"%(ip, port) for ip, port in machines],
+                                                   500, 500, self.onSelectMachine, 
+                                                   QtGui.QColor(8, 24, 66))), True)
+        
         self._window.update(view.RDPRenderer(self._controller), True) 
     
     def onSelectMachine(self, index):
@@ -99,10 +102,12 @@ class ProxyServer(rdp.RDPServerObserver):
         width, height = self._controller.getScreen()
         
         popup = view.Window(width, height, QtGui.QColor(8, 24, 66))
+        
         popup.addView(view.Anchor(width / 2 - 250, height / 2 - 25, 
                                   view.Label(message, 500, 50, 
                                              QtGui.QFont('arial', 18, QtGui.QFont.Bold), 
                                              backgroundColor = QtGui.QColor(8, 24, 66))))
+        
         popup.update(view.RDPRenderer(self._controller), True)
         
     def onReady(self):
@@ -220,6 +225,7 @@ class ProxyClient(rdp.RDPClientObserver):
         rdp.RDPClientObserver.__init__(self, controller)
         self._server = server
         self._name = name
+        self._connected = False
         
     def onReady(self):
         """
@@ -227,6 +233,14 @@ class ProxyClient(rdp.RDPClientObserver):
                     Inform ProxyServer that i'm connected
         @see: rdp.RDPClientObserver.onReady
         """
+        #prevent multiple on ready event
+        #because each deactive-reactive sequence 
+        #launch an onReady message
+        if self._connected:
+            return
+        else:
+            self._connected = True
+            
         if not self._name is None:
             ProxyClient._CONNECTED_.append(self)
         self._server.clientConnected(self)
@@ -236,7 +250,8 @@ class ProxyClient(rdp.RDPClientObserver):
         @summary: Event inform that stack is close
         @see: rdp.RDPClientObserver.onClose
         """
-        ProxyClient._CONNECTED_.remove(self)
+        if not self._name is None:
+            ProxyClient._CONNECTED_.remove(self)
         
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
@@ -267,7 +282,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         @param username: username session
         @param password: password session
         """
-        self._controller = server
+        self._server = server
         self._width = width
         self._height = height
         self._domain = domain
@@ -288,8 +303,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setDomain(self._domain)
         controller.setUsername(self._username)
         controller.setPassword(self._password)
-        proxy = ProxyClient(controller, self._controller, "%s\\%s on %s"%(self._domain, self._username, addr))
-        return proxy
+        return ProxyClient(controller, self._server, "%s\\%s on %s"%(self._domain, self._username, addr))
     
     def startedConnecting(self, connector):
         pass
@@ -329,13 +343,15 @@ class ProxyAdmin(rdp.RDPServerObserver):
         width, height = self._controller.getScreen()
         self._window = view.Window(width, height, QtGui.QColor(8, 24, 66))
         
-        self._window.addView(view.Anchor(width / 2 - 250, 100, view.Label("Please select following session", 
-                                                                          500, 50, QtGui.QFont('arial', 18, QtGui.QFont.Bold), 
-                                                                          backgroundColor = QtGui.QColor(8, 24, 66))))
+        self._window.addView(view.Anchor(width / 2 - 250, 100, 
+                                         view.Label("Please select following session", 
+                                                    500, 50, QtGui.QFont('arial', 18, QtGui.QFont.Bold), 
+                                                    backgroundColor = QtGui.QColor(8, 24, 66))))
         
-        self._window.addView(view.Anchor(width / 2 - 250, 150, view.List([p._name for p in self._sessions], 
-                                                                         500, 500, self.onSelect, 
-                                                                         QtGui.QColor(8, 24, 66))), True)
+        self._window.addView(view.Anchor(width / 2 - 250, 150, 
+                                         view.List([p._name for p in self._sessions], 
+                                                   500, 500, self.onSelect, 
+                                                   QtGui.QColor(8, 24, 66))), True)
          
     def clientConnected(self, client):
         pass
@@ -470,7 +486,7 @@ def help():
     """
     @summary: Print help in console
     """
-    print "Usage: rdpy-rdpproxy -f credential_file_path -k private_key_file_path -c certificate_file_path listen_port"
+    print "Usage: rdpy-rdpproxy -f credential_file_path -k private_key_file_path -c certificate_file_path [-i admin_ip[:admin_port]] listen_port"
     
 def loadConfig(configFilePath):
     """
