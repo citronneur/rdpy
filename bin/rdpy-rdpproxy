@@ -77,7 +77,6 @@ class ProxyServer(rdp.RDPServerObserver):
     def onSelectMachine(self, index):
         """
         @summary: Callback of view.List in Select server view
-        @param: machine str name of machine selected
         @param: index in list
         """
         ip, port = self._machines[index]

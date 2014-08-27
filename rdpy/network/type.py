@@ -590,6 +590,22 @@ class UInt16Le(SimpleType):
         """
         SimpleType.__init__(self, "<H", 2, False, value, conditional = conditional, optional = optional, constant = constant)
         
+class SInt16Le(SimpleType):
+    """
+    @summary: signed short
+               with Little endian representation in stream
+    """
+    def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
+        """
+        @param value: python value wrap
+        @param conditional :    Callable object
+                                 Read and Write operation depend on return of this function
+        @param optional:   If there is no enough byte in current stream
+                            And optional is True, read type is ignored
+        @param constant:   Check if object value doesn't change after read operation
+        """
+        SimpleType.__init__(self, "<h", 2, True, value, conditional = conditional, optional = optional, constant = constant)
+        
 class UInt32Be(SimpleType):
     """
     @summary: unsigned int
