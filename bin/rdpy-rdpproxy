@@ -331,7 +331,6 @@ class ProxyAdmin(rdp.RDPServerObserver):
         @param server: rdp.RDPServerController
         """
         rdp.RDPServerObserver.__init__(self, controller)
-        self._controller = controller
         self._spy = None
         self._state = ProxyAdmin.State.GUI
         

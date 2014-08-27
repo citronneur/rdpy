@@ -1,32 +1,91 @@
 # RDPY
 
-Remote Desktop Protocol in Twisted Python.
+Remote Desktop Protocol in twisted PYthon.
 
-RDPY is full python implementation of RDP and VNC protocol, except the bitmap uncompress for performance. The main goal of RDPY is not to be as faster as freerdp, rdesktop or mstsc, but is made to play with protocol. You can use it as twisted library. In library mode build step is not necessary until you want to uncompress bitmap data. You can use it as QWidget in your Qt4 application. Most of GUI library compatibility would be implemented. You can use pre made script (call binaries) for rdp and vnc client, or rdp proxy with admin spy port.
+RDPY is still under development.
 
-## Requirements
+RDPY is a pure Python implementation ot the Microsoft RDP (Remote Desktop Protocol) protocol. RDPY is built over the event driven network engine Twisted.
 
-### Twisted library requirements
+## Build
+
+RDPY is fully implemented in python, except the bitmap uncompression algorithm which is implemented in C and binded with SIP (originally conceived for the PyQt project) for performance purposes.
+
+### Depends
 
 * python2.7
 * python-twisted
 * python-openssl
-
-### Binaries and graphical examples requirements
-
 * python-qt4
 * python-qt4reactor
 * python-sip-dev
 * scons
 
-## Build
+### Make
+
 ```
 $ git clone https://github.com/citronneur/rdpy.git rdpy
 $ scons -C rdpy/rdpy/core install
 ```
 
-## Library Mode
-To create a RDP client:
+## RDPY Binaries
+
+RDPY comes with some very useful binaries; These binaries are linux and windows compatible. Pre-built binaries will be delivered with the first release of the project.
+
+### rdpy-rdpclient
+
+rdpy-rdpclient is a simple RDP Qt4 client .
+
+```
+$ rdpy/bin/rdpy-rdpclient [-u username] [-p password] [-d domain] [...] XXX.XXX.XXX.XXX[:3389]
+```
+
+### rdpy-rdpproxy
+
+rdpy-rdpproxy is a RDP proxy. It is used to manage and control access to the RDP servers as well as watch live sessions through any RDP client. It can be compared to a HTTP reverse proxy with added spy features.
+
+```
+$ rdpy/bin/rdpy-rdpproxy -f credentials_file_path -k private_key_file_path -c certificate_file_path [-i admin_ip[:admin_port]] listen_port
+```
+
+The credentials file is JSON file that must conform with the following format:
+
+```
+{
+	"domain1":
+	{
+		"username1":
+		[
+			{"ip":"machine1", "port":3389"},
+			{"ip":"machine2", "port":3389"}
+		],
+		"username2":
+		[
+			{"ip":"machine1", "port":3389"}
+		]
+	}
+}
+```
+
+In this exemple domain1\username1 can access to machine1 and machine2 and domain1\username2 can only access to machine1.
+
+The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer but RDPY is limited to SSL. The CredSSP security layer is planned for an upcoming release. The basic RDP security layer is not supported (windows wp sp1&2).
+
+The IP and port admin are used in order to spy active sessions thanks to a RDP client (rdpy-rdpclient, remina, mstsc). Common values are 127.0.0.1:3389 to protect from connections by unauthorized user.
+
+### rdpy-admin
+
+rdpy-admin is UI manager of rdpy-rdpproxy. You can manage credentials and watch live sessions simultaneous.
+
+## RDPY Qt Widget
+
+RDPY can also be used as Qt widget throw rdpy.ui.qt4.QRemoteDesktop class. It can be embedded in your own Qt application. qt4reactor must be used in your app for Twisted and Qt to work together. For more details, see sources of rdpy-rdpclient.
+
+## RDPY library
+
+In a nutshell the RDPY can be used as a protocol library with a twisted engine.
+
+The client code looks like this:
+
 ```
 from rdpy.protocol.rdp import rdp
 class MyRDPFactory(rdp.ClientFactory):
@@ -56,33 +115,3 @@ from twisted.internet import reactor
 reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRDPFactory())
 reactor.run()
 ```
-For more details on client rdp see rdpy/bin/rdpy-rdpclient binaries.
-
-## Binaries Mode
-RDPY is delivered with 3 binaries : 
-
-RDP Client
-```
-$ rdpy/bin/rdpy-rdpclient [-u username] [-p password] [-d domain] [...] XXX.XXX.XXX.XXX[:3389]
-```
-
-VNC Client
-```
-$ rdpy/bin/rdpy-vncclient XXX.XXX.XXX.XXX 5901
-```
-
-RDP Proxy
-```
-$ rdpy/bin/rdpy-rdpproxy
-```
-
-##Limitations
-* CreedSSP
-* Packet redirection
-* License (in progress)
-* Most common orders (in progress)
-* DES VNC (using pyDes) (in progress)
-* VNC server side
-* RDP server side (in progress)
-
-this project is still in progress.
