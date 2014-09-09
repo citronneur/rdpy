@@ -162,7 +162,7 @@ class Client(X224Layer):
     def __init__(self, presentation):
         """
         @param presentation: upper layer, MCS layer in RDP case
-        """
+        """testName
         X224Layer.__init__(self, presentation)
         
     def connect(self):

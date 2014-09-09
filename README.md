@@ -72,10 +72,6 @@ The private key file and the certificate file are classic cryptographic files fo
 
 The IP and port admin are used in order to spy active sessions thanks to a RDP client (rdpy-rdpclient, remina, mstsc). Common values are 127.0.0.1:3389 to protect from connections by unauthorized user.
 
-### rdpy-admin
-
-rdpy-admin is UI manager of rdpy-rdpproxy. You can manage credentials and watch live sessions simultaneous.
-
 ## RDPY Qt Widget
 
 RDPY can also be used as Qt widget throw rdpy.ui.qt4.QRemoteDesktop class. It can be embedded in your own Qt application. qt4reactor must be used in your app for Twisted and Qt to work together. For more details, see sources of rdpy-rdpclient.
