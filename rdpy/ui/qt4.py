@@ -35,7 +35,6 @@ try:
 except:
     log.error("Please build core package before using RLE algorithm : scons -C rdpy/core install")
 
-
 class QAdaptor(object):
     """
     Adaptor model with link between protocol
@@ -135,7 +134,49 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         """
         self.keyEvent(isPressed, e.nativeVirtualKey())
 
-   
+
+def RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data):
+    """
+    Bitmap transformation to Qt object
+    @param width: width of bitmap
+    @param height: height of bitmap
+    @param bitsPerPixel: number of bit per pixel
+    @param isCompress: use RLE compression
+    @param data: bitmap data
+    """
+    image = None
+    if bitsPerPixel == 15:
+        if isCompress:
+            image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB555)
+            rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
+        else:
+            image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB555).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
+    
+    elif bitsPerPixel == 16:
+        if isCompress:
+            image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB16)
+            rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
+        else:
+            image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
+    
+    elif bitsPerPixel == 24:
+        if isCompress:
+            image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB24)
+            rle.bitmap_decompress(image.bits(), width, height, data, len(data), 3)
+        else:
+            image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
+            
+    elif bitsPerPixel == 32:
+        if isCompress:
+            image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
+            rle.bitmap_decompress(image.bits(), width, height, data, len(data), 4)
+        else:
+            image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
+    else:
+        log.error("Receive image in bad format")
+        image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
+    return image
+  
 class RDPClientQt(RDPClientObserver, QAdaptor):
     """
     Adaptor for RDP client
@@ -201,38 +242,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param isCompress: use RLE compression
         @param data: bitmap data
         """
-        image = None
-        if bitsPerPixel == 15:
-            if isCompress:
-                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB555)
-                rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
-            else:
-                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB555).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
-        
-        elif bitsPerPixel == 16:
-            if isCompress:
-                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB16)
-                rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
-            else:
-                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
-        
-        elif bitsPerPixel == 24:
-            if isCompress:
-                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB24)
-                rle.bitmap_decompress(image.bits(), width, height, data, len(data), 3)
-            else:
-                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
-                
-        elif bitsPerPixel == 32:
-            if isCompress:
-                image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
-                rle.bitmap_decompress(image.bits(), width, height, data, len(data), 4)
-            else:
-                image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
-        else:
-            log.error("Receive image in bad format")
-            return
-        
+        image = RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data);
         #if image need to be cut
         #For bit alignement server may send more than image pixel
         self._widget.notifyImage(destLeft, destTop, image, destRight - destLeft + 1, destBottom - destTop + 1)
