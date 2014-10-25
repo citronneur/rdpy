@@ -89,11 +89,9 @@ class MyRDPFactory(rdp.ClientFactory):
 
 	def clientConnectionLost(self, connector, reason):
         reactor.stop()
-        app.exit()
         
     def clientConnectionFailed(self, connector, reason):
         reactor.stop()
-        app.exit()
         
     def buildObserver(self, controller, addr):
         class MyObserver(rdp.RDPClientObserver)

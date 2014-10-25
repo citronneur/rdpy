@@ -95,6 +95,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         Set password for session
         @param password: password of session
         """
+        self.setAutologon()
         self._pduLayer._info.password.value = password
         
     def setDomain(self, domain):
@@ -103,6 +104,12 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @param domain: domain of session
         """
         self._pduLayer._info.domain.value = domain
+        
+    def setAutologon(self):
+        """
+        @summary: enable autologon
+        """
+        self._pduLayer._info.flag |= pdu.data.InfoFlag.INFO_AUTOLOGON
         
     def addClientObserver(self, observer):
         """
