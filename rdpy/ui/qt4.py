@@ -224,7 +224,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         code = e.nativeScanCode()
         if sys.platform == "linux2":
             code -= 8
-        self._controller.sendKeyEventScancode(e.nativeScanCode() - 8, isPressed)
+        self._controller.sendKeyEventScancode(code, isPressed)
     
     def closeEvent(self, e):
         """
