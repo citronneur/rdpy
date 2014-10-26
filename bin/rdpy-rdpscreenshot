@@ -32,6 +32,7 @@ from PyQt4 import QtCore, QtGui
 from rdpy.protocol.rdp import rdp
 from rdpy.ui.qt4 import RDPBitmapToQtImage
 import rdpy.base.log as log
+from twisted.internet import task
 
 #set log level
 log._LOG_LEVEL = log.Level.INFO
@@ -40,15 +41,17 @@ class RDPScreenShotFactory(rdp.ClientFactory):
     """
     @summary: Factory for screenshot exemple
     """
-    def __init__(self, width, height, path):
+    def __init__(self, width, height, path, timeout):
         """
         @param width: width of screen
         @param height: height of screen
         @param path: path of output screenshot
+        @param timeout: close connection after timeout s without any updating
         """
         self._width = width
         self._height = height
         self._path = path
+        self._timeout = timeout
         
     def clientConnectionLost(self, connector, reason):
         """
@@ -81,22 +84,27 @@ class RDPScreenShotFactory(rdp.ClientFactory):
             """
             @summary: observer that connect, cache every image received and save at deconnection
             """
-            def __init__(self, controller, width, height, path):
+            def __init__(self, controller, width, height, path, timeout):
                 """
                 @param controller: RDPClientController
                 @param width: width of screen
                 @param height: height of screen
                 @param path: path of output screenshot
+                @param timeout: close connection after timeout s without any updating
                 """
                 rdp.RDPClientObserver.__init__(self, controller)
                 controller.setScreen(width, height);
                 self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
                 self._path = path
+                self._hasUpdated = True
+                self._brandWidthTask = task.LoopingCall(self.checkUpdate)
+                self._brandWidthTask.start(timeout) # call every second
                 
             def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
                 """
                 @summary: callback use when bitmap is received 
                 """
+                self._hasUpdated = True
                 image = RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data);
                 with QtGui.QPainter(self._buffer) as qp:
                 #draw image
@@ -114,23 +122,32 @@ class RDPScreenShotFactory(rdp.ClientFactory):
                 """
                 log.info("save screenshot into %s"%self._path)
                 self._buffer.save(self._path)
+                
+            def checkUpdate(self):
+                if not self._hasUpdated:
+                    log.info("close connection on timeout without updating orders")
+                    self._controller.close();
+                    return
+                self._hasUpdated = False
         
-        return ScreenShotObserver(controller, self._width, self._height, self._path)
+        return ScreenShotObserver(controller, self._width, self._height, self._path, self._timeout)
         
 def help():
     print "Usage: rdpy-rdpscreenshot [options] ip[:port]"
     print "\t-w: width of screen default value is 1024"
     print "\t-l: height of screen default value is 800"
-    print "\t-o: file path of screenshot"
+    print "\t-o: file path of screenshot default(/tmp/rdpy-rdpscreenshot.jpg)"
+    print "\t-t: timeout of connection without any updating order (default is 2s)"
         
 if __name__ == '__main__':
     #default script argument
     width = 1024
     height = 800
     path = "/tmp/rdpy-rdpscreenshot.jpg"
+    timeout = 2.0
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hw:l:o:")
+        opts, args = getopt.getopt(sys.argv[1:], "hw:l:o:t:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:
@@ -143,6 +160,8 @@ if __name__ == '__main__':
             height = int(arg)
         elif opt == "-o":
             path = arg
+        elif opt == "-t":
+            timeout = float(arg)
             
     if ':' in args[0]:
         ip, port = args[0].split(':')
@@ -157,6 +176,6 @@ if __name__ == '__main__':
     qt4reactor.install()
     
     from twisted.internet import reactor
-    reactor.connectTCP(ip, int(port), RDPScreenShotFactory(width, height, path))
+    reactor.connectTCP(ip, int(port), RDPScreenShotFactory(width, height, path, timeout))
     reactor.runReturn()
     app.exec_()

@@ -27,6 +27,7 @@ from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
 from rdpy.base.error import CallPureVirtualFuntion
+import sys
 
 import rdpy.base.log as log
 
@@ -220,7 +221,10 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param e: QKeyEvent
         @param isPressed: event come from press or release action
         """
-        self._controller.sendKeyEventScancode(e.nativeScanCode(), isPressed)
+        code = e.nativeScanCode()
+        if sys.platform == "linux2":
+            code -= 8
+        self._controller.sendKeyEventScancode(e.nativeScanCode() - 8, isPressed)
     
     def closeEvent(self, e):
         """
