@@ -42,16 +42,12 @@ class RFBClientQtFactory(rfb.ClientFactory):
         @param controller: build by factory
         """
         #create client observer
-        client = RFBClientQt(controller)
+        client = RFBClientQt(controller, 1024, 800)
         #create qt widget
         self._w = client.getWidget()
-        self._w.resize(1024, 800)
         self._w.setWindowTitle('rdpy-vncclient')
         self._w.show()
         return client
-    
-    def startedConnecting(self, connector):
-        pass
         
     def clientConnectionLost(self, connector, reason):
         """

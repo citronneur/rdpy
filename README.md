@@ -80,7 +80,7 @@ RDPY can also be used as Qt widget throw rdpy.ui.qt4.QRemoteDesktop class. It ca
 
 In a nutshell the RDPY can be used as a protocol library with a twisted engine.
 
-The client code looks like this:
+The RDP client code looks like this:
 
 ```
 from rdpy.protocol.rdp import rdp
@@ -106,7 +106,7 @@ class MyRDPFactory(rdp.ClientFactory):
 				#mouse move and click at pixel 200x200
 				self._controller.sendPointerEvent(200, 200, 1, true)
 				
-			def onClode(self):
+			def onClose(self):
 				pass
 
 		return MyObserver(controller)

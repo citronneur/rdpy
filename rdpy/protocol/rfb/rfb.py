@@ -26,10 +26,10 @@ Implement Remote FrameBuffer protocol use in VNC client and server
 @todo: more encoding rectangle
 """
 
-from twisted.internet import protocol
-from rdpy.network.layer import RawLayer
+from rdpy.network.layer import RawLayer, RawLayerClientFactory
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
 from rdpy.base.error import InvalidValue, CallPureVirtualFuntion
+import rdpy.base.log as log
 
 class ProtocolVersion(object):
     """
@@ -223,7 +223,7 @@ class RFB(RawLayer):
         elif data.len == 4:
             bodyLen = UInt32Be()
         else:
-            print "invalid header length"
+            log.error("invalid header length")
             return
         data.readType(bodyLen)
         self.expect(bodyLen.value, self._callbackBody)
@@ -253,7 +253,7 @@ class RFB(RawLayer):
         """
         self.readProtocolVersion(data)
         if self._version.value == ProtocolVersion.UNKNOWN:
-            print "Unknown protocol version %s send 003.008"%data.getvalue()
+            log.info("Unknown protocol version %s send 003.008"%data.getvalue())
             #protocol version is unknown try best version we can handle
             self._version.value = ProtocolVersion.RFB003008
         #send same version of 
@@ -302,11 +302,11 @@ class RFB(RawLayer):
         result = UInt32Be()
         data.readType(result)
         if result == UInt32Be(1):
-            print "Authentification failed"
+            log.info("Authentification failed")
             if self._version.value == ProtocolVersion.RFB003008:
                 self.expectWithHeader(4, self.recvSecurityFailed)
         else:
-            print "Authentification OK"
+            log.debug("Authentification OK")
             self.sendClientInit()
         
     def recvSecurityFailed(self, data):
@@ -314,7 +314,7 @@ class RFB(RawLayer):
         Send by server to inform reason of why it's refused client
         @param data: Stream that contains well formed packet
         """
-        print "Security failed cause to %s"%data.getvalue()
+        log.info("Security failed cause to %s"%data.getvalue())
         
     def recvServerInit(self, data):
         """
@@ -330,7 +330,7 @@ class RFB(RawLayer):
         @param data: Stream that contains well formed packet
         """
         data.readType(self._serverName)
-        print "Server name %s"%str(self._serverName)
+        log.info("Server name %s"%str(self._serverName))
         #end of handshake
         #send pixel format
         self.sendPixelFormat(self._pixelFormat)
@@ -454,19 +454,16 @@ class RFBClientListener(object):
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recvRectangle", "RFBListener"))
     
         
-class RFBController(RFBClientListener):
+class RFBClientController(RFBClientListener):
     """
-    Class use to manage RFB order and dispatch throw observers
+    @summary: Class use to manage RFB order and dispatch throw observers for client side
     """
-    def __init__(self, mode):
-        """
-        @param mode: mode of inner RFB layer
-        """
+    def __init__(self):
         self._clientObservers = []
         #rfb layer to send client orders
         self._rfbLayer = RFB(self)
         
-    def getRFBLayer(self):
+    def getProtocol(self):
         """
         @return: RFB layer build by controller
         """
@@ -498,7 +495,7 @@ class RFBController(RFBClientListener):
         @param key: ASCII code of key
         """
         if not self._rfbLayer._ready:
-            print "Try to send key event on non ready layer"
+            log.info("Try to send key event on non ready layer")
             return
         try:
             event = KeyEvent()
@@ -507,7 +504,7 @@ class RFBController(RFBClientListener):
         
             self._rfbLayer.sendKeyEvent(event)
         except InvalidValue:
-            print "Try to send an invalid key event"
+            log.debug("Try to send an invalid key event")
         
     def sendPointerEvent(self, mask, x, y):
         """
@@ -517,7 +514,7 @@ class RFBController(RFBClientListener):
         @param y: y pointer of mouse pointer
         """
         if not self._rfbLayer._ready:
-            print "Try to send pointer event on non ready layer"
+            log.info("Try to send pointer event on non ready layer")
             return
         try:
             event = PointerEvent()
@@ -527,10 +524,16 @@ class RFBController(RFBClientListener):
             
             self._rfbLayer.sendPointerEvent(event)
         except InvalidValue:
-            print "Try to send an invalid pointer event"
+            log.debug("Try to send an invalid pointer event")
+            
+    def close(self):
+        """
+        @summary: close rfb stack
+        """
+        self._rfbLayer.close()
         
 
-class ClientFactory(protocol.Factory):
+class ClientFactory(RawLayerClientFactory):
     """
     Twisted Factory of RFB protocol
     """
@@ -539,9 +542,9 @@ class ClientFactory(protocol.Factory):
         Function call by twisted on connection
         @param addr: address where client try to connect
         """
-        controller = RFBController()
+        controller = RFBClientController()
         self.buildObserver(controller)
-        return controller.getRFBLayer()
+        return controller.getProtocol()
     
     def buildObserver(self, controller):
         """
@@ -575,7 +578,7 @@ class RFBClientObserver(object):
     def mouseEvent(self, button, x, y):
         """
         Send a mouse event to RFB Layer
-        @param button: button number which is pressed (0,1,2,3,4,5,6,7,8)
+        @param button: button number which is pressed (0,1,2,3,4,5,6,7)
         @param x: x coordinate of mouse pointer
         @param y: y coordinate of mouse pointer
         """

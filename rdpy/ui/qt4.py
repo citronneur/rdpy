@@ -70,6 +70,15 @@ class QAdaptor(object):
         """ 
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "closeEvent", "QAdaptor"))
     
+def qtImageFormatFromRFBPixelFormat(pixelFormat):
+    """
+    @summary: convert RFB pixel format to QtGui.QImage format
+    """
+    if pixelFormat.BitsPerPixel.value == 32:
+        return QtGui.QImage.Format_RGB32
+    elif pixelFormat.BitsPerPixel.value == 16:
+        return QtGui.QImage.Format_RGB16
+
 class RFBClientQt(RFBClientObserver, QAdaptor):
     """
     QAdaptor for specific RFB protocol stack
@@ -101,15 +110,13 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         @param encoding: encoding type rfb.message.Encoding
         @param data: image data in accordance with pixel format and encoding
         """
-        imageFormat = None
-        if pixelFormat.BitsPerPixel.value == 32 and pixelFormat.RedShift.value == 16:
-            imageFormat = QtGui.QImage.Format_RGB32
-        else:
+        imageFormat = qtImageFormatFromRFBPixelFormat(pixelFormat)
+        if imageFormat is None:
             log.error("Receive image in bad format")
             return
  
         image = QtGui.QImage(data, width, height, imageFormat)
-        self._widget.notifyImage(x, y, image)
+        self._widget.notifyImage(x, y, image, width, height)
         
     def sendMouseEvent(self, e, isPressed):
         """
@@ -134,7 +141,13 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         @param isPressed: event come from press or release action
         """
         self.keyEvent(isPressed, e.nativeVirtualKey())
-
+        
+    def closeEvent(self, e):
+        """
+        Call when you want to close connection
+        @param: QCloseEvent
+        """ 
+        self._controller.close()
 
 def RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data):
     """
