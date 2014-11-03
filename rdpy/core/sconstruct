@@ -1,7 +1,7 @@
 import os
 import sipconfig
 
-script_dir = os.path.dirname(os.path.realpath(Dir("#/Sconstruct").abspath))
+script_dir = Dir('.').abspath
 tmp_dir = os.path.join(script_dir, "tmp")
 src_dir = os.path.join(script_dir, "src")
 sip_dir = os.path.join(script_dir, "sip")
