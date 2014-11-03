@@ -474,6 +474,7 @@ class CompositeType(Type):
                         break
                     s.pos -= sizeof(self.__dict__[tmpName])
                 raise e
+            
         if not self._readLen is None and readLen < self._readLen.value:
             log.debug("Still have correct data in packet %s, read it as padding"%self.__class__)
             s.read(self._readLen.value - readLen)

@@ -127,14 +127,14 @@ class RawLayerClientFactory(protocol.ClientFactory):
         @summary: Override this function to build raw layer
         @param addr: destination address
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildRawLayer", "RawLayerClientFactory"))
     
     def connectionLost(self, rawlayer):
         """
         @summary: Override this method to handle connection lost
         @param rawlayer: rawLayer that cause connectionLost event
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "connectionLost", "RawLayerClientFactory"))
     
 class RawLayerServerFactory(protocol.ClientFactory):
     """

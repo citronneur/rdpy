@@ -39,6 +39,30 @@ rdpy-rdpclient is a simple RDP Qt4 client .
 $ rdpy/bin/rdpy-rdpclient [-u username] [-p password] [-d domain] [...] XXX.XXX.XXX.XXX[:3389]
 ```
 
+### rdpy-vncclient
+
+rdpy-vncclient is a simple VNC Qt4 client .
+
+```
+$ rdpy/bin/rdpy-vncclient [-p password] XXX.XXX.XXX.XXX[:5900]
+```
+
+### rdpy-rdpscreenshot
+
+rdpy-rdpscreenshot save login screen in file.
+
+```
+$ rdpy/bin/rdpy-rdpscreenshot [-w width] [-l height] [-o output_file_path] XXX.XXX.XXX.XXX[:3389]
+```
+
+### rdpy-vncscreenshot
+
+rdpy-vncscreenshot save first screen update in file.
+
+```
+$ rdpy/bin/rdpy-vncscreenshot [-p password] [-o output_file_path] XXX.XXX.XXX.XXX[:5900]
+```
+
 ### rdpy-rdpproxy
 
 rdpy-rdpproxy is a RDP proxy. It is used to manage and control access to the RDP servers as well as watch live sessions through any RDP client. It can be compared to a HTTP reverse proxy with added spy features.
@@ -105,6 +129,38 @@ class MyRDPFactory(rdp.ClientFactory):
 				self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
 				#mouse move and click at pixel 200x200
 				self._controller.sendPointerEvent(200, 200, 1, true)
+				
+			def onClose(self):
+				pass
+
+		return MyObserver(controller)
+
+from twisted.internet import reactor
+reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRDPFactory())
+reactor.run()
+```
+
+The VNC client code looks like this:
+```
+from rdpy.protocol.rfb import rdp
+
+class MyRDPFactory(rfb.ClientFactory):
+
+	def clientConnectionLost(self, connector, reason):
+        reactor.stop()
+        
+    def clientConnectionFailed(self, connector, reason):
+        reactor.stop()
+        
+    def buildObserver(self, controller, addr):
+        class MyObserver(rfb.RFBClientObserver)
+        		
+			def onReady(self):
+				pass
+
+			def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
+				#here code handle bitmap
+				pass
 				
 			def onClose(self):
 				pass

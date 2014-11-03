@@ -425,7 +425,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
 
 class ClientFactory(layer.RawLayerClientFactory):
     """
-    Factory of Client RDP protocol
+    @summary: Factory of Client RDP protocol
     """
     def connectionLost(self, tpktLayer):
         #retrieve controller
@@ -437,7 +437,7 @@ class ClientFactory(layer.RawLayerClientFactory):
         
     def buildRawLayer(self, addr):
         """
-        Function call from twisted and build rdp protocol stack
+        @summary: Function call from twisted and build rdp protocol stack
         @param addr: destination address
         """
         controller = RDPClientController()
@@ -446,7 +446,7 @@ class ClientFactory(layer.RawLayerClientFactory):
     
     def buildObserver(self, controller, addr):
         """
-        Build observer use for connection
+        @summary: Build observer use for connection
         @param controller: RDPClientController
         @param addr: destination address
         """

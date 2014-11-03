@@ -84,14 +84,14 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
     QAdaptor for specific RFB protocol stack
     is to an RFB observer 
     """   
-    def __init__(self, controller, width, height):
+    def __init__(self, controller):
         """
         @param controller: controller for observer
         @param width: width of widget
         @param height: height of widget
         """
         RFBClientObserver.__init__(self, controller)
-        self._widget = QRemoteDesktop(self, width, height)
+        self._widget = QRemoteDesktop(self, 1024, 800)
         
     def getWidget(self):
         """
@@ -117,6 +117,26 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
  
         image = QtGui.QImage(data, width, height, imageFormat)
         self._widget.notifyImage(x, y, image, width, height)
+        
+    def onCutText(self, text):
+        """
+        @summary: event when server send cut text event
+        @param text: text received
+        """
+        pass
+    
+    def onBell(self):
+        """
+        @summary: event when server send biiip
+        """
+        pass
+    
+    def onReady(self):
+        """
+        @summary: Event when network stack is ready to receive or send event
+        """
+        (width, height) = self._controller.getScreen()
+        self._widget.resize(width, height)
         
     def sendMouseEvent(self, e, isPressed):
         """
@@ -148,6 +168,13 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         @param: QCloseEvent
         """ 
         self._controller.close()
+        
+    def onClose(self):
+        """
+        Call when stack is close
+        """
+        #do something maybe a message
+        pass
 
 def RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data):
     """
@@ -273,9 +300,9 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
     
     def onClose(self):
         """
-        Call when stack is ready
+        Call when stack is close
         """
-        #do something maybe a loader
+        #do something maybe a message
         pass
 
         

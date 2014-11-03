@@ -31,6 +31,9 @@ from PyQt4 import QtGui
 from rdpy.ui.qt4 import RDPClientQt
 from rdpy.protocol.rdp import rdp
 
+import rdpy.base.log as log
+log._LOG_LEVEL = log.Level.INFO
+
 class RDPClientQtFactory(rdp.ClientFactory):
     """
     @summary: Factory create a RDP GUI client

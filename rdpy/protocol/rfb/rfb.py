@@ -22,18 +22,18 @@ Implement Remote FrameBuffer protocol use in VNC client and server
 @see: http://www.realvnc.com/docs/rfbproto.pdf
 
 @todo: server side of protocol
-@todo: vnc security type
 @todo: more encoding rectangle
 """
 
 from rdpy.network.layer import RawLayer, RawLayerClientFactory
 from rdpy.network.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
 from rdpy.base.error import InvalidValue, CallPureVirtualFuntion
+from rdpy.protocol.rfb.pyDes import des
 import rdpy.base.log as log
 
 class ProtocolVersion(object):
     """
-    Different protocol version
+    @summary: Different protocol version
     """
     UNKNOWN = ""
     RFB003003 = "RFB 003.003\n"
@@ -42,7 +42,7 @@ class ProtocolVersion(object):
 
 class SecurityType(object):
     """
-    Security type supported 
+    @summary: Security type supported 
     """
     INVALID = 0
     NONE = 1
@@ -50,9 +50,9 @@ class SecurityType(object):
 
 class Pointer(object):
     """
-    Mouse event code (which button)
-    actually in RFB specification only
-    three buttons are supported
+    @summary:  Mouse event code (which button)
+                actually in RFB specification only
+                three buttons are supported
     """
     BUTTON1 = 0x1
     BUTTON2 = 0x2
@@ -60,13 +60,13 @@ class Pointer(object):
   
 class Encoding(object):
     """
-    Encoding types of FrameBuffer update
+    @summary: Encoding types of FrameBuffer update
     """
     RAW = 0
 
 class ClientToServerMessages(object):
     """
-    Client to server messages types
+    @summary: Client to server messages types
     """
     PIXEL_FORMAT = 0
     ENCODING = 2
@@ -77,7 +77,7 @@ class ClientToServerMessages(object):
     
 class PixelFormat(CompositeType):
     """
-    Pixel format structure
+    @summary: Pixel format structure
     """
     def __init__(self):
         CompositeType.__init__(self)
@@ -95,8 +95,8 @@ class PixelFormat(CompositeType):
         
 class ServerInit(CompositeType):
     """
-    Server init structure
-    FrameBuffer configuration
+    @summary:  Server init structure
+                FrameBuffer configuration
     """
     def __init__(self):
         CompositeType.__init__(self)
@@ -106,9 +106,9 @@ class ServerInit(CompositeType):
         
 class FrameBufferUpdateRequest(CompositeType):
     """
-    FrameBuffer update request send from client to server
-    Incremental means that server send update with a specific
-    order, and client must draw orders in same order
+    @summary:  FrameBuffer update request send from client to server
+                Incremental means that server send update with a specific
+                order, and client must draw orders in same order
     """
     def __init__(self, incremental = False, x = 0, y = 0, width = 0, height = 0):
         CompositeType.__init__(self)
@@ -121,7 +121,7 @@ class FrameBufferUpdateRequest(CompositeType):
     
 class Rectangle(CompositeType):
     """
-    Header message of update rectangle
+    @summary: Header message of update rectangle
     """
     def __init__(self):
         CompositeType.__init__(self)
@@ -133,8 +133,8 @@ class Rectangle(CompositeType):
         
 class KeyEvent(CompositeType):
     """
-    Key event structure message
-    Use to send a keyboard event
+    @summary:  Key event structure message
+                Use to send a keyboard event
     """
     def __init__(self):
         CompositeType.__init__(self)
@@ -144,8 +144,8 @@ class KeyEvent(CompositeType):
         
 class PointerEvent(CompositeType):
     """
-    Pointer event structure message
-    Use to send mouse event
+    @summary:  Pointer event structure message
+                Use to send mouse event
     """
     def __init__(self):
         CompositeType.__init__(self)
@@ -155,18 +155,27 @@ class PointerEvent(CompositeType):
         
 class ClientCutText(CompositeType):
     """
-    Client cut text message message
-    Use to simulate copy paste (ctrl-c ctrl-v) only for text
+    @summary:  Client cut text message message
+                Use to simulate copy paste (ctrl-c ctrl-v) only for text
     """
     def __init__(self, text = ""):
         CompositeType.__init__(self)
         self.padding = (UInt16Be(), UInt8())
         self.size = UInt32Be(len(text))
         self.message = String(text)
+        
+class ServerCutTextHeader(CompositeType):
+    """
+    @summary:  Cut text header send from server to client
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.padding = (UInt16Be(), UInt8())
+        self.size = UInt32Be()
 
 class RFB(RawLayer):
     """
-    Implement RFB protocol
+    @summary: Implement RFB protocol
     """
     def __init__(self, listener):
         """
@@ -194,8 +203,8 @@ class RFB(RawLayer):
         self._nbRect = 0
         #current rectangle header
         self._currentRect = Rectangle()
-        #ready to send events
-        self._ready = False
+        #for vnc security type
+        self._password = '\0' * 8
     
     def expectWithHeader(self, expectedHeaderLen, callbackBody):
         """
@@ -291,8 +300,30 @@ class RFB(RawLayer):
                 break
         #send back security level choosen
         self.send(self._securityLevel)
+        if self._securityLevel.value == SecurityType.VNC:
+            self.expect(16, self.recvVNCChallenge)
+        else:
+            self.expect(4, self.recvSecurityResult)
+    
+    def recvVNCChallenge(self, data):
+        """
+        @summary: receive challenge in VNC authentication case
+        @param data: Stream that contain well formed packet 
+        """
+        key = (self._password + '\0' * 8)[:8]
+        newkey = []
+        for ki in range(len(key)):
+            bsrc = ord(key[ki])
+            btgt = 0
+            for i in range(8):
+                if bsrc & (1 << i):
+                    btgt = btgt | (1 << 7-i)
+            newkey.append(chr(btgt))
+
+        algo = des(newkey)
+        self.send(String(algo.encrypt(data.getvalue())))
         self.expect(4, self.recvSecurityResult)
-        
+      
     def recvSecurityResult(self, data):
         """
         Read security result packet
@@ -326,7 +357,7 @@ class RFB(RawLayer):
     
     def recvServerName(self, data):
         """
-        Read server name
+        @summary: Read server name
         @param data: Stream that contains well formed packet
         """
         data.readType(self._serverName)
@@ -339,24 +370,29 @@ class RFB(RawLayer):
         #request entire zone
         self.sendFramebufferUpdateRequest(False, 0, 0, self._serverInit.width.value, self._serverInit.height.value)
         #now i'm ready to send event
-        self._ready = True;
-        
+        self._clientListener.onReady()
         self.expect(1, self.recvServerOrder)
         
     def recvServerOrder(self, data):
         """
-        Read order receive from server
-        Main function for bitmap update from server to client
+        @summary:  Read order receive from server
+                    Main function for bitmap update from server to client
         @param data: Stream that contains well formed packet
         """
-        packet_type = UInt8()
-        data.readType(packet_type)
-        if packet_type == UInt8(0):
+        packetType = UInt8()
+        data.readType(packetType)
+        if packetType.value == 0:
             self.expect(3, self.recvFrameBufferUpdateHeader)
+        elif packetType.value == 2:
+            self._clientListener.onBell()
+        elif packetType.value == 3:
+            self.expect(7, self.recvServerCutTextHeader)
+        else:
+            log.error("Unknown message type %s"%packetType.value)
         
     def recvFrameBufferUpdateHeader(self, data):
         """
-        Read frame buffer update packet header
+        @summary: Read frame buffer update packet header
         @param data: Stream that contains well formed packet
         """
         #padding
@@ -367,7 +403,7 @@ class RFB(RawLayer):
         
     def recvRectHeader(self, data):
         """
-        Read rectangle header
+        @summary: Read rectangle header
         @param data: Stream that contains well formed packet
         """
         data.readType(self._currentRect)
@@ -376,12 +412,12 @@ class RFB(RawLayer):
     
     def recvRectBody(self, data):
         """
-        Read body of rectangle update
+        @summary: Read body of rectangle update
         @param data: Stream that contains well formed packet
         """
         self._clientListener.recvRectangle(self._currentRect, self._pixelFormat, data.getvalue())
            
-        self._nbRect = self._nbRect - 1
+        self._nbRect -= 1
         #if there is another rect to read
         if self._nbRect == 0:
             #job is finish send a request
@@ -389,69 +425,99 @@ class RFB(RawLayer):
             self.expect(1, self.recvServerOrder)
         else:
             self.expect(12, self.recvRectHeader)
+            
+    def recvServerCutTextHeader(self, data):
+        """
+        @summary:  callback when expect server cut text message
+        @param data: Stream that contains well formed packet
+        """
+        header = ServerCutTextHeader()
+        data.readType(header)
+        self.expect(header.size.value, self.recvServerCutTextBody)
+        
+    def recvServerCutTextBody(self, data):
+        """
+        @summary:  Receive server cut text body
+        @param data: Stream that contains well formed packet
+        """
+        self._clientListener.onCutText(data.getvalue())
+        self.expect(1, self.recvServerOrder)
         
     def sendClientInit(self):
         """
-        Send client init packet
+        @summary: Send client init packet
         """
         self.send(self._sharedFlag)
         self.expect(20, self.recvServerInit)
         
     def sendPixelFormat(self, pixelFormat):
         """
-        Send pixel format structure
-        Very important packet that inform the image struct supported by the client
+        @summary:  Send pixel format structure
+                    Very important packet that inform the image struct supported by the client
         @param pixelFormat: PixelFormat struct
         """
         self.send((UInt8(ClientToServerMessages.PIXEL_FORMAT), UInt16Be(), UInt8(), pixelFormat))
         
     def sendSetEncoding(self):
         """
-        Send set encoding packet
-        Actually only RAW bitmap encoding are used
+        @summary:  Send set encoding packet
+                    Actually only RAW bitmap encoding are used
         """
         self.send((UInt8(ClientToServerMessages.ENCODING), UInt8(), UInt16Be(1), SInt32Be(Encoding.RAW)))
         
     def sendFramebufferUpdateRequest(self, incremental, x, y, width, height):
         """
-        Request server the specified zone
-        incremental means request only change before last update
+        @summary:  Request server the specified zone
+                    incremental means request only change before last update
         """
         self.send((UInt8(ClientToServerMessages.FRAME_BUFFER_UPDATE_REQUEST), FrameBufferUpdateRequest(incremental, x, y, width, height)))
         
     def sendKeyEvent(self, keyEvent):
         """
-        Write key event packet
+        @summary: Write key event packet
         @param keyEvent: KeyEvent struct to send
         """
         self.send((UInt8(ClientToServerMessages.KEY_EVENT), keyEvent))
         
     def sendPointerEvent(self, pointerEvent):
         """
-        Write pointer event packet
+        @summary: Write pointer event packet
         @param pointerEvent: PointerEvent struct use
         """
         self.send((UInt8(ClientToServerMessages.POINTER_EVENT), pointerEvent))
         
     def sendClientCutText(self, text):
         """
-        write client cut text event packet
+        @summary: write client cut text event packet
         """
         self.send((UInt8(ClientToServerMessages.CUT_TEXT), ClientCutText(text)))
         
 class RFBClientListener(object):
     """
-    Interface use to expose event receive from RFB layer
+    @summary: Interface use to expose event receive from RFB layer
     """
     def recvRectangle(self, rectangle, pixelFormat, data):
         """
-        Receive rectangle order
-        Main update order type
+        @summary:  Receive rectangle order
+                    Main update order type
         @param rectangle: Rectangle type header of packet
         @param pixelFormat: pixelFormat struct of current session
         @param data: image data
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recvRectangle", "RFBListener"))
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recvRectangle", "RFBClientListener"))
+    
+    def onBell(self):
+        """
+        @summary: receive bip from server
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onBell", "RFBClientListener"))
+    
+    def onCutText(self, text):
+        """
+        @summary: Receive cut text from server
+        @param text: text inner cut text event
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onCutText", "RFBClientListener"))
     
         
 class RFBClientController(RFBClientListener):
@@ -462,6 +528,7 @@ class RFBClientController(RFBClientListener):
         self._clientObservers = []
         #rfb layer to send client orders
         self._rfbLayer = RFB(self)
+        self._isReady = False
         
     def getProtocol(self):
         """
@@ -471,16 +538,49 @@ class RFBClientController(RFBClientListener):
         
     def addClientObserver(self, observer):
         """
-        Add new observer for this protocol
+        @summary: Add new observer for this protocol
         @param observer: new observer
         """
         self._clientObservers.append(observer)
         observer._clientListener = self
         
+    def getWidth(self):
+        """
+        @return: width of framebuffer
+        """
+        return self._rfbLayer._serverInit.width.value
+    
+    def getHeight(self):
+        """
+        @return: height of framebuffer
+        """
+        return self._rfbLayer._serverInit.height.value
+    
+    def getScreen(self):
+        """
+        @return: (width, height) of screen
+        """
+        return (self.getWidth(), self.getHeight())
+        
+    def setPassword(self, password):
+        """
+        @summary: set password for vnc authentication type
+        @param password: password for session
+        """
+        self._rfbLayer._password = password
+        
+    def onReady(self):
+        """
+        @summary: rfb stack is reday to send or receive event
+        """
+        self._isReady = True
+        for observer in self._clientObservers:
+            observer.onReady()
+        
     def recvRectangle(self, rectangle, pixelFormat, data):
         """
-        Receive rectangle order
-        Main update order type
+        @summary:  Receive rectangle order
+                    Main update order type
         @param rectangle: Rectangle type header of packet
         @param pixelFormat: pixelFormat struct of current session
         @param data: image data
@@ -488,13 +588,38 @@ class RFBClientController(RFBClientListener):
         for observer in self._clientObservers:
             observer.onUpdate(rectangle.width.value, rectangle.height.value, rectangle.x.value, rectangle.y.value, pixelFormat, rectangle.encoding, data)
     
+    def onBell(self):
+        """
+        @summary: biiiip event
+        """
+        for observer in self._clientObservers:
+            observer.onBell()
+    
+    def onCutText(self, text):
+        """
+        @summary: receive cut text event
+        @param text: text in cut text event
+        """
+        for observer in self._clientObservers:
+            observer.onCutText(text)
+            
+    def onClose(self):
+        """
+        @summary: handle on close events
+        """
+        if not self._isReady:
+            log.debug("Close on non ready layer means authentication error")
+            return
+        for observer in self._clientObservers:
+            observer.onClose()
+    
     def sendKeyEvent(self, isDown, key):
         """
-        Send a key event throw RFB protocol
+        @summary: Send a key event throw RFB protocol
         @param isDown: boolean notify if key is pressed or not (True if key is pressed)
         @param key: ASCII code of key
         """
-        if not self._rfbLayer._ready:
+        if not self._isReady:
             log.info("Try to send key event on non ready layer")
             return
         try:
@@ -508,12 +633,12 @@ class RFBClientController(RFBClientListener):
         
     def sendPointerEvent(self, mask, x, y):
         """
-        Send a pointer event throw RFB protocol
+        @summary: Send a pointer event throw RFB protocol
         @param mask: mask of button if button 1 and 3 are pressed then mask is 00000101
         @param x: x coordinate of mouse pointer
         @param y: y pointer of mouse pointer
         """
-        if not self._rfbLayer._ready:
+        if not self._isReady:
             log.info("Try to send pointer event on non ready layer")
             return
         try:
@@ -535,27 +660,37 @@ class RFBClientController(RFBClientListener):
 
 class ClientFactory(RawLayerClientFactory):
     """
-    Twisted Factory of RFB protocol
+    @summary: Twisted Factory of RFB protocol
     """
-    def buildProtocol(self, addr):
+    def buildRawLayer(self, addr):
         """
-        Function call by twisted on connection
+        @summary: Function call by twisted on connection
         @param addr: address where client try to connect
         """
         controller = RFBClientController()
-        self.buildObserver(controller)
+        self.buildObserver(controller, addr)
         return controller.getProtocol()
     
-    def buildObserver(self, controller):
+    def connectionLost(self, rfblayer):
         """
-        Build an RFB observer object
+        @summary: Override this method to handle connection lost
+        @param rfblayer: rfblayer that cause connectionLost event
+        """
+        #call controller
+        rfblayer._clientListener.onClose()
+    
+    def buildObserver(self, controller, addr):
+        """
+        @summary: Build an RFB observer object
+        @param controller: controller use for rfb session
+        @param addr: destination
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ClientFactory"))
     
         
 class RFBClientObserver(object):
     """
-    RFB client protocol observer
+    @summary: RFB client protocol observer
     """
     def __init__(self, controller):
         self._controller = controller
@@ -569,7 +704,7 @@ class RFBClientObserver(object):
         
     def keyEvent(self, isPressed, key):
         """
-        Send a key event
+        @summary: Send a key event
         @param isPressed: state of key
         @param key: ASCII code of key
         """
@@ -577,7 +712,7 @@ class RFBClientObserver(object):
         
     def mouseEvent(self, button, x, y):
         """
-        Send a mouse event to RFB Layer
+        @summary: Send a mouse event to RFB Layer
         @param button: button number which is pressed (0,1,2,3,4,5,6,7)
         @param x: x coordinate of mouse pointer
         @param y: y coordinate of mouse pointer
@@ -590,9 +725,21 @@ class RFBClientObserver(object):
             
         self._controller.sendPointerEvent(mask, x, y)
         
+    def onReady(self):
+        """
+        @summary: Event when network stack is ready to receive or send event
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RFBClientObserver"))
+    
+    def onClose(self):
+        """
+        @summary: On close event
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onClose", "RFBClientObserver"))
+    
     def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
         """
-        Receive FrameBuffer update
+        @summary: Receive FrameBuffer update
         @param width : width of image
         @param height : height of image
         @param x : x position
@@ -602,3 +749,16 @@ class RFBClientObserver(object):
         @param data : in respect of dataFormat and pixelFormat
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onUpdate", "RFBClientObserver"))
+    
+    def onCutText(self, text):
+        """
+        @summary: event when server send cut text event
+        @param text: text received
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onCutText", "RFBClientObserver"))
+    
+    def onBell(self):
+        """
+        @summary: event when server send biiip
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onBell", "RFBClientObserver"))

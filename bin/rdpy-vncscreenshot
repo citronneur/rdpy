@@ -31,6 +31,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from PyQt4 import QtCore, QtGui
 from rdpy.protocol.rfb import rfb
 import rdpy.base.log as log
+from rdpy.ui.qt4 import qtImageFormatFromRFBPixelFormat
 from twisted.internet import task
 
 #set log level
@@ -40,16 +41,18 @@ class RFBScreenShotFactory(rfb.ClientFactory):
     """
     @summary: Factory for screenshot exemple
     """
-    def __init__(self, path):
+    def __init__(self, password, path):
         """
+        @param password: password for VNC authentication
         @param path: path of output screenshot
         """
         self._path = path
+        self._password = password
         
     def clientConnectionLost(self, connector, reason):
         """
         @summary: Connection lost event
-        @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
+        @param connector: twisted connector use for rfb connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
         """
         log.info("connection lost : %s"%reason)
@@ -59,7 +62,7 @@ class RFBScreenShotFactory(rfb.ClientFactory):
     def clientConnectionFailed(self, connector, reason):
         """
         @summary: Connection failed event
-        @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
+        @param connector: twisted connector use for rfb connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
         """
         log.info("connection failed : %s"%reason)
@@ -82,25 +85,39 @@ class RFBScreenShotFactory(rfb.ClientFactory):
                 @param controller: RFBClientController
                 @param path: path of output screenshot
                 """
-                rdp.RDPClientObserver.__init__(self, controller)
-                self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
+                rfb.RFBClientObserver.__init__(self, controller)
                 self._path = path
+                self._buffer = None
                 
-            def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+            def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
                 """
-                @summary: callback use when bitmap is received 
+                Implement RFBClientObserver interface
+                @param width: width of new image
+                @param height: height of new image
+                @param x: x position of new image
+                @param y: y position of new image
+                @param pixelFormat: pixefFormat structure in rfb.message.PixelFormat
+                @param encoding: encoding type rfb.message.Encoding
+                @param data: image data in accordance with pixel format and encoding
                 """
-                self._hasUpdated = True
-                image = RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data);
+                imageFormat = qtImageFormatFromRFBPixelFormat(pixelFormat)
+                if imageFormat is None:
+                    log.error("Receive image in bad format")
+                    return
+                image = QtGui.QImage(data, width, height, imageFormat)
                 with QtGui.QPainter(self._buffer) as qp:
                 #draw image
-                    qp.drawImage(destLeft, destTop, image, 0, 0, destRight - destLeft + 1, destBottom - destTop + 1)
-                   
+                    qp.drawImage(x, y, image, 0, 0, width, height)
+                
+                self._controller.close()
+                
             def onReady(self):
                 """
                 @summary: callback use when RDP stack is connected (just before received bitmap)
                 """
                 log.info("connected %s"%addr)
+                width, height = self._controller.getScreen()
+                self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
             
             def onClose(self):
                 """
@@ -108,51 +125,38 @@ class RFBScreenShotFactory(rfb.ClientFactory):
                 """
                 log.info("save screenshot into %s"%self._path)
                 self._buffer.save(self._path)
-                
-            def checkUpdate(self):
-                if not self._hasUpdated:
-                    log.info("close connection on timeout without updating orders")
-                    self._controller.close();
-                    return
-                self._hasUpdated = False
         
-        return ScreenShotObserver(controller, self._width, self._height, self._path, self._timeout)
+        controller.setPassword(self._password)
+        return ScreenShotObserver(controller, self._path)
         
 def help():
-    print "Usage: rdpy-rdpscreenshot [options] ip[:port]"
-    print "\t-w: width of screen default value is 1024"
-    print "\t-l: height of screen default value is 800"
-    print "\t-o: file path of screenshot default(/tmp/rdpy-rdpscreenshot.jpg)"
-    print "\t-t: timeout of connection without any updating order (default is 2s)"
+    print "Usage: rdpy-vncscreenshot [options] ip[:port]"
+    print "\t-o: file path of screenshot default(/tmp/rdpy-vncscreenshot.jpg)"
+    print "\t-p: password for VNC Session"
         
 if __name__ == '__main__':
     #default script argument
-    width = 1024
-    height = 800
-    path = "/tmp/rdpy-rdpscreenshot.jpg"
-    timeout = 2.0
+    path = "/tmp/rdpy-vncscreenshot.jpg"
+    password = ""
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hw:l:o:t:")
+        opts, args = getopt.getopt(sys.argv[1:], "hp:o:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:
         if opt == "-h":
             help()
             sys.exit()
-        elif opt == "-w":
-            width = int(arg)
-        elif opt == "-l":
-            height = int(arg)
         elif opt == "-o":
             path = arg
-        elif opt == "-t":
-            timeout = float(arg)
+        elif opt == "-p":
+            password = arg
+        
             
     if ':' in args[0]:
         ip, port = args[0].split(':')
     else:
-        ip, port = args[0], "3389"
+        ip, port = args[0], "5900"
         
     #create application
     app = QtGui.QApplication(sys.argv)
@@ -162,6 +166,6 @@ if __name__ == '__main__':
     qt4reactor.install()
     
     from twisted.internet import reactor
-    reactor.connectTCP(ip, int(port), RDPScreenShotFactory(width, height, path, timeout))
+    reactor.connectTCP(ip, int(port), RFBScreenShotFactory(password, path))
     reactor.runReturn()
     app.exec_()
