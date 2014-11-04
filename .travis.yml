@@ -4,7 +4,7 @@ python:
   - 2.7
 
 before_install:
-  - sudo apt-get install python2.7 python-twisted python-openssl python-qt4 python-qt4reactor python-sip-dev scons
+  - pip install python-twisted python-openssl python-qt4 python-qt4reactor python-sip-dev
 
 install:
   - scons -C rdpy/core install
