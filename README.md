@@ -1,4 +1,4 @@
-# RDPY [!(Build Status)(https://travis-ci.org/citronneur/rdpy.svg?branch=master)]
+# RDPY [![Build Status](https://travis-ci.org/citronneur/rdpy.svg?branch=master)]
 
 Remote Desktop Protocol in twisted PYthon.
 
