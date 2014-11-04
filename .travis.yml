@@ -5,6 +5,11 @@ python:
 
 before_install:
   - sudo apt-get install python-qt4 python-sip-dev
+  - ln -s /usr/lib/python2.7/dist-packages/PyQt4/ $VIRTUAL_ENV/lib/python2.7/site-packages/
+  - ln -s /usr/lib/python2.7/dist-packages/sip.so $VIRTUAL_ENV/lib/python2.7/site-packages/
+  - ln -s /usr/lib/python2.7/dist-packages/sipdistutils.py $VIRTUAL_ENV/lib/python2.7/site-packages/
+  - ln -s /usr/lib/python2.7/dist-packages/sipconfig.py $VIRTUAL_ENV/lib/python2.7/site-packages/
+  - ln -s /usr/lib/python2.7/dist-packages/sipconfig_nd.py $VIRTUAL_ENV/lib/python2.7/site-packages/
   - pip install twisted pyopenssl qt4reactor
 
 install:
