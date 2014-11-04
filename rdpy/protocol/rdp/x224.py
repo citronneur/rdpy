@@ -30,7 +30,7 @@ from rdpy.base.error import InvalidExpectedDataException
 
 class MessageType(object):
     """
-    Message type
+    @summary: Message type
     """
     X224_TPDU_CONNECTION_REQUEST = 0xE0
     X224_TPDU_CONNECTION_CONFIRM = 0xD0
@@ -40,7 +40,7 @@ class MessageType(object):
 
 class NegociationType(object):
     """
-    Negotiation header
+    @summary: Negotiation header
     """
     TYPE_RDP_NEG_REQ = 0x01
     TYPE_RDP_NEG_RSP = 0x02
@@ -48,7 +48,7 @@ class NegociationType(object):
 
 class Protocols(object):
     """
-    Protocols available for x224 layer
+    @summary: Protocols available for x224 layer
     """
     PROTOCOL_RDP = 0x00000000
     PROTOCOL_SSL = 0x00000001
@@ -57,7 +57,7 @@ class Protocols(object):
         
 class NegotiationFailureCode(object):
     """
-    Protocol negotiation failure code
+    @summary: Protocol negotiation failure code
     """
     SSL_REQUIRED_BY_SERVER = 0x00000001
     SSL_NOT_ALLOWED_BY_SERVER = 0x00000002
@@ -68,8 +68,8 @@ class NegotiationFailureCode(object):
     
 class ClientConnectionRequestPDU(CompositeType):
     """
-    Connection request
-    client -> server
+    @summary:  Connection request
+                client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240470.aspx
     """
     def __init__(self):
@@ -83,7 +83,7 @@ class ClientConnectionRequestPDU(CompositeType):
 
 class ServerConnectionConfirm(CompositeType):
     """
-    Server response
+    @summary: Server response
     @see: http://msdn.microsoft.com/en-us/library/cc240506.aspx
     """
     def __init__(self):
@@ -96,7 +96,7 @@ class ServerConnectionConfirm(CompositeType):
         
 class X224DataHeader(CompositeType):
     """
-    Header send when x224 exchange application data
+    @summary: Header send when x224 exchange application data
     """
     def __init__(self):
         CompositeType.__init__(self)
@@ -106,7 +106,7 @@ class X224DataHeader(CompositeType):
     
 class Negotiation(CompositeType):
     """
-    Negociate request message
+    @summary: Negociate request message
     @see: request -> http://msdn.microsoft.com/en-us/library/cc240500.aspx
     @see: response -> http://msdn.microsoft.com/en-us/library/cc240506.aspx
     @see: failure ->http://msdn.microsoft.com/en-us/library/cc240507.aspx
@@ -122,8 +122,8 @@ class Negotiation(CompositeType):
 
 class X224Layer(LayerAutomata, IStreamSender):
     """
-    x224 layer management
-    there is an connection automata
+    @summary:  x224 layer management
+                there is an connection automata
     """
     def __init__(self, presentation):
         """
@@ -139,8 +139,8 @@ class X224Layer(LayerAutomata, IStreamSender):
     
     def recvData(self, data):
         """
-        Read data header from packet
-        And pass to presentation layer
+        @summary: Read data header from packet
+                   And pass to presentation layer
         @param data: Stream
         """
         header = X224DataHeader()
@@ -149,15 +149,15 @@ class X224Layer(LayerAutomata, IStreamSender):
         
     def send(self, message):
         """
-        Write message packet for TPDU layer
-        Add TPDU header
+        @summary: Write message packet for TPDU layer
+                   Add TPDU header
         @param message: network.Type message
         """
         self._transport.send((X224DataHeader(), message))
         
 class Client(X224Layer):
     """
-    Client automata of TPDU layer
+    @summary: Client automata of TPDU layer
     """
     def __init__(self, presentation):
         """
@@ -167,14 +167,14 @@ class Client(X224Layer):
         
     def connect(self):
         """
-        Connection request for client send a connection request packet
+        @summary: Connection request for client send a connection request packet
         """
         self.sendConnectionRequest()
         
     def sendConnectionRequest(self):
         """
-        Write connection request message
-        Next state is recvConnectionConfirm
+        @summary:  Write connection request message
+                    Next state is recvConnectionConfirm
         @see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
         """
         message = ClientConnectionRequestPDU()
@@ -185,9 +185,9 @@ class Client(X224Layer):
         
     def recvConnectionConfirm(self, data):
         """
-        Receive connection confirm message
-        Next state is recvData 
-        Call connect on presentation layer if all is good
+        @summary:  Receive connection confirm message
+                    Next state is recvData 
+                    Call connect on presentation layer if all is good
         @param data: Stream that contain connection confirm
         @see: response -> http://msdn.microsoft.com/en-us/library/cc240506.aspx
         @see: failure ->http://msdn.microsoft.com/en-us/library/cc240507.aspx
@@ -218,7 +218,7 @@ class Client(X224Layer):
 
 class Server(X224Layer):
     """
-    Server automata of X224 layer
+    @summary: Server automata of X224 layer
     """
     def __init__(self, presentation, privateKeyFileName, certificateFileName):
         """
@@ -233,14 +233,14 @@ class Server(X224Layer):
         
     def connect(self):
         """
-        Connection request for server wait connection request packet from client
+        @summary: Connection request for server wait connection request packet from client
         """
         self.setNextState(self.recvConnectionRequest)
         
     def recvConnectionRequest(self, data):
         """
-        Read connection confirm packet
-        Next state is send connection confirm
+        @summary:  Read connection confirm packet
+                    Next state is send connection confirm
         @param data: Stream
         @see : http://msdn.microsoft.com/en-us/library/cc240470.aspx
         """
@@ -265,9 +265,9 @@ class Server(X224Layer):
         
     def sendConnectionConfirm(self):
         """
-        Write connection confirm message
-        Start TLS connection
-        Next state is recvData
+        @summary:  Write connection confirm message
+                    Start TLS connection
+                    Next state is recvData
         @see : http://msdn.microsoft.com/en-us/library/cc240501.aspx
         """
         message = ServerConnectionConfirm()
@@ -286,7 +286,7 @@ from OpenSSL import SSL
 
 class ClientTLSContext(ssl.ClientContextFactory):
     """
-    client context factory for open ssl
+    @summary: client context factory for open ssl
     """
     def getContext(self):
         context = SSL.Context(SSL.TLSv1_METHOD)
@@ -296,7 +296,7 @@ class ClientTLSContext(ssl.ClientContextFactory):
     
 class ServerTLSContext(ssl.DefaultOpenSSLContextFactory):
     """
-    Server context factory for open ssl
+    @summary: Server context factory for open ssl
     @param privateKeyFileName: Name of a file containing a private key
     @param certificateFileName: Name of a file containing a certificate
     """

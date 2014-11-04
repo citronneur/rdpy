@@ -29,7 +29,7 @@ import unittest
 
 class RfbCase(unittest.TestCase):
     '''
-    test casefor rfb layer (vnc)
+    test case for rfb layer (vnc)
     '''
     def testName(self):
         pass

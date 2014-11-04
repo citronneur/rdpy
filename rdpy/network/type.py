@@ -756,13 +756,13 @@ class String(Type, CallableValue):
         self._unicode = unicode
         self._until = until
         
-    def __eq__(self, other):
+    def __cmp__(self, other):
         """
         @summary: call raw compare value
         @param other: other String parameter
         @return: if two inner value are equals
         """
-        return self.value == other.value
+        return cmp(self.value, other.value)
     
     def __hash__(self):
         """
@@ -804,7 +804,7 @@ class String(Type, CallableValue):
         """
         if self._readLen is None:
             if self._until is None:
-                self.value = s.getvalue()
+                self.value = s.getvalue()[s.pos:]
             else:
                 self.value = ""
                 while self.value[-len(self._until):] != self._until or s.dataLen() == 0:
