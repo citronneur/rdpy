@@ -53,12 +53,12 @@ class X224Case(unittest.TestCase):
         """
         class Presentation(object):
             def recv(self, data):
-                data.readType(type.String('\x01\x02', constant = True))
+                data.readType(type.String('test_x224_layer_recvData', constant = True))
                 raise X224Case.X224_PASS()
                 
         layer = x224.X224Layer(Presentation())
         s = type.Stream()
-        s.writeType((x224.X224DataHeader(), type.String('\x01\x02')))
+        s.writeType((x224.X224DataHeader(), type.String('test_x224_layer_recvData')))
         #reinit position
         s.pos = 0
         
@@ -74,13 +74,13 @@ class X224Case(unittest.TestCase):
                 s.writeType(data)
                 s.pos = 0
                 s.readType(x224.X224DataHeader())
-                s.readType(type.String('\x01\x02', constant = True))
+                s.readType(type.String('test_x224_layer_send', constant = True))
                 raise X224Case.X224_PASS()
         
         layer = x224.X224Layer(None)
         layer._transport = Transport()
         
-        self.assertRaises(X224Case.X224_PASS, layer.send, type.String('\x01\x02'))
+        self.assertRaises(X224Case.X224_PASS, layer.send, type.String('test_x224_layer_send'))
         
     def test_x224_client_connect(self):
         """

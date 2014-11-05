@@ -70,7 +70,7 @@ class TPKT(RawLayer, IFastPathSender):
                 represent the Raw Layer in stack (first layer)
                 This layer only handle size of packet and determine if is a fast path packet
     """
-    def __init__(self, presentation, fastPathListener):
+    def __init__(self, presentation, fastPathListener = None):
         """
         @param presentation: presentation layer, in RDP case is x224 layer
         @param fastPathListener: IFastPathListener
@@ -82,8 +82,10 @@ class TPKT(RawLayer, IFastPathSender):
         self._lastShortLength = UInt8()
         #fast path listener
         self._fastPathListener = fastPathListener
-        #set me as fast path sender
-        fastPathListener.setFastPathSender(self)
+        
+        if not fastPathListener is None:
+            #set me as fast path sender
+            fastPathListener.setFastPathSender(self)
         
     def connect(self):
         """
