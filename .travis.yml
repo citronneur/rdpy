@@ -16,5 +16,5 @@ install:
   - scons -C rdpy/core install
 
 script:
-  - python -m unittest discover -s test
+  - python -m unittest discover -s test -v
 
