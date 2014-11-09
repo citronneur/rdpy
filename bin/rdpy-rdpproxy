@@ -30,8 +30,6 @@ Admin ----------------------|
 """
 
 import sys, os, getopt, json
-# Change path so we find rdpy
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 from rdpy.base import log, error
 from rdpy.protocol.rdp import rdp

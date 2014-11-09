@@ -8,28 +8,30 @@ RDPY is a pure Python implementation ot the Microsoft RDP (Remote Desktop Protoc
 
 ## Build
 
-RDPY is fully implemented in python, except the bitmap uncompression algorithm which is implemented in C and binded with SIP (originally conceived for the PyQt project) for performance purposes.
+RDPY is fully implemented in python, except the bitmap uncompression algorithm which is implemented in C for performance purposes.
 
 ### Depends
 
 * python2.7
-* python-twisted
-* python-openssl
 * python-qt4
-* python-qt4reactor
-* python-sip-dev
-* scons
 
 ### Make
 
 ```
 $ git clone https://github.com/citronneur/rdpy.git rdpy
-$ scons -C rdpy/rdpy/core install
+$ pip install twisted pyopenssl qt4reactor
+$ python rdpy/setup.py install
+```
+
+For virtualenv, tou need to link qt4 library to it:
+```
+ln -s /usr/lib/python2.7/dist-packages/PyQt4/ $VIRTUAL_ENV/lib/python2.7/site-packages/
+ln -s /usr/lib/python2.7/dist-packages/sip.so $VIRTUAL_ENV/lib/python2.7/site-packages/
 ```
 
 ## RDPY Binaries
 
-RDPY comes with some very useful binaries; These binaries are linux and windows compatible. Pre-built binaries will be delivered with the first release of the project.
+RDPY comes with some very useful binaries; These binaries are linux and windows compatible.
 
 ### rdpy-rdpclient
 

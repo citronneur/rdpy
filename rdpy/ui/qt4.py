@@ -30,11 +30,7 @@ from rdpy.base.error import CallPureVirtualFuntion
 import sys
 
 import rdpy.base.log as log
-
-try:
-    import rdpy.core.rle as rle
-except:
-    log.error("Please build core package before using RLE algorithm : scons -C rdpy/core install")
+import rle
 
 class QAdaptor(object):
     """
@@ -186,31 +182,37 @@ def RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data):
     @param data: bitmap data
     """
     image = None
+    #allocate
+    
     if bitsPerPixel == 15:
         if isCompress:
-            image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB555)
-            rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
+            buf = bytearray(width * height * 2)
+            rle.bitmap_decompress(buf, width, height, data, 2)
+            image = QtGui.QImage(buf, width, height, QtGui.QImage.Format_RGB555)
         else:
             image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB555).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
     
     elif bitsPerPixel == 16:
         if isCompress:
-            image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB16)
-            rle.bitmap_decompress(image.bits(), width, height, data, len(data), 2)
+            buf = bytearray(width * height * 2)
+            rle.bitmap_decompress(buf, width, height, data, 2)
+            image = QtGui.QImage(buf, width, height, QtGui.QImage.Format_RGB16)
         else:
             image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB16).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
     
     elif bitsPerPixel == 24:
         if isCompress:
-            image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB24)
-            rle.bitmap_decompress(image.bits(), width, height, data, len(data), 3)
+            buf = bytearray(width * height * 3)
+            rle.bitmap_decompress(buf, width, height, data, 3)
+            image = QtGui.QImage(buf, width, height, QtGui.QImage.Format_RGB24)
         else:
             image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
             
     elif bitsPerPixel == 32:
         if isCompress:
-            image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
-            rle.bitmap_decompress(image.bits(), width, height, data, len(data), 4)
+            buf = bytearray(width * height * 4)
+            rle.bitmap_decompress(buf, width, height, data, 4)
+            image = QtGui.QImage(buf, width, height, QtGui.QImage.Format_RGB24)
         else:
             image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
     else:

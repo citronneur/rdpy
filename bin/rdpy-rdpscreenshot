@@ -25,9 +25,6 @@ take screenshot of login page
 
 import sys, os, getopt
 
-# Change path so we find rdpy
-sys.path.insert(1, os.path.join(sys.path[0], '..'))
-
 from PyQt4 import QtCore, QtGui
 from rdpy.protocol.rdp import rdp
 from rdpy.ui.qt4 import RDPBitmapToQtImage

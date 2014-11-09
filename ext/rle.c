@@ -24,12 +24,11 @@
 /* indent is confused by this file */
 /* *INDENT-OFF* */
 
-#include "rle.h"
+#include <Python.h>
 
 /* Specific rename for RDPY integration */
 #define uint8	unsigned char
 #define uint16	unsigned short
-#define NULL	0
 #define unimpl(str, code)
 
 #define	 RD_BOOL	int
@@ -891,8 +890,8 @@ bitmap_decompress4(uint8 * output, int width, int height, uint8 * input, int siz
 }
 
 /* main decompress function */
-int
-bitmap_decompress(char * output, int width, int height, char * input, int size, int Bpp)
+static int
+bitmap_decompress(uint8 * output, int width, int height, uint8* input, int size, int Bpp)
 {
 	RD_BOOL rv = False;
 
@@ -918,3 +917,31 @@ bitmap_decompress(char * output, int width, int height, char * input, int size, 
 }
 
 /* *INDENT-ON* */
+
+static PyObject*
+bitmap_decompress_wrapper(PyObject* self, PyObject* args)
+{
+	Py_buffer output, input;
+	int width = 0, height = 0, bpp = 0;
+
+	if (!PyArg_ParseTuple(args, "s*iis*i", &output, &width, &height, &input, &bpp))
+		return NULL;
+
+	if(bitmap_decompress((uint8*)output.buf, width, height, (uint8*)input.buf, input.len, bpp) == False)
+		return NULL;
+
+	Py_RETURN_NONE;
+}
+ 
+static PyMethodDef rle_methods[] =
+{
+     {"bitmap_decompress", bitmap_decompress_wrapper, METH_VARARGS, "decompress bitmap from microsoft rle algorithm."},
+     {NULL, NULL, 0, NULL}
+};
+ 
+PyMODINIT_FUNC
+initrle(void)
+{
+     (void) Py_InitModule("rle", rle_methods);
+}
+
