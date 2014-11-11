@@ -28,7 +28,7 @@ Or use PIP:
 $ pip install rdpy
 ```
 
-For virtualenv, tou need to link qt4 library to it:
+For virtualenv, you need to link qt4 library to it:
 ```
 $ ln -s /usr/lib/python2.7/dist-packages/PyQt4/ $VIRTUAL_ENV/lib/python2.7/site-packages/
 $ ln -s /usr/lib/python2.7/dist-packages/sip.so $VIRTUAL_ENV/lib/python2.7/site-packages/
