@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
+import setuptools
 from distutils.core import setup, Extension
 
 setup(name='rdpy',
-	version='1.0',
+	version='1.0.1',
 	description='Remote Desktop Protocol in Python',
 	author='Sylvain Peyrefitte',
 	author_email='citronneur@gmail.com',
