@@ -12,8 +12,17 @@ RDPY is fully implemented in python, except the bitmap uncompression algorithm w
 
 ### Depends
 
-* python2.7
-* python-qt4
+#### Linux
+
+Exemple from Debian based system :
+```
+sudo apt-get install python-qt4
+```
+
+#### Windows
+
+[PyQt4](http://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.3/PyQt4-4.11.3-gpl-Py2.7-Qt4.8.6-x32.exe)
+[PyWin32](http://sourceforge.net/projects/pywin32/files/pywin32/Build%20218/pywin32-218.win32-py2.7.exe/download)
 
 ### Make
 
