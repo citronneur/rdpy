@@ -303,7 +303,7 @@ class ServerTLSContext(ssl.DefaultOpenSSLContextFactory):
     def __init__(self, privateKeyFileName, certificateFileName):
         class TPDUSSLContext(SSL.Context):
             def __init__(self, method):
-                SSL.Context.__init__(method)
+                SSL.Context.__init__(self, method)
                 self.set_options(SSL.OP_DONT_INSERT_EMPTY_FRAGMENTS)
                 self.set_options(SSL.OP_TLS_BLOCK_PADDING_BUG)
 
