@@ -226,6 +226,7 @@ def createNewLicenseRequest(serverLicenseRequest):
     Create new license request in response to server license request
     @see: http://msdn.microsoft.com/en-us/library/cc241989.aspx
     @see: http://msdn.microsoft.com/en-us/library/cc241918.aspx
-    @todo: need RDP license server
     """
-    return LicPacket(message = ClientNewLicenseRequest())
+    message = ClientNewLicenseRequest()
+    
+    return LicPacket(message)
