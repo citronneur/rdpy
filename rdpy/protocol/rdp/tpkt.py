@@ -76,8 +76,6 @@ class TPKT(RawLayer, IFastPathSender):
         @param fastPathListener: IFastPathListener
         """
         RawLayer.__init__(self, presentation)
-        #last packet version read from header
-        self._lastPacketVersion = UInt8()
         #length may be coded on more than 1 bytes
         self._lastShortLength = UInt8()
         #fast path listener
@@ -104,9 +102,10 @@ class TPKT(RawLayer, IFastPathSender):
         @param data: Stream received from twisted layer
         """
         #first read packet version
-        data.readType(self._lastPacketVersion)
+        version = UInt8()
+        data.readType(version)
         #classic packet
-        if self._lastPacketVersion.value == Action.FASTPATH_ACTION_X224:
+        if version.value == Action.FASTPATH_ACTION_X224:
             #padding
             data.readType(UInt8())
             #read end header
