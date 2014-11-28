@@ -22,6 +22,7 @@ Some use full methods for security in RDP
 """
 
 import sha, md5
+from rdpy.network.type import Stream, UInt32Le
 
 def saltedHash(inputData, salt, salt1, salt2):
     """
@@ -47,6 +48,46 @@ def saltedHash(inputData, salt, salt1, salt2):
     
     return md5Digest.digest()
 
-def masterSecret(preMasterSecret, clientRandom, serverRandom):
+def md5_16_32_32(in0, in1, in2):
     """
+    @summary: MD5(in0[:16] + in1[:32] + in2[:32])
+    @param in0: in 16
+    @param in1: in 32
+    @param in2: in 32
+    @return MD5(in0[:16] + in1[:32] + in2[:32])
     """
+    md5Digest = md5.new()
+    md5Digest.update(in0[:16])
+    md5Digest.update(in1[:32])
+    md5Digest.update(in2[:32])
+    return md5Digest.digest()
+
+def generateMicrosoftKey(secret, random1, random2):
+    """
+    @summary: Generate master secret
+    @param secret: secret
+    @param clientRandom : client random
+    @param serverRandom : server random
+    """
+    return saltedHash("A", secret, random1, random2) + saltedHash("BB", secret, random1, random2) + saltedHash("CCC", secret, random1, random2)
+
+def macData(macSaltKey, data):
+    sha1Digest = sha.new()
+    md5Digest = md5.new()
+    
+    #encode length
+    s = Stream()
+    s.writeType(UInt32Le(len(data)))
+    
+    sha1Digest.update(macSaltKey)
+    sha1Digest.update("\x36" * 40)
+    sha1Digest.update(s.getvalue())
+    sha1Digest.update(data)
+    
+    sha1Sig = sha1Digest.digest()
+    
+    md5Digest.update(macSaltKey)
+    md5Digest.update("\x5c" * 48)
+    md5Digest.update(sha1Sig)
+    
+    return md5Digest.digest()

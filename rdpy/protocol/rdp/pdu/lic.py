@@ -18,17 +18,20 @@
 #
 
 """
-RDP extended license
+@summary: RDP extended license
 @see: http://msdn.microsoft.com/en-us/library/cc241880.aspx
 """
 
-from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType
+from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType,\
+    Stream
 from rdpy.base.error import InvalidExpectedDataException
 import rdpy.base.log as log
+import rdpy.protocol.rdp.sec as sec
+import rdpy.protocol.rdp.rc4 as rc4
 
 class MessageType(object):
     """
-    License packet message type
+    @summary: License packet message type
     """
     LICENSE_REQUEST = 0x01
     PLATFORM_CHALLENGE = 0x02
@@ -42,7 +45,7 @@ class MessageType(object):
     
 class ErrorCode(object):
     """
-    License error message code
+    @summary: License error message code
     @see: http://msdn.microsoft.com/en-us/library/cc240482.aspx
     """
     ERR_INVALID_SERVER_CERTIFICATE = 0x00000001
@@ -57,7 +60,7 @@ class ErrorCode(object):
       
 class StateTransition(object):
     """
-    Automata state transition
+    @summary: Automata state transition
     @see: http://msdn.microsoft.com/en-us/library/cc240482.aspx
     """
     ST_TOTAL_ABORT = 0x00000001
@@ -67,9 +70,10 @@ class StateTransition(object):
     
 class BinaryBlobType(object):
     """
-    Binary blob data type
+    @summary: Binary blob data type
     @see: http://msdn.microsoft.com/en-us/library/cc240481.aspx
     """
+    BB_ANY_BLOB = 0x0000
     BB_DATA_BLOB = 0x0001
     BB_RANDOM_BLOB = 0x0002
     BB_CERTIFICATE_BLOB = 0x0003
@@ -82,25 +86,25 @@ class BinaryBlobType(object):
 
 class Preambule(object):
     """
-    Preambule version
+    @summary: Preambule version
     """
     PREAMBLE_VERSION_2_0 = 0x2
     PREAMBLE_VERSION_3_0 = 0x3
     
 class LicenseBinaryBlob(CompositeType):
     """
-    Blob use by license manager to exchange security data
+    @summary: Blob use by license manager to exchange security data
     @see: http://msdn.microsoft.com/en-us/library/cc240481.aspx
     """
-    def __init__(self, blobType = 0):
+    def __init__(self, blobType = BinaryBlobType.BB_ANY_BLOB):
         CompositeType.__init__(self)
-        self.wBlobType = UInt16Le(blobType, constant = True)
+        self.wBlobType = UInt16Le(blobType, constant = True if blobType != BinaryBlobType.BB_ANY_BLOB else False)
         self.wBlobLen = UInt16Le(lambda:sizeof(self.blobData))
         self.blobData = String(readLen = self.wBlobLen)
 
 class LicensingErrorMessage(CompositeType):
     """
-    License error message
+    @summary: License error message
     @see: http://msdn.microsoft.com/en-us/library/cc240482.aspx
     """
     _MESSAGE_TYPE_ = MessageType.ERROR_ALERT
@@ -113,7 +117,7 @@ class LicensingErrorMessage(CompositeType):
         
 class ProductInformation(CompositeType):
     """
-    License server product information
+    @summary: License server product information
     @see: http://msdn.microsoft.com/en-us/library/cc241915.aspx
     """
     def __init__(self):
@@ -121,15 +125,15 @@ class ProductInformation(CompositeType):
         self.dwVersion = UInt32Le()
         self.cbCompanyName = UInt32Le(lambda:sizeof(self.pbCompanyName))
         #may contain "Microsoft Corporation" from server microsoft
-        self.pbCompanyName = String(readLen = self.cbCompanyName)
+        self.pbCompanyName = String(readLen = self.cbCompanyName, unicode = True)
         self.cbProductId = UInt32Le(lambda:sizeof(self.pbProductId))
         #may contain "A02" from microsoft license server
-        self.pbProductId = String(readLen = self.cbProductId)
+        self.pbProductId = String(readLen = self.cbProductId, unicode = True)
 
 
 class Scope(CompositeType):
     """
-    Use in license nego
+    @summary: Use in license nego
     @see: http://msdn.microsoft.com/en-us/library/cc241917.aspx
     """
     def __init__(self):
@@ -138,7 +142,7 @@ class Scope(CompositeType):
               
 class ScopeList(CompositeType):
     """
-    Use in license nego
+    @summary: Use in license nego
     @see: http://msdn.microsoft.com/en-us/library/cc241916.aspx
     """
     def __init__(self):
@@ -148,8 +152,8 @@ class ScopeList(CompositeType):
         
 class ServerLicenseRequest(CompositeType):
     """
-    Send by server to signal license request
-    server -> client
+    @summary:  Send by server to signal license request
+                server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc241914.aspx
     """
     _MESSAGE_TYPE_ = MessageType.LICENSE_REQUEST
@@ -164,8 +168,8 @@ class ServerLicenseRequest(CompositeType):
         
 class ClientNewLicenseRequest(CompositeType):
     """
-    Send by client to ask new license for client.
-    RDPY doesn'support license reuse, need it in futur version
+    @summary:  Send by client to ask new license for client.
+                RDPY doesn'support license reuse, need it in futur version
     @see: http://msdn.microsoft.com/en-us/library/cc241918.aspx
     """
     _MESSAGE_TYPE_ = MessageType.NEW_LICENSE_REQUEST
@@ -181,6 +185,32 @@ class ClientNewLicenseRequest(CompositeType):
         self.encryptedPreMasterSecret = LicenseBinaryBlob(BinaryBlobType.BB_RANDOM_BLOB)
         self.ClientUserName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_USER_NAME_BLOB)
         self.ClientMachineName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_MACHINE_NAME_BLOB)
+        
+class ServerPlatformChallenge(CompositeType):
+    """
+    @summary: challenge send from server to client
+    @see: http://msdn.microsoft.com/en-us/library/cc241921.aspx
+    """
+    _MESSAGE_TYPE_ = MessageType.PLATFORM_CHALLENGE
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.connectFlags = UInt32Le()
+        self.encryptedPlatformChallenge = LicenseBinaryBlob(BinaryBlobType.BB_ANY_BLOB)
+        self.MACData = String(readLen = UInt8(16))
+
+class ClientPLatformChallengeResponse(CompositeType):
+    """
+    @summary: client challenge response
+    @see: http://msdn.microsoft.com/en-us/library/cc241922.aspx
+    """
+    _MESSAGE_TYPE_ = MessageType.PLATFORM_CHALLENGE_RESPONSE
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.encryptedPlatformChallengeResponse = LicenseBinaryBlob(BinaryBlobType.BB_ENCRYPTED_DATA_BLOB)
+        self.encryptedHWID = LicenseBinaryBlob(BinaryBlobType.BB_ENCRYPTED_DATA_BLOB)
+        self.MACData = String(readLen = UInt8(16))
 
 class LicPacket(CompositeType):
     """
@@ -198,7 +228,7 @@ class LicPacket(CompositeType):
             factory for message nego
             Use in read mode
             """
-            for c in [LicensingErrorMessage, ServerLicenseRequest, ClientNewLicenseRequest]:
+            for c in [LicensingErrorMessage, ServerLicenseRequest, ClientNewLicenseRequest, ServerPlatformChallenge, ClientPLatformChallengeResponse]:
                 if self.bMsgtype.value == c._MESSAGE_TYPE_:
                     return c()
             log.debug("unknown license message : %s"%self.bMsgtype.value)
@@ -210,23 +240,94 @@ class LicPacket(CompositeType):
             raise InvalidExpectedDataException("Try to send an invalid license message")
             
         self.licensingMessage = message
-
+        
 def createValidClientLicensingErrorMessage():
+        """
+        @summary: Create a licensing error message that accept client
+        server automata message
+        """
+        message = LicensingErrorMessage()
+        message.dwErrorCode.value = ErrorCode.STATUS_VALID_CLIENT
+        message.dwStateTransition.value = StateTransition.ST_NO_TRANSITION
+        return LicPacket(message = message)
+        
+class LicenseManager(object):
     """
-    Create a licensing error message that accept client
-    server automata message
+    @summary: handle license automata
+    @see: http://msdn.microsoft.com/en-us/library/cc241890.aspx
     """
-    message = LicensingErrorMessage()
-    message.dwErrorCode.value = ErrorCode.STATUS_VALID_CLIENT
-    message.dwStateTransition.value = StateTransition.ST_NO_TRANSITION
-    return LicPacket(message = message)
-
-def createNewLicenseRequest(serverLicenseRequest):
-    """
-    Create new license request in response to server license request
-    @see: http://msdn.microsoft.com/en-us/library/cc241989.aspx
-    @see: http://msdn.microsoft.com/en-us/library/cc241918.aspx
-    """
-    message = ClientNewLicenseRequest()
+    def __init__(self, transport, username, hostname):
+        """
+        @param transport: layer use to send packet
+        """
+        self._clientRandom = "\x00" * 32
+        self._serverRandom = None
+        self._serverEncryptedChallenge = None
+        self._transport = transport
+        self._username = username
+        self._hostname = hostname
+        
+    def generateKeys(self):
+        """
+        @summary: generate key for license session
+        """
+        self._masterSecret = sec.generateMicrosoftKey("\x00" * 64, self._clientRandom, self._serverRandom)
+        self._sessionKeyBlob = sec.generateMicrosoftKey(self._masterSecret, self._serverRandom, self._clientRandom)
+        self._macSalt = self._sessionKeyBlob[:16]
+        self._licenseKey = sec.md5_16_32_32(self._sessionKeyBlob[16:], self._clientRandom, self._serverRandom)
+        
+    def recv(self, s):
+        """
+        @summary: receive license packet from PDU layer
+        @return true when license automata is finish
+        """
+        licPacket = LicPacket()
+        s.readType(licPacket)
+        
+        #end of automata
+        if licPacket.bMsgtype.value == MessageType.ERROR_ALERT and licPacket.licensingMessage.dwErrorCode.value == ErrorCode.STATUS_VALID_CLIENT and licPacket.licensingMessage.dwStateTransition.value == StateTransition.ST_NO_TRANSITION:
+            return True
+        
+        elif licPacket.bMsgtype.value == MessageType.LICENSE_REQUEST:
+            self._serverRandom = licPacket.licensingMessage.serverRandom.value
+            self.generateKeys()
+            self.sendClientNewLicenseRequest()
+            
+        elif licPacket.bMsgtype.value == MessageType.PLATFORM_CHALLENGE:
+            self._serverEncryptedChallenge = licPacket.licensingMessage.encryptedPlatformChallenge.blobData.value
+            self.sendClientChallengeResponse()
+            
+        else:
+            raise InvalidExpectedDataException("Not a valid license packet")
+        
     
-    return LicPacket(message)
+    def sendClientNewLicenseRequest(self):
+        """
+        @summary: Create new license request in response to server license request
+        @see: http://msdn.microsoft.com/en-us/library/cc241989.aspx
+        @see: http://msdn.microsoft.com/en-us/library/cc241918.aspx
+        """
+        message = ClientNewLicenseRequest()
+        message.clientRandom.value = self._clientRandom
+        message.encryptedPreMasterSecret.blobData = String("\x00" * (64 + 8))
+        message.ClientMachineName.blobData = String(self._hostname + "\x00")
+        message.ClientUserName.blobData = String(self._username + "\x00")
+        self._transport.sendLicensePacket(LicPacket(message))
+        
+    def sendClientChallengeResponse(self):
+        #it should be TEST in unicode format
+        serverChallenge = rc4.crypt(self._licenseKey, self._serverEncryptedChallenge)
+        
+        #generate hwid
+        s = Stream()
+        s.writeType((UInt32Le(2), String(self._username + self._hostname + "\x00" * 20)))
+        hwid = s.getvalue()[:20]
+        
+        signature = sec.macData(self._macSalt, serverChallenge + hwid)
+        
+        message = ClientPLatformChallengeResponse()
+        message.encryptedPlatformChallengeResponse.blobData.value = self._serverEncryptedChallenge
+        message.encryptedHWID.blobData.value = rc4.crypt(self._licenseKey, hwid)
+        message.MACData.value = signature
+        
+        self._transport.sendLicensePacket(LicPacket(message))
