@@ -35,19 +35,21 @@ class RDPClientQtFactory(rdp.ClientFactory):
     """
     @summary: Factory create a RDP GUI client
     """
-    def __init__(self, width, height, username, password, domain):
+    def __init__(self, width, height, username, password, domain, fullscreen):
         """
         @param width: width of client
         @param heigth: heigth of client
         @param username: username present to the server
         @param password: password present to the server
         @param domain: microsoft domain
+        @param fullscreen: show widget in fullscreen mode
         """
         self._width = width
         self._height = height
         self._username = username
         self._passwod = password
         self._domain = domain
+        self._fullscreen = fullscreen
         self._w = None
         
     def buildObserver(self, controller, addr):
@@ -63,7 +65,10 @@ class RDPClientQtFactory(rdp.ClientFactory):
         #create qt widget
         self._w = client.getWidget()
         self._w.setWindowTitle('rdpy-rdpclient')
-        self._w.show()
+        if self._fullscreen:
+            self._w.showFullScreen()
+        else:
+            self._w.show()
         
         controller.setUsername(self._username)
         controller.setPassword(self._passwod)
@@ -104,12 +109,21 @@ def help():
     print "\t-l: height of screen default value is 800"
         
 if __name__ == '__main__':
+    
+    #create application
+    app = QtGui.QApplication(sys.argv)
+    
+    #add qt4 reactor
+    import qt4reactor
+    qt4reactor.install()
+    
     #default script argument
     username = ""
     password = ""
     domain = ""
-    width = 1024
-    height = 800
+    width = QtGui.QDesktopWidget().screenGeometry().width()
+    height = QtGui.QDesktopWidget().screenGeometry().height()
+    fullscreen = True
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hu:p:d:w:l:")
@@ -127,22 +141,17 @@ if __name__ == '__main__':
             domain = arg
         elif opt == "-w":
             width = int(arg)
+            fullscreen = False
         elif opt == "-l":
             height = int(arg)
+            fullscreen = False
             
     if ':' in args[0]:
         ip, port = args[0].split(':')
     else:
         ip, port = args[0], "3389"
-        
-    #create application
-    app = QtGui.QApplication(sys.argv)
-    
-    #add qt4 reactor
-    import qt4reactor
-    qt4reactor.install()
     
     from twisted.internet import reactor
-    reactor.connectTCP(ip, int(port), RDPClientQtFactory(width, height, username, password, domain))
+    reactor.connectTCP(ip, int(port), RDPClientQtFactory(width, height, username, password, domain, fullscreen))
     reactor.runReturn()
     app.exec_()
