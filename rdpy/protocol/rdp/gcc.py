@@ -230,7 +230,7 @@ class ClientCoreData(CompositeType):
         self.desktopHeight = UInt16Le(800)
         self.colorDepth = UInt16Le(ColorDepth.RNS_UD_COLOR_8BPP)
         self.sasSequence = UInt16Le(Sequence.RNS_UD_SAS_DEL)
-        self.kbdLayout = UInt32Le(KeyboardLayout.FRENCH)
+        self.kbdLayout = UInt32Le(KeyboardLayout.US)
         self.clientBuild = UInt32Le(3790)
         self.clientName = String("rdpy" + "\x00"*11, readLen = UInt8(32), unicode = True)
         self.keyboardType = UInt32Le(KeyboardType.IBM_101_102_KEYS)

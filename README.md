@@ -119,9 +119,7 @@ RDPY can also be used as Qt widget throw rdpy.ui.qt4.QRemoteDesktop class. It ca
 
 In a nutshell the RDPY can be used as a protocol library with a twisted engine.
 
-### Client library
-
-The RDP client code looks like this:
+### Simple RDP Client
 
 ```python
 from rdpy.protocol.rdp import rdp
@@ -135,20 +133,36 @@ class MyRDPFactory(rdp.ClientFactory):
         reactor.stop()
         
     def buildObserver(self, controller, addr):
+    
         class MyObserver(rdp.RDPClientObserver)
         
-			def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
-				#here code handle bitmap
-				pass
-				
-			def onReady(self):
+        	def onReady(self):
+		        """
+		        @summary: Call when stack is ready
+		        """
 				#send 'r' key
 				self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
 				#mouse move and click at pixel 200x200
 				self._controller.sendPointerEvent(200, 200, 1, true)
 				
+			def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+		        """
+		        @summary: Notify bitmap update
+		        @param destLeft: xmin position
+		        @param destTop: ymin position
+		        @param destRight: xmax position because RDP can send bitmap with padding
+		        @param destBottom: ymax position because RDP can send bitmap with padding
+		        @param width: width of bitmap
+		        @param height: height of bitmap
+		        @param bitsPerPixel: number of bit per pixel
+		        @param isCompress: use RLE compression
+		        @param data: bitmap data
+		        """
+				
 			def onClose(self):
-				pass
+		        """
+		        @summary: Call when stack is close
+		        """
 
 		return MyObserver(controller)
 
@@ -157,11 +171,66 @@ reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRDPFactory())
 reactor.run()
 ```
 
-The VNC client code looks like this:
+### Simple RDP Server
+```python
+from rdpy.protocol.rdp import rdp
+
+class MyRDPFactory(rdp.ServerFactory):
+
+    def buildObserver(self, controller, addr):
+    
+        class MyObserver(rdp.RDPServerObserver)
+        
+        	def onReady(self):
+        		"""
+        		@summary: Call when server is ready 
+        		to send and receive messages
+        		"""
+        		
+        	def onKeyEventScancode(self, code, isPressed):
+        		"""
+		        @summary: Event call when a keyboard event is catch in scan code format
+		        @param code: scan code of key
+		        @param isPressed: True if key is down
+		        @see: rdp.RDPServerObserver.onKeyEventScancode
+		        """
+	        
+	        def onKeyEventUnicode(self, code, isPressed):
+		        """
+		        @summary: Event call when a keyboard event is catch in unicode format
+		        @param code: unicode of key
+		        @param isPressed: True if key is down
+		        @see: rdp.RDPServerObserver.onKeyEventUnicode
+		        """
+		    
+		    def onPointerEvent(self, x, y, button, isPressed):
+		        """
+		        @summary: Event call on mouse event
+		        @param x: x position
+		        @param y: y position
+		        @param button: 1, 2 or 3 button
+		        @param isPressed: True if mouse button is pressed
+		        @see: rdp.RDPServerObserver.onPointerEvent
+		        """
+		        
+		    def onClose(self):
+		        """
+		        @summary: Call when human client close connection
+		        @see: rdp.RDPServerObserver.onClose
+		        """
+
+		return MyObserver(controller)
+
+from twisted.internet import reactor
+reactor.listenTCP(3389, MyRDPFactory())
+reactor.run()
+```
+
+### Simple VNC Client
 ```python
 from rdpy.protocol.rfb import rdp
 
-class MyRDPFactory(rfb.ClientFactory):
+class MyRFBFactory(rfb.ClientFactory):
 
 	def clientConnectionLost(self, connector, reason):
         reactor.stop()
@@ -173,18 +242,41 @@ class MyRDPFactory(rfb.ClientFactory):
         class MyObserver(rfb.RFBClientObserver)
         		
 			def onReady(self):
-				pass
+		        """
+		        @summary: Event when network stack is ready to receive or send event
+		        """
 
 			def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
-				#here code handle bitmap
-				pass
+		        """
+		        @summary: Implement RFBClientObserver interface
+		        @param width: width of new image
+		        @param height: height of new image
+		        @param x: x position of new image
+		        @param y: y position of new image
+		        @param pixelFormat: pixefFormat structure in rfb.message.PixelFormat
+		        @param encoding: encoding type rfb.message.Encoding
+		        @param data: image data in accordance with pixel format and encoding
+		        """
+		        
+		    def onCutText(self, text):
+		        """
+		        @summary: event when server send cut text event
+		        @param text: text received
+		        """
+		        
+		    def onBell(self):
+		        """
+		        @summary: event when server send biiip
+		        """
 				
 			def onClose(self):
-				pass
+		        """
+		        @summary: Call when stack is close
+		        """
 
 		return MyObserver(controller)
 
 from twisted.internet import reactor
-reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRDPFactory())
+reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRFBFactory())
 reactor.run()
 ```

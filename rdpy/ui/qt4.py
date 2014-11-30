@@ -126,13 +126,11 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         @summary: event when server send cut text event
         @param text: text received
         """
-        pass
     
     def onBell(self):
         """
         @summary: event when server send biiip
         """
-        pass
     
     def onReady(self):
         """

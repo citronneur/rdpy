@@ -111,6 +111,16 @@ class RDPClientController(pdu.layer.PDUClientListener):
         """
         self._pduLayer._info.flag |= pdu.data.InfoFlag.INFO_AUTOLOGON
         
+    def setKeyboardLayout(self, layout):
+        """
+        @summary: keyboard layout
+        @param layout: us | fr
+        """
+        if layout == "fr":
+            self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).kbdLayout.value = gcc.KeyboardLayout.FRENCH
+        elif layout == "us":
+            self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).kbdLayout.value = gcc.KeyboardLayout.US
+        
     def addClientObserver(self, observer):
         """
         @summary: Add observer to RDP protocol
