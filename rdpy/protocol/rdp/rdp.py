@@ -89,6 +89,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         """
         #username in PDU info packet
         self._pduLayer._info.userName.value = username
+        self._pduLayer._licenceManager._username = username
         
     def setPassword(self, password):
         """
@@ -120,6 +121,13 @@ class RDPClientController(pdu.layer.PDUClientListener):
             self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).kbdLayout.value = gcc.KeyboardLayout.FRENCH
         elif layout == "us":
             self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).kbdLayout.value = gcc.KeyboardLayout.US
+    
+    def setHostname(self, hostname):
+        """
+        @summary: set hostname of machine
+        """
+        self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).clientName.value = hostname[:15] + "\x00" * (15 - len(hostname))
+        self._pduLayer._licenceManager._hostname = hostname
         
     def addClientObserver(self, observer):
         """

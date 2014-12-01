@@ -90,6 +90,7 @@ class Preambule(object):
     """
     PREAMBLE_VERSION_2_0 = 0x2
     PREAMBLE_VERSION_3_0 = 0x3
+    EXTENDED_ERROR_MSG_SUPPORTED = 0x80
     
 class LicenseBinaryBlob(CompositeType):
     """
@@ -208,13 +209,13 @@ class ClientPLatformChallengeResponse(CompositeType):
     
     def __init__(self):
         CompositeType.__init__(self)
-        self.encryptedPlatformChallengeResponse = LicenseBinaryBlob(BinaryBlobType.BB_ENCRYPTED_DATA_BLOB)
-        self.encryptedHWID = LicenseBinaryBlob(BinaryBlobType.BB_ENCRYPTED_DATA_BLOB)
+        self.encryptedPlatformChallengeResponse = LicenseBinaryBlob(BinaryBlobType.BB_DATA_BLOB)
+        self.encryptedHWID = LicenseBinaryBlob(BinaryBlobType.BB_DATA_BLOB)
         self.MACData = String(readLen = UInt8(16))
 
 class LicPacket(CompositeType):
     """
-    A license packet
+    @summary: A license packet
     """
     def __init__(self, message = None):
         CompositeType.__init__(self)
@@ -225,7 +226,7 @@ class LicPacket(CompositeType):
         
         def LicensingMessageFactory():
             """
-            factory for message nego
+            @summary: factory for message nego
             Use in read mode
             """
             for c in [LicensingErrorMessage, ServerLicenseRequest, ClientNewLicenseRequest, ServerPlatformChallenge, ClientPLatformChallengeResponse]:
@@ -249,32 +250,33 @@ def createValidClientLicensingErrorMessage():
         message = LicensingErrorMessage()
         message.dwErrorCode.value = ErrorCode.STATUS_VALID_CLIENT
         message.dwStateTransition.value = StateTransition.ST_NO_TRANSITION
-        return LicPacket(message = message)
+        return LicPacket(message)
         
 class LicenseManager(object):
     """
     @summary: handle license automata
     @see: http://msdn.microsoft.com/en-us/library/cc241890.aspx
     """
-    def __init__(self, transport, username, hostname):
+    def __init__(self, transport):
         """
         @param transport: layer use to send packet
         """
+        self._preMasterSecret = "\x00" * 64
         self._clientRandom = "\x00" * 32
         self._serverRandom = None
         self._serverEncryptedChallenge = None
         self._transport = transport
-        self._username = username
-        self._hostname = hostname
+        self._username = ""
+        self._hostname = ""
         
     def generateKeys(self):
         """
         @summary: generate key for license session
         """
-        self._masterSecret = sec.generateMicrosoftKey("\x00" * 64, self._clientRandom, self._serverRandom)
-        self._sessionKeyBlob = sec.generateMicrosoftKey(self._masterSecret, self._serverRandom, self._clientRandom)
-        self._macSalt = self._sessionKeyBlob[:16]
-        self._licenseKey = sec.md5_16_32_32(self._sessionKeyBlob[16:], self._clientRandom, self._serverRandom)
+        masterSecret = sec.generateMicrosoftKey(self._preMasterSecret, self._clientRandom, self._serverRandom)
+        sessionKeyBlob = sec.generateMicrosoftKey(masterSecret, self._serverRandom, self._clientRandom)
+        self._macSalt = sessionKeyBlob[:16]
+        self._licenseKey = sec.finalHash(sessionKeyBlob[16:32], self._clientRandom, self._serverRandom)
         
     def recv(self, s):
         """
@@ -296,7 +298,11 @@ class LicenseManager(object):
         elif licPacket.bMsgtype.value == MessageType.PLATFORM_CHALLENGE:
             self._serverEncryptedChallenge = licPacket.licensingMessage.encryptedPlatformChallenge.blobData.value
             self.sendClientChallengeResponse()
-            
+        
+        #yes get a new license
+        elif licPacket.bMsgtype.value == MessageType.NEW_LICENSE:
+            return True
+        
         else:
             raise InvalidExpectedDataException("Not a valid license packet")
         
@@ -309,25 +315,27 @@ class LicenseManager(object):
         """
         message = ClientNewLicenseRequest()
         message.clientRandom.value = self._clientRandom
-        message.encryptedPreMasterSecret.blobData = String("\x00" * (64 + 8))
+        message.encryptedPreMasterSecret.blobData = String(self._preMasterSecret + "\x00" * 8)
         message.ClientMachineName.blobData = String(self._hostname + "\x00")
         message.ClientUserName.blobData = String(self._username + "\x00")
         self._transport.sendLicensePacket(LicPacket(message))
         
     def sendClientChallengeResponse(self):
-        #it should be TEST in unicode format
+        """
+        @summary: generate valid challenge response
+        """
+        #decrypt server challenge
+        #it should be TEST word in unicode format
         serverChallenge = rc4.crypt(self._licenseKey, self._serverEncryptedChallenge)
         
         #generate hwid
         s = Stream()
-        s.writeType((UInt32Le(2), String(self._username + self._hostname + "\x00" * 20)))
+        s.writeType((UInt32Le(2), String(self._hostname + "\x00" * 16)))
         hwid = s.getvalue()[:20]
-        
-        signature = sec.macData(self._macSalt, serverChallenge + hwid)
         
         message = ClientPLatformChallengeResponse()
         message.encryptedPlatformChallengeResponse.blobData.value = self._serverEncryptedChallenge
         message.encryptedHWID.blobData.value = rc4.crypt(self._licenseKey, hwid)
-        message.MACData.value = signature
+        message.MACData.value = sec.macData(self._macSalt, serverChallenge + hwid)
         
         self._transport.sendLicensePacket(LicPacket(message))

@@ -48,18 +48,18 @@ def saltedHash(inputData, salt, salt1, salt2):
     
     return md5Digest.digest()
 
-def md5_16_32_32(in0, in1, in2):
+def finalHash(key, random1, random2):
     """
     @summary: MD5(in0[:16] + in1[:32] + in2[:32])
-    @param in0: in 16
-    @param in1: in 32
-    @param in2: in 32
+    @param key: in 16
+    @param random1: in 32
+    @param random2: in 32
     @return MD5(in0[:16] + in1[:32] + in2[:32])
     """
     md5Digest = md5.new()
-    md5Digest.update(in0[:16])
-    md5Digest.update(in1[:32])
-    md5Digest.update(in2[:32])
+    md5Digest.update(key)
+    md5Digest.update(random1)
+    md5Digest.update(random2)
     return md5Digest.digest()
 
 def generateMicrosoftKey(secret, random1, random2):
@@ -72,6 +72,9 @@ def generateMicrosoftKey(secret, random1, random2):
     return saltedHash("A", secret, random1, random2) + saltedHash("BB", secret, random1, random2) + saltedHash("CCC", secret, random1, random2)
 
 def macData(macSaltKey, data):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc241995.aspx
+    """
     sha1Digest = sha.new()
     md5Digest = md5.new()
     

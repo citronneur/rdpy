@@ -21,7 +21,7 @@
 example of use rdpy as rdp client
 """
 
-import sys, os, getopt
+import sys, os, getopt, socket
 
 from PyQt4 import QtGui, QtCore
 from rdpy.ui.qt4 import RDPClientQt
@@ -77,6 +77,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
         controller.setPassword(self._passwod)
         controller.setDomain(self._domain)
         controller.setKeyboardLayout(self._keyboardLayout)
+        controller.setHostname(socket.gethostname())
         if self._optimized:
             controller.setPerformanceSession()
         

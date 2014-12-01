@@ -136,8 +136,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         self._listener = listener
         #enable or not fast path
         self._fastPathSender = None
-        #todo generate hostname
-        self._licenceManager = lic.LicenseManager(self, self._info.userName.value, "wav-glw-009")
+        self._licenceManager = lic.LicenseManager(self)
         
     def connect(self):
         """
@@ -592,8 +591,7 @@ class Server(PDULayer, tpkt.IFastPathListener):
         
     def sendDemandActivePDU(self):
         """
-        Send server capabilities
-        server automata PDU
+        @summary: Send server capabilities server automata PDU
         """
         #init general capability
         generalCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
