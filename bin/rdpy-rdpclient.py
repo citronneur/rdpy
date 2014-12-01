@@ -17,14 +17,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-
 """
 example of use rdpy as rdp client
 """
 
-import sys, os, getopt
+import sys, os, getopt, socket
 
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from rdpy.ui.qt4 import RDPClientQt
 from rdpy.protocol.rdp import rdp
 
@@ -35,19 +34,25 @@ class RDPClientQtFactory(rdp.ClientFactory):
     """
     @summary: Factory create a RDP GUI client
     """
-    def __init__(self, width, height, username, password, domain):
+    def __init__(self, width, height, username, password, domain, fullscreen, keyboardLayout, optimized):
         """
         @param width: width of client
         @param heigth: heigth of client
         @param username: username present to the server
         @param password: password present to the server
         @param domain: microsoft domain
+        @param fullscreen: show widget in fullscreen mode
+        @param keyboardLayout: keyboard layout
+        @param optimized: enable optimized session orders
         """
         self._width = width
         self._height = height
         self._username = username
         self._passwod = password
         self._domain = domain
+        self._fullscreen = fullscreen
+        self._keyboardLayout = keyboardLayout
+        self._optimized = optimized
         self._w = None
         
     def buildObserver(self, controller, addr):
@@ -63,12 +68,18 @@ class RDPClientQtFactory(rdp.ClientFactory):
         #create qt widget
         self._w = client.getWidget()
         self._w.setWindowTitle('rdpy-rdpclient')
-        self._w.show()
+        if self._fullscreen:
+            self._w.showFullScreen()
+        else:
+            self._w.show()
         
         controller.setUsername(self._username)
         controller.setPassword(self._passwod)
         controller.setDomain(self._domain)
-        controller.setPerformanceSession()
+        controller.setKeyboardLayout(self._keyboardLayout)
+        controller.setHostname(socket.gethostname())
+        if self._optimized:
+            controller.setPerformanceSession()
         
         return client
         
@@ -95,24 +106,54 @@ class RDPClientQtFactory(rdp.ClientFactory):
         reactor.stop()
         app.exit()
         
+def autoDetectKeyboardLayout():
+    """
+    @summary: try to auto detect keyboard layout
+    """
+    try:
+        if os.name == 'posix':    
+            from subprocess import check_output
+            result = check_output(["setxkbmap", "-print"])
+            if "azerty" in result:
+                return "fr"
+        elif os.name == 'nt':
+            import win32api, win32con, win32process
+            import ctypes.windll.user32 as user32
+            w = user32.GetForegroundWindow() 
+            tid = user32.GetWindowThreadProcessId(w, 0) 
+            result = user32.GetKeyboardLayout(tid)
+            if result == 0x409409:
+                return "fr"
+    except:
+        log.info("failed to auto detect keyboard layout")
+        pass
+    return "en"
+        
 def help():
     print "Usage: rdpy-rdpclient [options] ip[:port]"
     print "\t-u: user name"
     print "\t-p: password"
     print "\t-d: domain"
-    print "\t-w: width of screen default value is 1024"
-    print "\t-l: height of screen default value is 800"
+    print "\t-w: width of screen [default : 1024]"
+    print "\t-l: height of screen [default : 800]"
+    print "\t-f: enable full screen mode [default : False]"
+    print "\t-k: keyboard layout [en|fr] [default : en]"
+    print "\t-o: optimized session (disable costly effect) [default : False]"
         
 if __name__ == '__main__':
+    
     #default script argument
     username = ""
     password = ""
     domain = ""
     width = 1024
     height = 800
+    fullscreen = False
+    optimized = False
+    keyboardLayout = autoDetectKeyboardLayout()
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hu:p:d:w:l:")
+        opts, args = getopt.getopt(sys.argv[1:], "hfou:p:d:w:l:k:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:
@@ -129,12 +170,18 @@ if __name__ == '__main__':
             width = int(arg)
         elif opt == "-l":
             height = int(arg)
+        elif opt == "-f":
+            fullscreen = True
+        elif opt == "-o":
+            optimized = True
+        elif opt == "-k":
+            keyboardLayout = arg
             
     if ':' in args[0]:
         ip, port = args[0].split(':')
     else:
         ip, port = args[0], "3389"
-        
+    
     #create application
     app = QtGui.QApplication(sys.argv)
     
@@ -142,7 +189,16 @@ if __name__ == '__main__':
     import qt4reactor
     qt4reactor.install()
     
+    if fullscreen:
+        width = QtGui.QDesktopWidget().screenGeometry().width()
+        height = QtGui.QDesktopWidget().screenGeometry().height()
+    
+    
+        
+    
+    log.info("keyboard layout set to %s"%keyboardLayout)
+    
     from twisted.internet import reactor
-    reactor.connectTCP(ip, int(port), RDPClientQtFactory(width, height, username, password, domain))
+    reactor.connectTCP(ip, int(port), RDPClientQtFactory(width, height, username, password, domain, fullscreen, keyboardLayout, optimized))
     reactor.runReturn()
     app.exec_()

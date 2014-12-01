@@ -2,7 +2,8 @@
 .project
 .pydevproject
 README.md~
-rdpy/core/tmp/*
 *.so
 *.os
-.sconsign.dblite
+dist/*
+build/*
+rdpy.egg-info/*

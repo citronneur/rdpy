@@ -68,13 +68,13 @@ class RDPClientController(pdu.layer.PDUClientListener):
         
     def setPerformanceSession(self):
         """
-        Set particular flag in RDP stack to avoid wall-paper, theme, menu animation etc...
+        @summary: Set particular flag in RDP stack to avoid wall-paper, theme, menu animation etc...
         """
         self._pduLayer._info.extendedInfo.performanceFlags.value = pdu.data.PerfFlag.PERF_DISABLE_WALLPAPER | pdu.data.PerfFlag.PERF_DISABLE_MENUANIMATIONS | pdu.data.PerfFlag.PERF_DISABLE_CURSOR_SHADOW | pdu.data.PerfFlag.PERF_DISABLE_THEMING | pdu.data.PerfFlag.PERF_DISABLE_FULLWINDOWDRAG
         
     def setScreen(self, width, height):
         """
-        Set screen dim of session
+        @summary: Set screen dim of session
         @param width: width in pixel of screen
         @param height: height in pixel of screen
         """
@@ -84,15 +84,16 @@ class RDPClientController(pdu.layer.PDUClientListener):
         
     def setUsername(self, username):
         """
-        Set the username for session
+        @summary: Set the username for session
         @param username: username of session
         """
         #username in PDU info packet
         self._pduLayer._info.userName.value = username
+        self._pduLayer._licenceManager._username = username
         
     def setPassword(self, password):
         """
-        Set password for session
+        @summary: Set password for session
         @param password: password of session
         """
         self.setAutologon()
@@ -100,7 +101,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         
     def setDomain(self, domain):
         """
-        Set the windows domain of session
+        @summary: Set the windows domain of session
         @param domain: domain of session
         """
         self._pduLayer._info.domain.value = domain
@@ -111,16 +112,33 @@ class RDPClientController(pdu.layer.PDUClientListener):
         """
         self._pduLayer._info.flag |= pdu.data.InfoFlag.INFO_AUTOLOGON
         
+    def setKeyboardLayout(self, layout):
+        """
+        @summary: keyboard layout
+        @param layout: us | fr
+        """
+        if layout == "fr":
+            self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).kbdLayout.value = gcc.KeyboardLayout.FRENCH
+        elif layout == "us":
+            self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).kbdLayout.value = gcc.KeyboardLayout.US
+    
+    def setHostname(self, hostname):
+        """
+        @summary: set hostname of machine
+        """
+        self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).clientName.value = hostname[:15] + "\x00" * (15 - len(hostname))
+        self._pduLayer._licenceManager._hostname = hostname
+        
     def addClientObserver(self, observer):
         """
-        Add observer to RDP protocol
+        @summary: Add observer to RDP protocol
         @param observer: new observer to add
         """
         self._clientObserver.append(observer)
         
     def removeClientObserver(self, observer):
         """
-        Remove observer to RDP protocol stack
+        @summary: Remove observer to RDP protocol stack
         @param observer: observer to remove
         """
         for i in range(0, len(self._clientObserver)):
@@ -130,7 +148,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         
     def onUpdate(self, rectangles):
         """
-        Call when a bitmap data is received from update PDU
+        @summary: Call when a bitmap data is received from update PDU
         @param rectangles: [pdu.BitmapData] struct
         """
         for observer in self._clientObserver:
@@ -140,7 +158,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
                 
     def onReady(self):
         """
-        Call when PDU layer is connected
+        @summary: Call when PDU layer is connected
         """
         self._isReady = True
         #signal all listener
@@ -149,7 +167,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
             
     def onClose(self):
         """
-        Event call when RDP stack is closed
+        @summary: Event call when RDP stack is closed
         """
         self._isReady = False
         for observer in self._clientObserver:
@@ -157,7 +175,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
     
     def sendPointerEvent(self, x, y, button, isPressed):
         """
-        send pointer events
+        @summary: send pointer events
         @param x: x position of pointer
         @param y: y position of pointer
         @param button: 1 or 2 or 3
@@ -189,10 +207,44 @@ class RDPClientController(pdu.layer.PDUClientListener):
             
         except InvalidValue:
             log.info("try send pointer event with incorrect position")
+    
+    def sendWheelEvent(self, x, y, step, isNegative = False, isHorizontal = False):
+        """
+        @summary: Send a mouse wheel event
+        @param x: x position of pointer
+        @param y: y position of pointer
+        @param step: number of step rolled
+        @param isHorizontal: horizontal wheel (default is vertical)
+        @param isNegative: is upper (default down)
+        """
+        if not self._isReady:
+            return
+
+        try:
+            event = pdu.data.PointerEvent()
+            if isHorizontal:
+                event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_HWHEEL
+            else:
+                event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_WHEEL
+                
+            if isNegative:
+                event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_WHEEL_NEGATIVE
+                
+            event.pointerFlags.value |= (step & pdu.data.PointerFlag.WheelRotationMask)
+            
+            #position
+            event.xPos.value = x
+            event.yPos.value = y
+            
+            #send proper event
+            self._pduLayer.sendInputEvents([event])
+            
+        except InvalidValue:
+            log.info("try send wheel event with incorrect position")
             
     def sendKeyEventScancode(self, code, isPressed):
         """
-        Send a scan code to RDP stack
+        @summary: Send a scan code to RDP stack
         @param code: scan code
         @param isPressed: True if key is pressed and false if it's released
         """
@@ -215,7 +267,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
             
     def sendKeyEventUnicode(self, code, isPressed):
         """
-        Send a scan code to RDP stack
+        @summary: Send a scan code to RDP stack
         @param code: unicode
         @param isPressed: True if key is pressed and false if it's released
         """
@@ -236,7 +288,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
             
     def sendRefreshOrder(self, left, top, right, bottom):
         """
-        Force server to resend a particular zone
+        @summary: Force server to resend a particular zone
         @param left: left coordinate
         @param top: top coordinate
         @param right: right coordinate
@@ -253,13 +305,13 @@ class RDPClientController(pdu.layer.PDUClientListener):
             
     def close(self):
         """
-        Close protocol stack
+        @summary: Close protocol stack
         """
         self._pduLayer.close()
 
 class RDPServerController(pdu.layer.PDUServerListener):
     """
-    Controller use in server side mode
+    @summary: Controller use in server side mode
     """               
     def __init__(self, privateKeyFileName, certificateFileName, colorDepth):
         """
@@ -283,7 +335,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
         
     def close(self):
         """
-        Close protocol stack
+        @summary: Close protocol stack
         """
         self._pduLayer.close()
         
@@ -296,28 +348,28 @@ class RDPServerController(pdu.layer.PDUServerListener):
     
     def getUsername(self):
         """
-        Must be call after on ready event else always empty string
+        @summary: Must be call after on ready event else always empty string
         @return: username send by client may be an empty string
         """
         return self._pduLayer._info.userName.value
     
     def getPassword(self):
         """
-        Must be call after on ready event else always empty string
+        @summary: Must be call after on ready event else always empty string
         @return: password send by client may be an empty string
         """
         return self._pduLayer._info.password.value
     
     def getDomain(self):
         """
-        Must be call after on ready event else always empty string
+        @summary: Must be call after on ready event else always empty string
         @return: domain send by client may be an empty string
         """
         return self._pduLayer._info.domain.value
     
     def getCredentials(self):
         """
-        Must be call after on ready event else always empty string
+        @summary: Must be call after on ready event else always empty string
         @return: tuple(domain, username, password)
         """
         return (self.getDomain(), self.getUsername(), self.getPassword())
@@ -337,15 +389,15 @@ class RDPServerController(pdu.layer.PDUServerListener):
     
     def addServerObserver(self, observer):
         """
-        Add observer to RDP protocol
+        @summary: Add observer to RDP protocol
         @param observer: new observer to add
         """
         self._serverObserver.append(observer)
         
     def setColorDepth(self, colorDepth):
         """
-        Set color depth of session
-        if PDU stack is already connected send a deactive-reactive sequence
+        @summary:  Set color depth of session
+                    if PDU stack is already connected send a deactive-reactive sequence
         @param colorDepth: depth of session (15, 16, 24)
         """
         self._colorDepth = colorDepth
@@ -357,13 +409,13 @@ class RDPServerController(pdu.layer.PDUServerListener):
             
     def setKeyEventUnicodeSupport(self):
         """
-        Enable key event in unicode format
+        @summary: Enable key event in unicode format
         """
         self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_INPUT].capability.inputFlags.value |= pdu.caps.InputFlags.INPUT_FLAG_UNICODE
     
     def onReady(self):
         """
-        RDP stack is now ready
+        @summary: RDP stack is now ready
         """
         self._isReady = True
         for observer in self._serverObserver:
@@ -371,7 +423,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
             
     def onClose(self):
         """
-        Event call when RDP stack is closed
+        @summary: Event call when RDP stack is closed
         """
         self._isReady = False
         for observer in self._serverObserver:
@@ -379,7 +431,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
             
     def onSlowPathInput(self, slowPathInputEvents):
         """
-        Event call when slow path input are available
+        @summary: Event call when slow path input are available
         @param slowPathInputEvents: [data.SlowPathInputEvent]
         """
         for observer in self._serverObserver:
@@ -404,7 +456,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
     
     def sendUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
-        send bitmap update
+        @summary: send bitmap update
         @param destLeft: xmin position
         @param destTop: ymin position
         @param destRight: xmax position because RDP can send bitmap with padding
@@ -454,7 +506,7 @@ class ClientFactory(layer.RawLayerClientFactory):
 
 class ServerFactory(layer.RawLayerServerFactory):
     """
-    Factory of Server RDP protocol
+    @summary: Factory of Server RDP protocol
     """
     def __init__(self, privateKeyFileName, certificateFileName, colorDepth):
         """
@@ -476,7 +528,7 @@ class ServerFactory(layer.RawLayerServerFactory):
     
     def buildRawLayer(self, addr):
         """
-        Function call from twisted and build rdp protocol stack
+        @summary: Function call from twisted and build rdp protocol stack
         @param addr: destination address
         """
         controller = RDPServerController(self._privateKeyFileName, self._certificateFileName, self._colorDepth)
@@ -485,7 +537,7 @@ class ServerFactory(layer.RawLayerServerFactory):
     
     def buildObserver(self, controller, addr):
         """
-        Build observer use for connection
+        @summary: Build observer use for connection
         @param controller: RDP stack controller
         @param addr: destination address
         """
@@ -493,7 +545,7 @@ class ServerFactory(layer.RawLayerServerFactory):
         
 class RDPClientObserver(object):
     """
-    Class use to inform all RDP event handle by RDPY
+    @summary: Class use to inform all RDP event handle by RDPY
     """
     def __init__(self, controller):
         """
@@ -504,19 +556,19 @@ class RDPClientObserver(object):
         
     def onReady(self):
         """
-        Stack is ready and connected
+        @summary: Stack is ready and connected
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPClientObserver")) 
     
     def onClose(self):
         """
-        Stack is closes
+        @summary: Stack is closes
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onClose", "RDPClientObserver")) 
     
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
-        Notify bitmap update
+        @summary: Notify bitmap update
         @param destLeft: xmin position
         @param destTop: ymin position
         @param destRight: xmax position because RDP can send bitmap with padding
@@ -531,7 +583,7 @@ class RDPClientObserver(object):
     
 class RDPServerObserver(object):
     """
-    Class use to inform all RDP event handle by RDPY
+    @summary: Class use to inform all RDP event handle by RDPY
     """
     def __init__(self, controller):
         """
@@ -542,20 +594,20 @@ class RDPServerObserver(object):
         
     def onReady(self):
         """
-        Stack is ready and connected
+        @summary: Stack is ready and connected
         May be called after an setColorDepth too
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPServerObserver"))
     
     def onClose(self):
         """
-        Stack is closes
+        @summary: Stack is closes
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onClose", "RDPClientObserver")) 
     
     def onKeyEventScancode(self, code, isPressed):
         """
-        Event call when a keyboard event is catch in scan code format
+        @summary: Event call when a keyboard event is catch in scan code format
         @param code: scan code of key
         @param isPressed: True if key is down
         """
@@ -563,7 +615,7 @@ class RDPServerObserver(object):
     
     def onKeyEventUnicode(self, code, isPressed):
         """
-        Event call when a keyboard event is catch in unicode format
+        @summary: Event call when a keyboard event is catch in unicode format
         @param code: unicode of key
         @param isPressed: True if key is down
         """
@@ -571,7 +623,7 @@ class RDPServerObserver(object):
     
     def onPointerEvent(self, x, y, button, isPressed):
         """
-        Event call on mouse event
+        @summary: Event call on mouse event
         @param x: x position
         @param y: y position
         @param button: 1, 2 or 3 button

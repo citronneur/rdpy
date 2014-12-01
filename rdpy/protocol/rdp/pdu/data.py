@@ -930,7 +930,7 @@ class OrderUpdateDataPDU(CompositeType):
         self.pad2OctetsA = UInt16Le()
         self.numberOrders = UInt16Le(lambda:len(self.orderData._array))
         self.pad2OctetsB = UInt16Le()
-        self.orderData = ArrayType(order.DrawingOrder, readLen = self.numberOrders)
+        self.orderData = ArrayType(order.PrimaryDrawingOrder, readLen = self.numberOrders)
 
 class BitmapCompressedDataHeader(CompositeType):
     """

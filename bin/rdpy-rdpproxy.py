@@ -37,7 +37,7 @@ from rdpy.ui import view
 from twisted.internet import reactor
 from PyQt4 import QtCore, QtGui
 
-log._LOG_LEVEL = log.Level.INFO
+#log._LOG_LEVEL = log.Level.INFO
 
 class ProxyServer(rdp.RDPServerObserver):
     """

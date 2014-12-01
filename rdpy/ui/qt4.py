@@ -34,12 +34,12 @@ import rle
 
 class QAdaptor(object):
     """
-    Adaptor model with link between protocol
-    And Qt widget 
+    @summary:  Adaptor model with link between protocol
+                And Qt widget 
     """
     def sendMouseEvent(self, e, isPressed):
         """
-        Interface to send mouse event to protocol stack
+        @summary: Interface to send mouse event to protocol stack
         @param e: QMouseEvent
         @param isPressed: event come from press or release action
         """
@@ -47,11 +47,18 @@ class QAdaptor(object):
         
     def sendKeyEvent(self, e, isPressed):
         """
-        Interface to send key event to protocol stack
+        @summary: Interface to send key event to protocol stack
         @param e: QEvent
         @param isPressed: event come from press or release action
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendKeyEvent", "QAdaptor")) 
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendKeyEvent", "QAdaptor"))
+     
+    def sendWheelEvent(self, e):
+        """
+        @summary: Interface to send wheel event to protocol stack
+        @param e: QWheelEvent
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendWheelEvent", "QAdaptor")) 
     
     def getWidget(self):
         """
@@ -61,7 +68,7 @@ class QAdaptor(object):
     
     def closeEvent(self, e):
         """
-        Call when you want to close connection
+        @summary: Call when you want to close connection
         @param: QCloseEvent
         """ 
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "closeEvent", "QAdaptor"))
@@ -77,7 +84,7 @@ def qtImageFormatFromRFBPixelFormat(pixelFormat):
 
 class RFBClientQt(RFBClientObserver, QAdaptor):
     """
-    QAdaptor for specific RFB protocol stack
+    @summary: QAdaptor for specific RFB protocol stack
     is to an RFB observer 
     """   
     def __init__(self, controller):
@@ -97,7 +104,7 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
     
     def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
         """
-        Implement RFBClientObserver interface
+        @summary: Implement RFBClientObserver interface
         @param width: width of new image
         @param height: height of new image
         @param x: x position of new image
@@ -119,13 +126,11 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         @summary: event when server send cut text event
         @param text: text received
         """
-        pass
     
     def onBell(self):
         """
         @summary: event when server send biiip
         """
-        pass
     
     def onReady(self):
         """
@@ -136,7 +141,7 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         
     def sendMouseEvent(self, e, isPressed):
         """
-        Convert Qt mouse event to RFB mouse event
+        @summary: Convert Qt mouse event to RFB mouse event
         @param e: qMouseEvent
         @param isPressed: event come from press or release action
         """
@@ -152,29 +157,37 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         
     def sendKeyEvent(self, e, isPressed):
         """
-        Convert Qt key press event to RFB press event
+        @summary: Convert Qt key press event to RFB press event
         @param e: qKeyEvent
         @param isPressed: event come from press or release action
         """
         self.keyEvent(isPressed, e.nativeVirtualKey())
         
+    def sendWheelEvent(self, e):
+        """
+        @summary: Convert Qt wheel event to RFB Wheel event
+        @param e: QKeyEvent
+        @param isPressed: event come from press or release action
+        """
+        pass
+        
     def closeEvent(self, e):
         """
-        Call when you want to close connection
+        @summary: Call when you want to close connection
         @param: QCloseEvent
         """ 
         self._controller.close()
         
     def onClose(self):
         """
-        Call when stack is close
+        @summary: Call when stack is close
         """
         #do something maybe a message
         pass
 
 def RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data):
     """
-    Bitmap transformation to Qt object
+    @summary: Bitmap transformation to Qt object
     @param width: width of bitmap
     @param height: height of bitmap
     @param bitsPerPixel: number of bit per pixel
@@ -204,15 +217,15 @@ def RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data):
         if isCompress:
             buf = bytearray(width * height * 3)
             rle.bitmap_decompress(buf, width, height, data, 3)
-            image = QtGui.QImage(buf, width, height, QtGui.QImage.Format_RGB24)
+            image = QtGui.QImage(buf, width, height, QtGui.QImage.Format_RGB888)
         else:
-            image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB24).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
+            image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB888).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
             
     elif bitsPerPixel == 32:
         if isCompress:
             buf = bytearray(width * height * 4)
             rle.bitmap_decompress(buf, width, height, data, 4)
-            image = QtGui.QImage(buf, width, height, QtGui.QImage.Format_RGB24)
+            image = QtGui.QImage(buf, width, height, QtGui.QImage.Format_RGB32)
         else:
             image = QtGui.QImage(data, width, height, QtGui.QImage.Format_RGB32).transformed(QtGui.QMatrix(1.0, 0.0, 0.0, -1.0, 0.0, 0.0))
     else:
@@ -222,7 +235,7 @@ def RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data):
   
 class RDPClientQt(RDPClientObserver, QAdaptor):
     """
-    Adaptor for RDP client
+    @summary: Adaptor for RDP client
     """
     def __init__(self, controller, width, height):
         """
@@ -243,7 +256,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
     
     def sendMouseEvent(self, e, isPressed):
         """
-        Convert Qt mouse event to RDP mouse event
+        @summary: Convert Qt mouse event to RDP mouse event
         @param e: qMouseEvent
         @param isPressed: event come from press(true) or release(false) action
         """
@@ -251,15 +264,15 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         buttonNumber = 0
         if button == QtCore.Qt.LeftButton:
             buttonNumber = 1
-        elif button == QtCore.Qt.MidButton:
-            buttonNumber = 2
         elif button == QtCore.Qt.RightButton:
+            buttonNumber = 2
+        elif button == QtCore.Qt.MidButton:
             buttonNumber = 3  
         self._controller.sendPointerEvent(e.pos().x(), e.pos().y(), buttonNumber, isPressed)
         
     def sendKeyEvent(self, e, isPressed):
         """
-        Convert Qt key press event to RFB press event
+        @summary: Convert Qt key press event to RDP press event
         @param e: QKeyEvent
         @param isPressed: event come from press or release action
         """
@@ -267,17 +280,25 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         if sys.platform == "linux2":
             code -= 8
         self._controller.sendKeyEventScancode(code, isPressed)
+        
+    def sendWheelEvent(self, e):
+        """
+        @summary: Convert Qt wheel event to RDP Wheel event
+        @param e: QKeyEvent
+        @param isPressed: event come from press or release action
+        """
+        self._controller.sendWheelEvent(e.pos().x(), e.pos().y(), (abs(e.delta()) / 8) / 15, e.delta() < 0, e.orientation() == QtCore.Qt.Horizontal)
     
     def closeEvent(self, e):
         """
-        Convert Qt close widget event into close stack event
+        @summary: Convert Qt close widget event into close stack event
         @param e: QCloseEvent
         """
         self._controller.close()
     
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
-        Notify bitmap update
+        @summary: Notify bitmap update
         @param destLeft: xmin position
         @param destTop: ymin position
         @param destRight: xmax position because RDP can send bitmap with padding
@@ -295,14 +316,14 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
     
     def onReady(self):
         """
-        Call when stack is ready
+        @summary: Call when stack is ready
         """
         #do something maybe a loader
         pass
     
     def onClose(self):
         """
-        Call when stack is close
+        @summary: Call when stack is close
         """
         #do something maybe a message
         pass
@@ -310,7 +331,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         
 class QRemoteDesktop(QtGui.QWidget):
     """
-    Qt display widget
+    @summary: Qt display widget
     """
     def __init__(self, adaptor, width, height):
         """
@@ -334,7 +355,7 @@ class QRemoteDesktop(QtGui.QWidget):
     
     def notifyImage(self, x, y, qimage, width, height):
         """
-        Function call from QAdaptor
+        @summary: Function call from QAdaptor
         @param x: x position of new image
         @param y: y position of new image
         @param qimage: new QImage
@@ -346,7 +367,7 @@ class QRemoteDesktop(QtGui.QWidget):
         
     def paintEvent(self, e):
         """
-        Call when Qt renderer engine estimate that is needed
+        @summary: Call when Qt renderer engine estimate that is needed
         @param e: QEvent
         """
         #fill buffer image
@@ -362,42 +383,49 @@ class QRemoteDesktop(QtGui.QWidget):
         
     def mouseMoveEvent(self, event):
         """
-        Call when mouse move
+        @summary: Call when mouse move
         @param event: QMouseEvent
         """
         self._adaptor.sendMouseEvent(event, False)
         
     def mousePressEvent(self, event):
         """
-        Call when button mouse is pressed
+        @summary: Call when button mouse is pressed
         @param event: QMouseEvent
         """
         self._adaptor.sendMouseEvent(event, True)
         
     def mouseReleaseEvent(self, event):
         """
-        Call when button mouse is released
+        @summary: Call when button mouse is released
         @param event: QMouseEvent
         """
         self._adaptor.sendMouseEvent(event, False)
         
     def keyPressEvent(self, event):
         """
-        Call when button key is pressed
+        @summary: Call when button key is pressed
         @param event: QKeyEvent
         """
         self._adaptor.sendKeyEvent(event, True)
         
     def keyReleaseEvent(self, event):
         """
-        Call when button key is released
+        @summary: Call when button key is released
         @param event: QKeyEvent
         """
         self._adaptor.sendKeyEvent(event, False)
         
+    def wheelEvent(self, event):
+        """
+        @summary: Call on wheel event
+        @param event:    QWheelEvent
+        """
+        self._adaptor.sendWheelEvent(event)
+        
     def closeEvent(self, event):
         """
-        Call when widget is closed
+        @summary: Call when widget is closed
         @param event: QCloseEvent
         """
         self._adaptor.closeEvent(event)

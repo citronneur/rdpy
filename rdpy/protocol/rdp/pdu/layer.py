@@ -136,6 +136,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         self._listener = listener
         #enable or not fast path
         self._fastPathSender = None
+        self._licenceManager = lic.LicenseManager(self)
         
     def connect(self):
         """
@@ -177,18 +178,9 @@ class Client(PDULayer, tpkt.IFastPathListener):
         if not (securityFlag.value & data.SecurityFlag.SEC_LICENSE_PKT):
             raise InvalidExpectedDataException("Waiting license packet")
         
-        validClientPdu = lic.LicPacket()
-        s.readType(validClientPdu)
-        
-        if validClientPdu.bMsgtype.value == lic.MessageType.ERROR_ALERT and validClientPdu.licensingMessage.dwErrorCode.value == lic.ErrorCode.STATUS_VALID_CLIENT and validClientPdu.licensingMessage.dwStateTransition.value == lic.StateTransition.ST_NO_TRANSITION:
+        if self._licenceManager.recv(s):
             self.setNextState(self.recvDemandActivePDU)
-        #not tested because i can't buy RDP license server
-        elif validClientPdu.bMsgtype.value == lic.MessageType.LICENSE_REQUEST:
-            newLicenseReq = lic.createNewLicenseRequest(validClientPdu.licensingMessage)
-            self._transport.send((UInt16Le(data.SecurityFlag.SEC_LICENSE_PKT), UInt16Le(), newLicenseReq))
-        else:
-            raise InvalidExpectedDataException("Not a valid license packet")
-        
+                             
     def recvDemandActivePDU(self, s):
         """
         Receive demand active PDU which contains 
@@ -342,6 +334,13 @@ class Client(PDULayer, tpkt.IFastPathListener):
         client automata data
         """
         self._transport.send((UInt16Le(data.SecurityFlag.SEC_INFO_PKT), UInt16Le(), self._info))
+        
+    def sendLicensePacket(self, licPkt):
+        """
+        @summary: send license packet
+        @param licPktr: license packet
+        """
+        self._transport.send((UInt16Le(data.SecurityFlag.SEC_LICENSE_PKT), UInt16Le(), licPkt))
         
     def sendConfirmActivePDU(self):
         """
@@ -592,8 +591,7 @@ class Server(PDULayer, tpkt.IFastPathListener):
         
     def sendDemandActivePDU(self):
         """
-        Send server capabilities
-        server automata PDU
+        @summary: Send server capabilities server automata PDU
         """
         #init general capability
         generalCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
