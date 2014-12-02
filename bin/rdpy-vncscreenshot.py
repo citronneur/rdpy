@@ -138,7 +138,7 @@ def help():
         
 if __name__ == '__main__':
     #default script argument
-    path = "/tmp/rdpy-vncscreenshot.jpg"
+    path = "/tmp/"
     password = ""
     
     try:
@@ -154,20 +154,23 @@ if __name__ == '__main__':
         elif opt == "-p":
             password = arg
         
-            
-    if ':' in args[0]:
-        ip, port = args[0].split(':')
-    else:
-        ip, port = args[0], "5900"
-        
     #create application
     app = QtGui.QApplication(sys.argv)
     
     #add qt4 reactor
     import qt4reactor
     qt4reactor.install()
-    
     from twisted.internet import reactor
-    reactor.connectTCP(ip, int(port), RFBScreenShotFactory(password, path))
+
+    
+    for arg in args:      
+        if ':' in arg:
+            ip, port = arg.split(':')
+        else:
+            ip, port = arg, "5900"
+        
+        reactor.connectTCP(ip, int(port), RFBScreenShotFactory(password, path + "%s.jpg"%ip))
+        
+    
     reactor.runReturn()
     app.exec_()

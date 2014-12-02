@@ -99,19 +99,20 @@ class RDPScreenShotFactory(rdp.ClientFactory):
                 controller.setScreen(width, height);
                 self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
                 self._path = path
-                self._hasUpdated = True
-                self._brandWidthTask = task.LoopingCall(self.checkUpdate)
-                self._brandWidthTask.start(timeout) # call every second
+                self._timeout = timeout
+                self._startTimeout = False
                 
             def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
                 """
                 @summary: callback use when bitmap is received 
                 """
-                self._hasUpdated = True
                 image = RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data);
                 with QtGui.QPainter(self._buffer) as qp:
                 #draw image
                     qp.drawImage(destLeft, destTop, image, 0, 0, destRight - destLeft + 1, destBottom - destTop + 1)
+                if not self._startTimeout:
+                    self._startTimeout = False
+                    reactor.callLater(self._timeout, self.checkUpdate)
                    
             def onReady(self):
                 """
@@ -127,12 +128,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
                 self._buffer.save(self._path)
                 
             def checkUpdate(self):
-                if not self._hasUpdated:
-                    log.info("close connection on timeout without updating orders")
-                    self._controller.close();
-                    self._brandWidthTask.stop()
-                    return
-                self._hasUpdated = False
+                self._controller.close();
         
         return ScreenShotObserver(controller, self._width, self._height, self._path, self._timeout)
         
@@ -147,8 +143,8 @@ if __name__ == '__main__':
     #default script argument
     width = 1024
     height = 800
-    path = "/tmp/rdpy-rdpscreenshot.jpg"
-    timeout = 2.0
+    path = "/tmp/"
+    timeout = 5.0
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hw:l:o:t:")
@@ -166,12 +162,7 @@ if __name__ == '__main__':
             path = arg
         elif opt == "-t":
             timeout = float(arg)
-            
-    if ':' in args[0]:
-        ip, port = args[0].split(':')
-    else:
-        ip, port = args[0], "3389"
-        
+    
     #create application
     app = QtGui.QApplication(sys.argv)
     
@@ -180,6 +171,14 @@ if __name__ == '__main__':
     qt4reactor.install()
     
     from twisted.internet import reactor
-    reactor.connectTCP(ip, int(port), RDPScreenShotFactory(width, height, path, timeout))
+        
+    for arg in args:      
+        if ':' in arg:
+            ip, port = arg.split(':')
+        else:
+            ip, port = arg, "3389"
+            
+        reactor.connectTCP(ip, int(port), RDPScreenShotFactory(width, height, path + "%s.jpg"%ip, timeout))
+        
     reactor.runReturn()
     app.exec_()
