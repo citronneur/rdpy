@@ -37,11 +37,13 @@ class RFBScreenShotFactory(rfb.ClientFactory):
     """
     @summary: Factory for screenshot exemple
     """
+    __INSTANCE__ = 0
     def __init__(self, password, path):
         """
         @param password: password for VNC authentication
         @param path: path of output screenshot
         """
+        RFBScreenShotFactory.__INSTANCE__ += 1
         self._path = path
         self._password = password
         
@@ -52,8 +54,10 @@ class RFBScreenShotFactory(rfb.ClientFactory):
         @param reason: str use to advertise reason of lost connection
         """
         log.info("connection lost : %s"%reason)
-        reactor.stop()
-        app.exit()
+        RFBScreenShotFactory.__INSTANCE__ -= 1
+        if(RFBScreenShotFactory.__INSTANCE__ == 0):
+            reactor.stop()
+            app.exit()
         
     def clientConnectionFailed(self, connector, reason):
         """
@@ -62,8 +66,10 @@ class RFBScreenShotFactory(rfb.ClientFactory):
         @param reason: str use to advertise reason of lost connection
         """
         log.info("connection failed : %s"%reason)
-        reactor.stop()
-        app.exit()
+        RFBScreenShotFactory.__INSTANCE__ -= 1
+        if(RFBScreenShotFactory.__INSTANCE__ == 0):
+            reactor.stop()
+            app.exit()
         
         
     def buildObserver(self, controller, addr):

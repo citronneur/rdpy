@@ -38,6 +38,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
     """
     @summary: Factory for screenshot exemple
     """
+    __INSTANCE__ = 0
     def __init__(self, width, height, path, timeout):
         """
         @param width: width of screen
@@ -45,6 +46,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
         @param path: path of output screenshot
         @param timeout: close connection after timeout s without any updating
         """
+        RDPScreenShotFactory.__INSTANCE__ += 1
         self._width = width
         self._height = height
         self._path = path
@@ -57,8 +59,10 @@ class RDPScreenShotFactory(rdp.ClientFactory):
         @param reason: str use to advertise reason of lost connection
         """
         log.info("connection lost : %s"%reason)
-        reactor.stop()
-        app.exit()
+        RDPScreenShotFactory.__INSTANCE__ -= 1
+        if(RDPScreenShotFactory.__INSTANCE__ == 0):
+            reactor.stop()
+            app.exit()
         
     def clientConnectionFailed(self, connector, reason):
         """
@@ -66,9 +70,11 @@ class RDPScreenShotFactory(rdp.ClientFactory):
         @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
         """
-        log.info("connection failes : %s"%reason)
-        reactor.stop()
-        app.exit()
+        log.info("connection failed : %s"%reason)
+        RDPScreenShotFactory.__INSTANCE__ -= 1
+        if(RDPScreenShotFactory.__INSTANCE__ == 0):
+            reactor.stop()
+            app.exit()
         
         
     def buildObserver(self, controller, addr):
@@ -124,6 +130,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
                 if not self._hasUpdated:
                     log.info("close connection on timeout without updating orders")
                     self._controller.close();
+                    self._brandWidthTask.stop()
                     return
                 self._hasUpdated = False
         
