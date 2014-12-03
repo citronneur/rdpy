@@ -34,7 +34,7 @@ setup(name='rdpy',
 	install_requires=[
 			'twisted',
           	'pyopenssl',
-          	'service_identity'
+          	'service_identity',
           	'qt4reactor',
 	  	],
 )
