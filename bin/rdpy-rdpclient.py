@@ -118,14 +118,15 @@ def autoDetectKeyboardLayout():
                 return "fr"
         elif os.name == 'nt':
             import win32api, win32con, win32process
-            import ctypes.windll.user32 as user32
-            w = user32.GetForegroundWindow() 
-            tid = user32.GetWindowThreadProcessId(w, 0) 
-            result = user32.GetKeyboardLayout(tid)
-            if result == 0x409409:
+            from ctypes import windll
+            w = windll.user32.GetForegroundWindow() 
+            tid = windll.user32.GetWindowThreadProcessId(w, 0) 
+            result = windll.user32.GetKeyboardLayout(tid)
+            log.info(result)
+            if result == 0x40c040c:
                 return "fr"
-    except:
-        log.info("failed to auto detect keyboard layout")
+    except Exception as e:
+        log.info("failed to auto detect keyboard layout " + str(e))
         pass
     return "en"
         
