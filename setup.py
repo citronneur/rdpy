@@ -4,7 +4,7 @@ import setuptools
 from distutils.core import setup, Extension
 
 setup(name='rdpy',
-	version='1.1.1',
+	version='1.1.3',
 	description='Remote Desktop Protocol in Python',
 	long_description="""
 	RDPY is a pure Python implementation of the Microsoft RDP (Remote Desktop Protocol) protocol. 
