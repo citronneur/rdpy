@@ -21,12 +21,13 @@
 Implement transport PDU layer
 
 This layer have main goal to negociate SSL transport
-RDP basic security is not supported by RDPY (because is not a true security layer...)
+RDP basic security is supported only on client side
 """
 
 from rdpy.network.layer import LayerAutomata, IStreamSender
 from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
 from rdpy.base.error import InvalidExpectedDataException
+import rdpy.base.log as log 
 
 class MessageType(object):
     """
@@ -130,10 +131,9 @@ class X224Layer(LayerAutomata, IStreamSender):
         @param presentation: upper layer, MCS layer in RDP case
         """
         LayerAutomata.__init__(self, presentation)
-        #default selectedProtocol is SSl because is the only supported
-        #in this version of RDPY
+        #default selectedProtocol is SSl
         #client requested selectedProtocol
-        self._requestedProtocol = Protocols.PROTOCOL_SSL
+        self._requestedProtocol = Protocols.PROTOCOL_RDP
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     
@@ -196,19 +196,17 @@ class Client(X224Layer):
         data.readType(message)
         
         #check presence of negotiation response
-        if not message.protocolNeg._is_readed:
-            raise InvalidExpectedDataException("server must support negotiation protocol to use SSL")
+        if message.protocolNeg._is_readed:
+            self._selectedProtocol = message.protocolNeg.selectedProtocol.value
+        else:
+            self._selectedProtocol = Protocols.PROTOCOL_RDP
         
         if message.protocolNeg.failureCode._is_readed:
-            raise InvalidExpectedDataException("negotiation failure code %x"%message.protocolNeg.failureCode.value)
-        
-        self._selectedProtocol = message.protocolNeg.selectedProtocol.value
-        
-        if self._selectedProtocol != Protocols.PROTOCOL_SSL:
-            raise InvalidExpectedDataException("only SSL protocol is supported in RDPY version")
-        
-        #_transport is TPKT and transport is TCP layer of twisted
-        self._transport.transport.startTLS(ClientTLSContext())
+            log.info("negotiation failure code %x"%message.protocolNeg.failureCode.value)
+
+        if self._selectedProtocol == Protocols.PROTOCOL_SSL:
+            #_transport is TPKT and transport is TCP layer of twisted
+            self._transport.transport.startTLS(ClientTLSContext())
         
         #now i'm ready to receive data
         self.setNextState(self.recvData)

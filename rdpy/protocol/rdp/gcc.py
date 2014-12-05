@@ -126,7 +126,6 @@ class Sequence(object):
 class Encryption(object):
     """
     Encryption methods supported
-    @deprecated: because rdpy use SSL but need to send to server...
     @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
     """
     ENCRYPTION_FLAG_40BIT = 0x00000001
@@ -263,22 +262,18 @@ class ServerCoreData(CompositeType):
 class ClientSecurityData(CompositeType):
     """
     Client security setting
-    @deprecated: because we use ssl
     @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
     """
     _TYPE_ = MessageType.CS_SECURITY
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.encryptionMethods = UInt32Le()
+        self.encryptionMethods = UInt32Le(Encryption.ENCRYPTION_FLAG_128BIT)
         self.extEncryptionMethods = UInt32Le()
         
 class ServerSecurityData(CompositeType):
     """
     Server security settings
-    May be ignored because rdpy don't use 
-    RDP security level
-    @deprecated: because we use SSL
     @see: http://msdn.microsoft.com/en-us/library/cc240518.aspx
     """
     _TYPE_ = MessageType.SC_SECURITY
@@ -287,6 +282,10 @@ class ServerSecurityData(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.encryptionMethod = UInt32Le()
         self.encryptionLevel = UInt32Le() 
+        self.serverRandomLen = UInt32Le(0x00000020, constant = True, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
+        self.serverCertLen = UInt32Le(lambda:sizeof(self.serverCertificate), conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
+        self.serverRandom = String(readLen = self.serverRandomLen, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
+        self.serverCertificate = String(readLen = self.serverCertLen, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
 
 class ChannelDef(CompositeType):
     """
