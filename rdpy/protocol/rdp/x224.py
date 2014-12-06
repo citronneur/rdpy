@@ -201,6 +201,10 @@ class Client(X224Layer):
         else:
             self._selectedProtocol = Protocols.PROTOCOL_RDP
         
+        #NLA protocol doesn't support in actual version of RDPY
+        if self._selectedProtocol in [ Protocols.PROTOCOL_HYBRID, Protocols.PROTOCOL_HYBRID_EX ]:
+            raise InvalidExpectedDataException("RDPY doesn't support NLA security Layer")
+        
         if message.protocolNeg.failureCode._is_readed:
             log.info("negotiation failure code %x"%message.protocolNeg.failureCode.value)
 

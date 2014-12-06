@@ -96,9 +96,6 @@ class X224Case(unittest.TestCase):
                 
                 if t.protocolNeg.code != x224.NegociationType.TYPE_RDP_NEG_REQ:
                     raise X224Case.X224_FAIL()
-                
-                if t.protocolNeg.selectedProtocol.value != x224.Protocols.PROTOCOL_SSL:
-                    raise X224Case.X224_FAIL()
             
         def nextAutomata(data):
             raise X224Case.X224_PASS()
@@ -108,33 +105,7 @@ class X224Case(unittest.TestCase):
         layer.recvConnectionConfirm = nextAutomata
         layer.connect()
         
-        self.assertRaises(X224Case.X224_PASS, layer.recv, type.String('\x01\x02'))
-    
-    def test_x224_client_recvConnectionConfirm_negotiation_old(self):
-        """
-        @summary:  unit test for X224Client.recvConnectionConfirm and sendConnectionRequest function
-                    whithout protocol negotiation (doesn't support)
-        """
-        message = x224.ServerConnectionConfirm()
-        del message._typeName[message._typeName.index("protocolNeg")]
-        s = type.Stream()
-        s.writeType(message)
-        s.pos = 0
-        layer = x224.Client(None)
-        self.assertRaises(error.InvalidExpectedDataException, layer.recvConnectionConfirm, s)
-    
-    def test_x224_client_recvConnectionConfirm_negotiation_failure(self):
-        """
-        @summary:  unit test for X224Client.recvConnectionConfirm and sendConnectionRequest function
-                    check negotiation failure
-        """
-        message = x224.ServerConnectionConfirm()
-        message.protocolNeg.code.value = x224.NegociationType.TYPE_RDP_NEG_FAILURE
-        s = type.Stream()
-        s.writeType(message)
-        s.pos = 0
-        layer = x224.Client(None)
-        self.assertRaises(error.InvalidExpectedDataException, layer.recvConnectionConfirm, s)
+        self.assertRaises(X224Case.X224_PASS, layer.recv, type.String('\x01\x02'))  
         
     def test_x224_client_recvConnectionConfirm_negotiation_bad_protocol(self):
         """
@@ -142,7 +113,7 @@ class X224Case(unittest.TestCase):
                     Server ask another protocol than SSL
         """
         message = x224.ServerConnectionConfirm()
-        message.protocolNeg.selectedProtocol.value = x224.Protocols.PROTOCOL_RDP
+        message.protocolNeg.selectedProtocol.value = x224.Protocols.PROTOCOL_HYBRID
         s = type.Stream()
         s.writeType(message)
         s.pos = 0

@@ -22,12 +22,10 @@
 @see: http://msdn.microsoft.com/en-us/library/cc241880.aspx
 """
 
-from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType,\
-    Stream
+from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
 from rdpy.base.error import InvalidExpectedDataException
 import rdpy.base.log as log
-import rdpy.protocol.rdp.sec as sec
-import rdpy.protocol.rdp.rc4 as rc4
+import sec, rc4
 
 class MessageType(object):
     """
