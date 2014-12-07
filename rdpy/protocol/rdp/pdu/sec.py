@@ -22,7 +22,7 @@ Some use full methods for security in RDP
 """
 
 import sha, md5
-from rdpy.network.type import Stream, UInt32Le
+from rdpy.network.type import CompositeType, Stream, UInt32Le, String, sizeof
 
 def saltedHash(inputData, salt, salt1, salt2):
     """
@@ -94,3 +94,20 @@ def macData(macSaltKey, data):
     md5Digest.update(sha1Sig)
     
     return md5Digest.digest()
+
+class ClientSecurityExchangePDU(CompositeType):
+    """
+    @summary: contain client random for basic security
+    @see: http://msdn.microsoft.com/en-us/library/cc240472.aspx
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.length = UInt32Le(lambda:(sizeof(self) - 4))
+        self.encryptedClientRandom = String(readLen = self.length)
+
+class SecManager(object):
+    """
+    @summary: Basic RDP security manager
+    """
+    def __init__(self):
+        pass
