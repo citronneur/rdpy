@@ -78,9 +78,6 @@ class PDULayer(LayerAutomata):
     """
     def __init__(self):
         LayerAutomata.__init__(self, None)
-        
-        #logon info send from client to server
-        self._info = data.RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_CORE).rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
         #server capabilities
         self._serverCapabilities = {
             caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.GeneralCapability()),
@@ -327,13 +324,6 @@ class Client(PDULayer, tpkt.IFastPathListener):
         """
         if updateDataPDU.updateType.value == data.UpdateType.UPDATETYPE_BITMAP:
             self._listener.onUpdate(updateDataPDU.updateData.rectangles._array)
-        
-    def sendInfoPkt(self):
-        """
-        @summary: Send a logon info packet
-        client automata data
-        """
-        self._transport.send((UInt16Le(data.SecurityFlag.SEC_INFO_PKT), UInt16Le(), self._info))
         
     def sendLicensePacket(self, licPkt):
         """

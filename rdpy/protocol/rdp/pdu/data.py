@@ -26,50 +26,6 @@ from rdpy.network.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, 
 from rdpy.base.error import InvalidExpectedDataException
 import rdpy.base.log as log
 import caps, order
-
-class InfoFlag(object):
-    """
-    Client capabilities informations
-    """
-    INFO_MOUSE = 0x00000001
-    INFO_DISABLECTRLALTDEL = 0x00000002
-    INFO_AUTOLOGON = 0x00000008
-    INFO_UNICODE = 0x00000010
-    INFO_MAXIMIZESHELL = 0x00000020
-    INFO_LOGONNOTIFY = 0x00000040
-    INFO_COMPRESSION = 0x00000080
-    INFO_ENABLEWINDOWSKEY = 0x00000100
-    INFO_REMOTECONSOLEAUDIO = 0x00002000
-    INFO_FORCE_ENCRYPTED_CS_PDU = 0x00004000
-    INFO_RAIL = 0x00008000
-    INFO_LOGONERRORS = 0x00010000
-    INFO_MOUSE_HAS_WHEEL = 0x00020000
-    INFO_PASSWORD_IS_SC_PIN = 0x00040000
-    INFO_NOAUDIOPLAYBACK = 0x00080000
-    INFO_USING_SAVED_CREDS = 0x00100000
-    INFO_AUDIOCAPTURE = 0x00200000
-    INFO_VIDEO_DISABLE = 0x00400000
-    INFO_CompressionTypeMask = 0x00001E00
-
-class PerfFlag(object):
-    """
-    Network performances flag
-    """
-    PERF_DISABLE_WALLPAPER = 0x00000001
-    PERF_DISABLE_FULLWINDOWDRAG = 0x00000002
-    PERF_DISABLE_MENUANIMATIONS = 0x00000004
-    PERF_DISABLE_THEMING = 0x00000008
-    PERF_DISABLE_CURSOR_SHADOW = 0x00000020
-    PERF_DISABLE_CURSORSETTINGS = 0x00000040
-    PERF_ENABLE_FONT_SMOOTHING = 0x00000080
-    PERF_ENABLE_DESKTOP_COMPOSITION = 0x00000100
-
-class AfInet(object):
-    """
-    IPv4 or IPv6 adress style
-    """
-    AF_INET = 0x00002
-    AF_INET6 = 0x0017
  
 class PDUType(object):
     """
@@ -457,48 +413,7 @@ class ErrorInfo(object):
      ERRINFO_VCDATATOOLONG : "The size of a received Virtual Channel PDU (section 2.2.6.1) exceeds the chunking size specified in the Virtual Channel Capability Set (section 2.2.7.1.10).",
     }
     
-class RDPInfo(CompositeType):
-    """
-    Client informations
-    Contains credentials (very important packet)
-    @see: http://msdn.microsoft.com/en-us/library/cc240475.aspx
-    """
-    def __init__(self, extendedInfoConditional):
-        CompositeType.__init__(self)
-        #code page
-        self.codePage = UInt32Le()
-        #support flag
-        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_LOGONERRORS)
-        self.cbDomain = UInt16Le(lambda:sizeof(self.domain) - 2)
-        self.cbUserName = UInt16Le(lambda:sizeof(self.userName) - 2)
-        self.cbPassword = UInt16Le(lambda:sizeof(self.password) - 2)
-        self.cbAlternateShell = UInt16Le(lambda:sizeof(self.alternateShell) - 2)
-        self.cbWorkingDir = UInt16Le(lambda:sizeof(self.workingDir) - 2)
-        #microsoft domain
-        self.domain = String(readLen = UInt16Le(lambda:self.cbDomain.value + 2), unicode = True)
-        self.userName = String(readLen = UInt16Le(lambda:self.cbUserName.value + 2), unicode = True)
-        self.password = String(readLen = UInt16Le(lambda:self.cbPassword.value + 2), unicode = True)
-        #shell execute at start of session
-        self.alternateShell = String(readLen = UInt16Le(lambda:self.cbAlternateShell.value + 2), unicode = True)
-        #working directory for session
-        self.workingDir = String(readLen = UInt16Le(lambda:self.cbWorkingDir.value + 2), unicode = True)
-        self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
-        
-class RDPExtendedInfo(CompositeType):
-    """
-    Add more client informations
-    """
-    def __init__(self, conditional):
-        CompositeType.__init__(self, conditional = conditional)
-        self.clientAddressFamily = UInt16Le(AfInet.AF_INET)
-        self.cbClientAddress = UInt16Le(lambda:sizeof(self.clientAddress))
-        self.clientAddress = String(readLen = self.cbClientAddress, unicode = True)
-        self.cbClientDir = UInt16Le(lambda:sizeof(self.clientDir))
-        self.clientDir = String(readLen = self.cbClientDir, unicode = True)
-        #TODO make tiomezone
-        self.clientTimeZone = String("\x00" * 172)
-        self.clientSessionId = UInt32Le()
-        self.performanceFlags = UInt32Le()
+
 
 class ShareControlHeader(CompositeType):
     """
