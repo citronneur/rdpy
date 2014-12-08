@@ -27,7 +27,7 @@ import pdu.layer
 import pdu.data
 import pdu.caps
 import rdpy.base.log as log
-import tpkt, x224, mcs, gcc
+import tpkt, x224, mcs, gcc, sec
 
 class RDPClientController(pdu.layer.PDUClientListener):
     """
@@ -38,8 +38,10 @@ class RDPClientController(pdu.layer.PDUClientListener):
         self._clientObserver = []
         #PDU layer
         self._pduLayer = pdu.layer.Client(self)
+        #secure layer
+        self._secLayer = sec.SecLayer(self._pduLayer)
         #multi channel service
-        self._mcsLayer = mcs.Client(self._pduLayer)
+        self._mcsLayer = mcs.Client(self._secLayer)
         #transport pdu layer
         self._x224Layer = x224.Client(self._mcsLayer)
         #transport packet (protocol layer)
@@ -128,6 +130,12 @@ class RDPClientController(pdu.layer.PDUClientListener):
         """
         self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).clientName.value = hostname[:15] + "\x00" * (15 - len(hostname))
         self._pduLayer._licenceManager._hostname = hostname
+        
+    def setRDPBasicSecurity(self):
+        """
+        @summary: Request basic security
+        """
+        self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_RDP
         
     def addClientObserver(self, observer):
         """
@@ -478,8 +486,9 @@ class RDPServerController(pdu.layer.PDUServerListener):
 class ClientFactory(layer.RawLayerClientFactory):
     """
     @summary: Factory of Client RDP protocol
+    @param reason: twisted reason
     """
-    def connectionLost(self, tpktLayer):
+    def connectionLost(self, tpktLayer, reason):
         #retrieve controller
         x224Layer = tpktLayer._presentation
         mcsLayer = x224Layer._presentation
@@ -518,7 +527,10 @@ class ServerFactory(layer.RawLayerServerFactory):
         self._certificateFileName = certificateFileName
         self._colorDepth = colorDepth
     
-    def connectionLost(self, tpktLayer):
+    def connectionLost(self, tpktLayer, reason):
+        """
+        @param reason: twisted reason
+        """
         #retrieve controller
         x224Layer = tpktLayer._presentation
         mcsLayer = x224Layer._presentation

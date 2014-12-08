@@ -671,10 +671,11 @@ class ClientFactory(RawLayerClientFactory):
         self.buildObserver(controller, addr)
         return controller.getProtocol()
     
-    def connectionLost(self, rfblayer):
+    def connectionLost(self, rfblayer, reason):
         """
         @summary: Override this method to handle connection lost
         @param rfblayer: rfblayer that cause connectionLost event
+        @param reason: twisted reason
         """
         #call controller
         rfblayer._clientListener.onClose()

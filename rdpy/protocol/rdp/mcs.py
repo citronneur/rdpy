@@ -30,18 +30,18 @@ from rdpy.base.error import InvalidExpectedDataException, InvalidValue, InvalidS
 from rdpy.protocol.rdp.ber import writeLength
 import rdpy.base.log as log
 
-import ber, gcc, per
+import ber, gcc, per, sec
 
 class Message(object):
     """
-    Message type
+    @summary: Message type
     """
     MCS_TYPE_CONNECT_INITIAL = 0x65
     MCS_TYPE_CONNECT_RESPONSE = 0x66
 
 class DomainMCSPDU:
     """
-    Domain MCS PDU header
+    @summary: Domain MCS PDU header
     """
     ERECT_DOMAIN_REQUEST = 1
     DISCONNECT_PROVIDER_ULTIMATUM = 8
@@ -54,40 +54,42 @@ class DomainMCSPDU:
 
 class Channel:
     """
-    Channel id of main channels use in RDP
+    @summary: Channel id of main channels use in RDP
     """
     MCS_GLOBAL_CHANNEL = 1003
     MCS_USERCHANNEL_BASE = 1001
 
 class MCSLayer(LayerAutomata):
     """
-    Multiple Channel Service layer
+    @summary: Multiple Channel Service layer
     the main layer of RDP protocol
     is why he can do everything and more!
     """
     class MCSProxySender(Layer, IStreamSender):
         """
-        Proxy use to set as transport layer for upper channel
+        @summary: Proxy use to set as transport layer for upper channel
         use to abstract channel id for presentation layer
         """
-        def __init__(self, mcs, channelId):
+        def __init__(self, presentation, mcs, channelId):
             """
+            @param presentation: presentation layer 
             @param mcs: MCS layer use as proxy
             @param channelId: channel id for presentation layer 
             """
+            Layer.__init__(self, presentation)
             self._mcs = mcs
             self._channelId = channelId
             
         def send(self, data):
             """
-            A send proxy function, use channel id and specific 
+            @summary: A send proxy function, use channel id and specific 
             send function of MCS layer
             """
             self._mcs.send(self._channelId, data)
             
         def close(self):
             """
-            Close wrapped layer
+            @summary: Close wrapped layer
             """
             self._mcs.close()
             
@@ -139,7 +141,7 @@ class MCSLayer(LayerAutomata):
         
     def close(self):
         """
-        Send disconnect provider ultimatum
+        @summary: Send disconnect provider ultimatum
         """
         self._transport.send((UInt8(self.writeMCSPDUHeader(DomainMCSPDU.DISCONNECT_PROVIDER_ULTIMATUM, 1)),
                               per.writeEnumerates(0x80), String("\x00" * 6)))
@@ -147,7 +149,7 @@ class MCSLayer(LayerAutomata):
         
     def allChannelConnected(self):
         """
-        All channels are connected to MCS layer
+        @summary: All channels are connected to MCS layer
         Send connect to upper channel
         And prepare MCS layer to receive data
         """
@@ -156,12 +158,11 @@ class MCSLayer(LayerAutomata):
         #try connection on all requested channel
         for (channelId, layer) in self._channels.iteritems():
             #use proxy for each channel
-            layer._transport = MCSLayer.MCSProxySender(self, channelId)
-            layer.connect()
+            MCSLayer.MCSProxySender(layer, self, channelId).connect()
     
     def send(self, channelId, data):
         """
-        Specific send function for channelId
+        @summary: Specific send function for channelId
         @param channelId: Channel use to send
         @param data: message to send
         """
@@ -173,7 +174,7 @@ class MCSLayer(LayerAutomata):
         
     def recvData(self, data):
         """
-        Main receive method
+        @summary: Main receive method
         @param data: Stream 
         """
         opcode = UInt8()
@@ -205,7 +206,7 @@ class MCSLayer(LayerAutomata):
     
     def writeDomainParams(self, maxChannels, maxUsers, maxTokens, maxPduSize):
         """
-        Write a special domain parameter structure
+        @summary: Write a special domain parameter structure
         use in connection sequence
         @param maxChannels: number of MCS channel use
         @param maxUsers: number of MCS user used (1)
@@ -220,7 +221,7 @@ class MCSLayer(LayerAutomata):
     
     def writeMCSPDUHeader(self, mcsPdu, options = 0):
         """
-        Write MCS PDU header
+        @summary: Write MCS PDU header
         @param mcsPdu: PDU code
         @param options: option contains in header
         @return: UInt8
@@ -229,7 +230,7 @@ class MCSLayer(LayerAutomata):
     
     def readMCSPDUHeader(self, opcode, mcsPdu):
         """
-        Read mcsPdu header and return options parameter
+        @summary: Read mcsPdu header and return options parameter
         @param opcode: opcode
         @param mcsPdu: mcsPdu will be checked
         @return: true if opcode is correct
@@ -238,7 +239,7 @@ class MCSLayer(LayerAutomata):
     
     def readDomainParams(self, s):
         """
-        Read domain parameters structure
+        @summary: Read domain parameters structure
         @return: (max_channels, max_users, max_tokens, max_pdu_size)
         """
         if not ber.readUniversalTag(s, ber.Tag.BER_TAG_SEQUENCE, True):
@@ -256,7 +257,7 @@ class MCSLayer(LayerAutomata):
     
 class Client(MCSLayer):
     """
-    Client automata of multiple channel service layer
+    @summary: Client automata of multiple channel service layer
     """
     def __init__(self, presentation, virtualChannels = []):
         """
@@ -272,7 +273,7 @@ class Client(MCSLayer):
     
     def connect(self):
         """
-        Connect message in client automata case
+        @summary: Connect message in client automata case
         Send ConnectInitial
         Wait ConnectResponse
         """
@@ -286,7 +287,7 @@ class Client(MCSLayer):
         
     def connectNextChannel(self):
         """
-        Send sendChannelJoinRequest message on next disconnect channel
+        @summary: Send sendChannelJoinRequest message on next disconnect channel
         Send channel request or connect upper layer if all channels are connected
         Wait channel confirm
         """
@@ -314,7 +315,7 @@ class Client(MCSLayer):
         
     def recvConnectResponse(self, data):
         """
-        Receive MCS connect response from server
+        @summary: Receive MCS connect response from server
         Send Erect domain Request
         Send Attach User Request
         Wait Attach User Confirm
@@ -340,7 +341,7 @@ class Client(MCSLayer):
         
     def recvAttachUserConfirm(self, data):
         """
-        Receive an attach user confirm
+        @summary: Receive an attach user confirm
         Send Connect Channel
         @param data: Stream
         """
@@ -359,7 +360,7 @@ class Client(MCSLayer):
         
     def recvChannelJoinConfirm(self, data):
         """
-        Receive a channel join confirm from server
+        @summary: Receive a channel join confirm from server
         client automata function
         @param data: Stream
         """
@@ -390,7 +391,7 @@ class Client(MCSLayer):
         
     def sendConnectInitial(self):
         """
-        Send connect initial packet
+        @summary: Send connect initial packet
         client automata function
         """
         ccReq = gcc.writeConferenceCreateRequest(self._clientSettings)
@@ -406,7 +407,7 @@ class Client(MCSLayer):
         
     def sendErectDomainRequest(self):
         """
-        Send a formated erect domain request for RDP connection
+        @summary: Send a formated erect domain request for RDP connection
         """
         self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ERECT_DOMAIN_REQUEST)), 
                               per.writeInteger(0), 
@@ -414,13 +415,13 @@ class Client(MCSLayer):
         
     def sendAttachUserRequest(self):
         """
-        Send a formated attach user request for RDP connection
+        @summary: Send a formated attach user request for RDP connection
         """
         self._transport.send(self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ATTACH_USER_REQUEST)))
         
     def sendChannelJoinRequest(self, channelId):
         """
-        Send a formated Channel join request from client to server
+        @summary: Send a formated Channel join request from client to server
         client automata function
         @param channelId: id of channel requested
         """
@@ -430,7 +431,7 @@ class Client(MCSLayer):
         
 class Server(MCSLayer):
     """
-    Server automata of multiple channel service layer
+    @summary: Server automata of multiple channel service layer
     """
     def __init__(self, presentation, virtualChannels = []):
         """
@@ -443,7 +444,7 @@ class Server(MCSLayer):
         
     def connect(self):
         """
-        Connect message for server automata
+        @summary: Connect message for server automata
         Wait Connect Initial
         """
         self._serverSettings.getBlock(gcc.MessageType.SC_CORE).clientRequestedProtocol.value = self._transport._requestedProtocol
@@ -451,7 +452,7 @@ class Server(MCSLayer):
         
     def recvConnectInitial(self, data):
         """
-        Receive MCS connect initial from client
+        @summary: Receive MCS connect initial from client
         Send Connect Response
         Wait Erect Domain Request
         @param data: Stream
@@ -482,7 +483,7 @@ class Server(MCSLayer):
         
     def recvErectDomainRequest(self, data):
         """
-        Receive erect domain request
+        @summary: Receive erect domain request
         Wait Attach User Request
         @param data: Stream
         """
@@ -499,7 +500,7 @@ class Server(MCSLayer):
         
     def recvAttachUserRequest(self, data):
         """
-        Receive Attach user request
+        @summary: Receive Attach user request
         Send Attach User Confirm
         Wait Channel Join Request
         @param data: Stream
@@ -515,7 +516,7 @@ class Server(MCSLayer):
         
     def recvChannelJoinRequest(self, data):
         """
-        Receive for each client channel a request
+        @summary: Receive for each client channel a request
         Send Channel Join Confirm or Connect upper layer when all channel are joined
         @param data: Stream
         
@@ -540,7 +541,7 @@ class Server(MCSLayer):
         
     def sendConnectResponse(self):
         """
-        Send connect response
+        @summary: Send connect response
         """
         ccReq = gcc.writeConferenceCreateResponse(self._serverSettings)
         ccReqStream = Stream()
@@ -552,7 +553,7 @@ class Server(MCSLayer):
         
     def sendAttachUserConfirm(self):
         """
-        Send attach user confirm
+        @summary: Send attach user confirm
         """
         self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.ATTACH_USER_CONFIRM), 2), 
                              per.writeEnumerates(0), 
@@ -560,7 +561,7 @@ class Server(MCSLayer):
         
     def sendChannelJoinConfirm(self, channelId, confirm):
         """
-        Send a confirm channel (or not) to client
+        @summary: Send a confirm channel (or not) to client
         @param channelId: id of channel
         @param confirm: connection state 
         """

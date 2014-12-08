@@ -33,17 +33,17 @@ import lic, data, caps
 
 class PDUClientListener(object):
     """
-    Interface for PDU client automata listener
+    @summary: Interface for PDU client automata listener
     """
     def onReady(self):
         """
-        Event call when PDU layer is ready to send events
+        @summary: Event call when PDU layer is ready to send events
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "PDUClientListener"))
     
     def onUpdate(self, rectangles):
         """
-        call when a bitmap data is received from update PDU
+        @summary: call when a bitmap data is received from update PDU
         @param rectangles: [pdu.BitmapData] struct
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onUpdate", "PDUClientListener"))
@@ -56,24 +56,24 @@ class PDUClientListener(object):
 
 class PDUServerListener(object):
     """
-    Interface for PDU server automata listener
+    @summary: Interface for PDU server automata listener
     """
     def onReady(self):
         """
-        Event call when PDU layer is ready to send update
+        @summary: Event call when PDU layer is ready to send update
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "PDUServerListener"))
     
     def onSlowPathInput(self, slowPathInputEvents):
         """
-        Event call when slow path input are available
+        @summary: Event call when slow path input are available
         @param slowPathInputEvents: [data.SlowPathInputEvent]
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onSlowPathInput", "PDUServerListener"))
     
 class PDULayer(LayerAutomata):
     """
-    Global channel for MCS that handle session
+    @summary: Global channel for MCS that handle session
     identification user, licensing management, and capabilities exchange
     """
     def __init__(self):
@@ -112,21 +112,21 @@ class PDULayer(LayerAutomata):
     
     def sendPDU(self, pduMessage):
         """
-        Send a PDU data to transport layer
+        @summary: Send a PDU data to transport layer
         @param pduMessage: PDU message
         """
         self._transport.send(data.PDU(self._transport.getUserId(), pduMessage))
         
     def sendDataPDU(self, pduData):
         """
-        Send an PDUData to transport layer
+        @summary: Send an PDUData to transport layer
         @param pduData: PDU data message
         """
         self.sendPDU(data.DataPDU(pduData, self._shareId))
 
 class Client(PDULayer, tpkt.IFastPathListener):
     """
-    Client automata of PDU layer
+    @summary: Client automata of PDU layer
     """
     def __init__(self, listener):
         """
@@ -140,7 +140,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def connect(self):
         """
-        Connect message in client automata
+        @summary: Connect message in client automata
         Send INfo packet (credentials)
         Wait License info
         """
@@ -152,7 +152,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def close(self):
         """
-        Send PDU close packet and call close method on transport method
+        @summary: Send PDU close packet and call close method on transport method
         """
         self._transport.close()
         #self.sendDataPDU(data.ShutdownRequestPDU())
@@ -166,7 +166,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def recvLicenceInfo(self, s):
         """
-        Read license info packet and check if is a valid client info
+        @summary: Read license info packet and check if is a valid client info
         Wait Demand Active PDU
         @param s: Stream
         """
@@ -183,7 +183,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
                              
     def recvDemandActivePDU(self, s):
         """
-        Receive demand active PDU which contains 
+        @summary: Receive demand active PDU which contains 
         Server capabilities. In this version of RDPY only
         Restricted group of capabilities are used.
         Send Confirm Active PDU
@@ -212,7 +212,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def recvServerSynchronizePDU(self, s):
         """
-        Receive from server 
+        @summary: Receive from server 
         Wait Control Cooperate PDU
         @param s: Stream from transport layer
         """
@@ -228,7 +228,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def recvServerControlCooperatePDU(self, s):
         """
-        Receive control cooperate PDU from server
+        @summary: Receive control cooperate PDU from server
         Wait Control Granted PDU
         @param s: Stream from transport layer
         """
@@ -244,7 +244,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def recvServerControlGrantedPDU(self, s):
         """
-        Receive last control PDU the granted control PDU
+        @summary: Receive last control PDU the granted control PDU
         Wait Font map PDU
         @param s: Stream from transport layer
         """
@@ -260,7 +260,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def recvServerFontMapPDU(self, s):
         """
-        Last useless connection packet from server to client
+        @summary: Last useless connection packet from server to client
         Wait any PDU
         @param s: Stream from transport layer
         """
@@ -278,7 +278,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def recvPDU(self, s):
         """
-        Main receive function after connection sequence
+        @summary: Main receive function after connection sequence
         @param s: Stream from transport layer
         """
         pdu = data.PDU()
@@ -293,7 +293,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def recvFastPath(self, fastPathS):
         """
-        Implement IFastPathListener interface
+        @summary: Implement IFastPathListener interface
         Fast path is needed by RDP 8.0
         @param fastPathS: Stream that contain fast path data
         """
@@ -304,7 +304,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
             
     def readDataPDU(self, dataPDU):
         """
-        read a data PDU object
+        @summary: read a data PDU object
         @param dataPDU: DataPDU object
         """
         if dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
@@ -321,7 +321,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
     
     def readUpdateDataPDU(self, updateDataPDU):
         """
-        Read an update data PDU data
+        @summary: Read an update data PDU data
         dispatch update data
         @param: UpdateDataPDU object
         """
@@ -330,7 +330,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def sendInfoPkt(self):
         """
-        Send a logon info packet
+        @summary: Send a logon info packet
         client automata data
         """
         self._transport.send((UInt16Le(data.SecurityFlag.SEC_INFO_PKT), UInt16Le(), self._info))

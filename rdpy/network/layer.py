@@ -129,10 +129,11 @@ class RawLayerClientFactory(protocol.ClientFactory):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildRawLayer", "RawLayerClientFactory"))
     
-    def connectionLost(self, rawlayer):
+    def connectionLost(self, rawlayer, reason):
         """
         @summary: Override this method to handle connection lost
         @param rawlayer: rawLayer that cause connectionLost event
+        @param reason: twisted reason
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "connectionLost", "RawLayerClientFactory"))
     
@@ -156,10 +157,11 @@ class RawLayerServerFactory(protocol.ClientFactory):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
     
-    def connectionLost(self, rawlayer):
+    def connectionLost(self, rawlayer, reason):
         """
         @summary: Override this method to handle connection lost
         @param rawlayer: rawLayer that cause connectionLost event
+        @param reason: twisted reason
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
     
@@ -218,7 +220,7 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         @summary: Call from twisted engine when protocol is closed
         @param reason: str represent reason of close connection
         """
-        self._factory.connectionLost(self)
+        self._factory.connectionLost(self, reason)
         
     def close(self):
         """

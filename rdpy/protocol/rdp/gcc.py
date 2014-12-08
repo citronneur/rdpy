@@ -188,6 +188,13 @@ class KeyboardLayout(object):
     DUTCH = 0x00000413
     NORWEGIAN = 0x00000414
     
+class CertificateType(object):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc240521.aspx
+    """
+    CERT_CHAIN_VERSION_1 = 0x00000001
+    CERT_CHAIN_VERSION_2 = 0x00000002
+    
 class DataBlock(CompositeType):
     """
     Block settings
@@ -268,7 +275,7 @@ class ClientSecurityData(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.encryptionMethods = UInt32Le(Encryption.ENCRYPTION_FLAG_128BIT)
+        self.encryptionMethods = UInt32Le(Encryption.ENCRYPTION_FLAG_40BIT | Encryption.ENCRYPTION_FLAG_56BIT | Encryption.ENCRYPTION_FLAG_128BIT)
         self.extEncryptionMethods = UInt32Le()
         
 class ServerSecurityData(CompositeType):
@@ -285,7 +292,59 @@ class ServerSecurityData(CompositeType):
         self.serverRandomLen = UInt32Le(0x00000020, constant = True, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
         self.serverCertLen = UInt32Le(lambda:sizeof(self.serverCertificate), conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
         self.serverRandom = String(readLen = self.serverRandomLen, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
-        self.serverCertificate = String(readLen = self.serverCertLen, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
+        self.serverCertificate = ServerCertificate(readLen = self.serverCertLen, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
+
+class ServerCertificate(CompositeType):
+    """
+    @summary: Server certificate structure
+    @see: http://msdn.microsoft.com/en-us/library/cc240521.aspx
+    """
+    def __init__(self, readLen, conditional):
+        CompositeType.__init__(self, readLen = readLen, conditional = conditional)
+        self.dwVersion = UInt32Le()
+        
+        def CertificateFactory():
+            """
+            Closure for capability factory
+            """
+            for c in [ProprietaryServerCertificate]:
+                if self.dwVersion.value & 0x7fffffff == c._TYPE_:
+                    return c()
+            raise InvalidExpectedDataException("unknown certificate type : %s (RDPY doesn't support x.509 format please repport a bug)"%hex(self.dwVersion.value))
+            
+        self.certData = FactoryType(CertificateFactory)
+        
+class ProprietaryServerCertificate(CompositeType):
+    """
+    @summary: microsoft proprietary certificate
+    @see: http://msdn.microsoft.com/en-us/library/cc240519.aspx
+    """
+    _TYPE_ = CertificateType.CERT_CHAIN_VERSION_1
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.dwSigAlgId = UInt32Le(0x00000001, constant = True)
+        self.dwKeyAlgId = UInt32Le(0x00000001, constant = True)
+        self.wPublicKeyBlobType = UInt16Le(0x0006, constant = True)
+        self.wPublicKeyBlobLen = UInt16Le(lambda:sizeof(self.PublicKeyBlob))
+        self.PublicKeyBlob = RSAPublicKey(readLen = self.wPublicKeyBlobLen)
+        self.wSignatureBlobType = UInt16Le(0x0008, constant = True)
+        self.wSignatureBlobLen = UInt16Le(lambda:sizeof(self.SignatureBlob))
+        self.SignatureBlob = String(readLen = self.wSignatureBlobLen)
+        
+class RSAPublicKey(CompositeType):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc240520.aspx
+    """
+    def __init__(self, readLen):
+        CompositeType.__init__(self, readLen = readLen)
+        self.magic = UInt32Le(0x31415352, constant = True)
+        self.keylen = UInt32Le(lambda:sizeof(self.modulus))
+        self.bitlen = UInt32Le()
+        self.datalen = UInt32Le()
+        self.pubExp = UInt32Le()
+        self.modulus = String(readLen = lambda:(self.keylen - 8))
+        self.padding = String("\x00" * 8, constant = True)
 
 class ChannelDef(CompositeType):
     """

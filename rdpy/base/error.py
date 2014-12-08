@@ -90,3 +90,13 @@ class ErrorReportedFromPeer(Exception):
         @param message: message show when exception is raised
         """
         Exception.__init__(self, message)
+        
+class RDPSecurityNegoFail(Exception):
+    """
+    @summary: Raise when security nego fail
+    """
+    def __init__(self, message = ""):
+        """
+        @param message: message show when exception is raised
+        """
+        Exception.__init__(self, message)

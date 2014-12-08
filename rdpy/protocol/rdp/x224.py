@@ -26,8 +26,7 @@ RDP basic security is supported only on client side
 
 from rdpy.network.layer import LayerAutomata, IStreamSender
 from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
-from rdpy.base.error import InvalidExpectedDataException
-import rdpy.base.log as log 
+from rdpy.base.error import InvalidExpectedDataException, RDPSecurityNegoFail
 
 class MessageType(object):
     """
@@ -133,7 +132,7 @@ class X224Layer(LayerAutomata, IStreamSender):
         LayerAutomata.__init__(self, presentation)
         #default selectedProtocol is SSl
         #client requested selectedProtocol
-        self._requestedProtocol = Protocols.PROTOCOL_RDP
+        self._requestedProtocol = Protocols.PROTOCOL_RDP | Protocols.PROTOCOL_SSL
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     
@@ -195,6 +194,9 @@ class Client(X224Layer):
         message = ServerConnectionConfirm()
         data.readType(message)
         
+        if message.protocolNeg.failureCode._is_readed:
+            raise RDPSecurityNegoFail("negotiation failure code %x"%message.protocolNeg.failureCode.value)
+        
         #check presence of negotiation response
         if message.protocolNeg._is_readed:
             self._selectedProtocol = message.protocolNeg.selectedProtocol.value
@@ -205,9 +207,6 @@ class Client(X224Layer):
         if self._selectedProtocol in [ Protocols.PROTOCOL_HYBRID, Protocols.PROTOCOL_HYBRID_EX ]:
             raise InvalidExpectedDataException("RDPY doesn't support NLA security Layer")
         
-        if message.protocolNeg.failureCode._is_readed:
-            log.info("negotiation failure code %x"%message.protocolNeg.failureCode.value)
-
         if self._selectedProtocol == Protocols.PROTOCOL_SSL:
             #_transport is TPKT and transport is TCP layer of twisted
             self._transport.transport.startTLS(ClientTLSContext())

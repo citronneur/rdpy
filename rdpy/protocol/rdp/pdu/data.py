@@ -27,28 +27,6 @@ from rdpy.base.error import InvalidExpectedDataException
 import rdpy.base.log as log
 import caps, order
 
-class SecurityFlag(object):
-    """
-    Microsoft security flags
-    @see: http://msdn.microsoft.com/en-us/library/cc240579.aspx
-    """
-    SEC_EXCHANGE_PKT = 0x0001
-    SEC_TRANSPORT_REQ = 0x0002
-    RDP_SEC_TRANSPORT_RSP = 0x0004
-    SEC_ENCRYPT = 0x0008
-    SEC_RESET_SEQNO = 0x0010
-    SEC_IGNORE_SEQNO = 0x0020
-    SEC_INFO_PKT = 0x0040
-    SEC_LICENSE_PKT = 0x0080
-    SEC_LICENSE_ENCRYPT_CS = 0x0200
-    SEC_LICENSE_ENCRYPT_SC = 0x0200
-    SEC_REDIRECTION_PKT = 0x0400
-    SEC_SECURE_CHECKSUM = 0x0800
-    SEC_AUTODETECT_REQ = 0x1000
-    SEC_AUTODETECT_RSP = 0x2000
-    SEC_HEARTBEAT = 0x4000
-    SEC_FLAGSHI_VALID = 0x8000
-
 class InfoFlag(object):
     """
     Client capabilities informations

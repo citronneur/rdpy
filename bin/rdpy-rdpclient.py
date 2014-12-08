@@ -26,6 +26,7 @@ import sys, os, getopt, socket
 from PyQt4 import QtGui, QtCore
 from rdpy.ui.qt4 import RDPClientQt
 from rdpy.protocol.rdp import rdp
+from rdpy.base.error import RDPSecurityNegoFail
 
 import rdpy.base.log as log
 log._LOG_LEVEL = log.Level.INFO
@@ -54,6 +55,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
         self._keyboardLayout = keyboardLayout
         self._optimized = optimized
         self._w = None
+        self._basicRDPSecurity = False
         
     def buildObserver(self, controller, addr):
         """
@@ -80,6 +82,9 @@ class RDPClientQtFactory(rdp.ClientFactory):
         controller.setHostname(socket.gethostname())
         if self._optimized:
             controller.setPerformanceSession()
+            
+        if self._basicRDPSecurity:
+            controller.setRDPBasicSecurity()
         
         return client
         
@@ -92,6 +97,12 @@ class RDPClientQtFactory(rdp.ClientFactory):
         @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
         """
+        #try reconnect with basic RDP security
+        if reason.type == RDPSecurityNegoFail and not self._basicRDPSecurity:
+            self._basicRDPSecurity = True
+            connector.connect()
+            return
+        
         QtGui.QMessageBox.warning(self._w, "Warning", "Lost connection : %s"%reason)
         reactor.stop()
         app.exit()

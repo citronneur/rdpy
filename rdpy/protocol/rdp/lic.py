@@ -25,7 +25,7 @@
 from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
 from rdpy.base.error import InvalidExpectedDataException
 import rdpy.base.log as log
-import sec, rc4
+import rc4, sec
 
 class MessageType(object):
     """
@@ -271,8 +271,8 @@ class LicenseManager(object):
         """
         @summary: generate key for license session
         """
-        masterSecret = sec.generateMicrosoftKey(self._preMasterSecret, self._clientRandom, self._serverRandom)
-        sessionKeyBlob = sec.generateMicrosoftKey(masterSecret, self._serverRandom, self._clientRandom)
+        masterSecret = sec.generateMicrosoftKeyABBCCC(self._preMasterSecret, self._clientRandom, self._serverRandom)
+        sessionKeyBlob = sec.generateMicrosoftKeyABBCCC(masterSecret, self._serverRandom, self._clientRandom)
         self._macSalt = sessionKeyBlob[:16]
         self._licenseKey = sec.finalHash(sessionKeyBlob[16:32], self._clientRandom, self._serverRandom)
         
