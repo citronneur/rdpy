@@ -27,7 +27,7 @@ from PyQt4 import QtGui
 from rdpy.ui.qt4 import RFBClientQt
 from rdpy.protocol.rfb import rfb
 
-import rdpy.base.log as log
+import rdpy.core.log as log
 log._LOG_LEVEL = log.Level.INFO
         
 class RFBClientQtFactory(rfb.ClientFactory):

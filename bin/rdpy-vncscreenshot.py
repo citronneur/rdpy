@@ -26,7 +26,7 @@ take screenshot of login page
 import sys, os, getopt
 from PyQt4 import QtCore, QtGui
 from rdpy.protocol.rfb import rfb
-import rdpy.base.log as log
+import rdpy.core.log as log
 from rdpy.ui.qt4 import qtImageFormatFromRFBPixelFormat
 from twisted.internet import task
 

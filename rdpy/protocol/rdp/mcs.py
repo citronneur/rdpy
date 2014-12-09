@@ -24,13 +24,13 @@ Each channel have a particular role.
 The main channel is the graphical channel.
 It exist channel for file system order, audio channel, clipboard etc...
 """
-from rdpy.network.layer import LayerAutomata, IStreamSender, Layer
-from rdpy.network.type import sizeof, Stream, UInt8, UInt16Le, String
-from rdpy.base.error import InvalidExpectedDataException, InvalidValue, InvalidSize
+from rdpy.core.layer import LayerAutomata, IStreamSender, Layer
+from rdpy.core.type import sizeof, Stream, UInt8, UInt16Le, String
+from rdpy.core.error import InvalidExpectedDataException, InvalidValue, InvalidSize
 from rdpy.protocol.rdp.ber import writeLength
-import rdpy.base.log as log
+import rdpy.core.log as log
 
-import ber, gcc, per, sec
+import ber, gcc, per
 
 class Message(object):
     """

@@ -24,9 +24,9 @@ This layer have main goal to negociate SSL transport
 RDP basic security is supported only on client side
 """
 
-from rdpy.network.layer import LayerAutomata, IStreamSender
-from rdpy.network.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
-from rdpy.base.error import InvalidExpectedDataException, RDPSecurityNegoFail
+from rdpy.core.layer import LayerAutomata, IStreamSender
+from rdpy.core.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
+from rdpy.core.error import InvalidExpectedDataException, RDPSecurityNegoFail
 
 class MessageType(object):
     """
@@ -132,7 +132,7 @@ class X224Layer(LayerAutomata, IStreamSender):
         LayerAutomata.__init__(self, presentation)
         #default selectedProtocol is SSl
         #client requested selectedProtocol
-        self._requestedProtocol = Protocols.PROTOCOL_RDP | Protocols.PROTOCOL_SSL
+        self._requestedProtocol = Protocols.PROTOCOL_RDP
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     

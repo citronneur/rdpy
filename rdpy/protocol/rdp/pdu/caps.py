@@ -16,19 +16,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-from rdpy.base.error import InvalidExpectedDataException
-import rdpy.base.log as log
+from rdpy.core.error import InvalidExpectedDataException
+import rdpy.core.log as log
 
 """
 Definition of structure use for capabilities nego
 Use in PDU layer
 """
 
-from rdpy.network.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+from rdpy.core.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
     
 class CapsType(object):
     """
-    Different type of capabilities
+    @summary: Different type of capabilities
     @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
     """
     CAPSTYPE_GENERAL = 0x0001
@@ -62,7 +62,7 @@ class CapsType(object):
     
 class MajorType(object):
     """
-    Use in general capability
+    @summary: Use in general capability
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
     """
     OSMAJORTYPE_UNSPECIFIED = 0x0000
@@ -76,7 +76,7 @@ class MajorType(object):
         
 class MinorType(object):
     """
-    Use in general capability
+    @summary: Use in general capability
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
     """
     OSMINORTYPE_UNSPECIFIED = 0x0000
@@ -92,7 +92,7 @@ class MinorType(object):
  
 class GeneralExtraFlag(object):
     """
-    Use in general capability
+    @summary: Use in general capability
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
     """
     FASTPATH_OUTPUT_SUPPORTED = 0x0001
@@ -107,7 +107,7 @@ class Boolean(object):
  
 class OrderFlag(object):
     """
-    Use in order capability
+    @summary: Use in order capability
     @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
     """
     NEGOTIATEORDERSUPPORT = 0x0002
@@ -118,7 +118,7 @@ class OrderFlag(object):
      
 class Order(object):
     """
-    Drawing orders supported
+    @summary: Drawing orders supported
     Use in order capability
     @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
     """
@@ -146,7 +146,7 @@ class Order(object):
         
 class OrderEx(object):
     """
-    Extension orders
+    @summary: Extension orders
     Use in order capability
     """
     ORDERFLAGS_EX_CACHE_BITMAP_REV3_SUPPORT = 0x0002
@@ -154,7 +154,7 @@ class OrderEx(object):
 
 class InputFlags(object):
     """
-    Input flag use in input capability
+    @summary: Input flag use in input capability
     @see:  http://msdn.microsoft.com/en-us/library/cc240563.aspx
     """
     INPUT_FLAG_SCANCODES = 0x0001
@@ -168,7 +168,7 @@ class InputFlags(object):
 
 class BrushSupport(object):
     """
-    Brush support of client
+    @summary: Brush support of client
     @see: http://msdn.microsoft.com/en-us/library/cc240564.aspx
     """
     BRUSH_DEFAULT = 0x00000000
@@ -177,7 +177,7 @@ class BrushSupport(object):
 
 class GlyphSupport(object):
     """
-    Use by glyph order
+    @summary: Use by glyph order
     @see: http://msdn.microsoft.com/en-us/library/cc240565.aspx
     """
     GLYPH_SUPPORT_NONE = 0x0000
@@ -187,7 +187,7 @@ class GlyphSupport(object):
    
 class OffscreenSupportLevel(object):
     """
-    Use to determine offscreen cache level supported
+    @summary: Use to determine offscreen cache level supported
     @see: http://msdn.microsoft.com/en-us/library/cc240550.aspx
     """
     FALSE = 0x00000000
@@ -195,7 +195,7 @@ class OffscreenSupportLevel(object):
  
 class VirtualChannelCompressionFlag(object):
     """
-    Use to determine virtual channel compression
+    @summary: Use to determine virtual channel compression
     @see: http://msdn.microsoft.com/en-us/library/cc240551.aspx
     """
     VCCAPS_NO_COMPR = 0x00000000
@@ -204,7 +204,7 @@ class VirtualChannelCompressionFlag(object):
   
 class SoundFlag(object):
     """
-    Use in sound capability to inform it
+    @summary: Use in sound capability to inform it
     @see: http://msdn.microsoft.com/en-us/library/cc240552.aspx
     """
     NONE = 0x0000
@@ -212,7 +212,7 @@ class SoundFlag(object):
 
 class CacheEntry(CompositeType):
     """
-    Use in capability cache exchange
+    @summary: Use in capability cache exchange
     @see: http://msdn.microsoft.com/en-us/library/cc240566.aspx
     """
     def __init__(self):
@@ -223,7 +223,7 @@ class CacheEntry(CompositeType):
     
 class Capability(CompositeType):
     """
-    A capability
+    @summary: A capability
     @see: http://msdn.microsoft.com/en-us/library/cc240486.aspx
     """
     def __init__(self, capability = None):
@@ -236,7 +236,7 @@ class Capability(CompositeType):
             Closure for capability factory
             """
             for c in [GeneralCapability, BitmapCapability, OrderCapability, BitmapCacheCapability, PointerCapability, InputCapability, BrushCapability, GlyphCapability, OffscreenBitmapCacheCapability, VirtualChannelCapability, SoundCapability, ControlCapability, WindowActivationCapability, FontCapability, ColorCacheCapability, ShareCapability]:
-                if self.capabilitySetType.value == c._TYPE_:
+                if self.capabilitySetType.value == c._TYPE_ and (self.lengthCapability.value - 4) > 0:
                     return c(readLen = self.lengthCapability - 4)
             log.debug("unknown Capability type : %s"%hex(self.capabilitySetType.value))
             #read entire packet
@@ -251,7 +251,7 @@ class Capability(CompositeType):
 
 class GeneralCapability(CompositeType):
     """
-    General capability (protocol version and compression mode)
+    @summary: General capability (protocol version and compression mode)
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240549.aspx
@@ -274,7 +274,7 @@ class GeneralCapability(CompositeType):
         
 class BitmapCapability(CompositeType):
     """
-    Bitmap format Capability
+    @summary: Bitmap format Capability
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240554.aspx
@@ -299,7 +299,7 @@ class BitmapCapability(CompositeType):
         
 class OrderCapability(CompositeType):
     """
-    Order capability list all drawing order supported
+    @summary: Order capability list all drawing order supported
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240556.aspx
@@ -328,7 +328,7 @@ class OrderCapability(CompositeType):
         
 class BitmapCacheCapability(CompositeType):
     """
-    Order use to cache bitmap very useful
+    @summary: Order use to cache bitmap very useful
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240559.aspx
     """
@@ -351,7 +351,7 @@ class BitmapCacheCapability(CompositeType):
         
 class PointerCapability(CompositeType):
     """
-    Use to indicate pointer handle of client
+    @summary: Use to indicate pointer handle of client
     Paint by server or per client
     client -> server
     server -> client
@@ -367,7 +367,7 @@ class PointerCapability(CompositeType):
         
 class InputCapability(CompositeType):
     """
-    Use to indicate input capabilities
+    @summary: Use to indicate input capabilities
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240563.aspx
@@ -391,7 +391,7 @@ class InputCapability(CompositeType):
         
 class BrushCapability(CompositeType):
     """
-    Use to indicate brush capability
+    @summary: Use to indicate brush capability
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240564.aspx
     """
@@ -403,7 +403,7 @@ class BrushCapability(CompositeType):
         
 class GlyphCapability(CompositeType):
     """
-    Use in font order
+    @summary: Use in font order
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240565.aspx
     """
@@ -419,7 +419,7 @@ class GlyphCapability(CompositeType):
         
 class OffscreenBitmapCacheCapability(CompositeType):
     """
-    use to cached bitmap in offscreen area
+    @summary: use to cached bitmap in offscreen area
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240550.aspx
     """
@@ -433,7 +433,7 @@ class OffscreenBitmapCacheCapability(CompositeType):
         
 class VirtualChannelCapability(CompositeType):
     """
-    use to determine virtual channel compression
+    @summary: use to determine virtual channel compression
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240551.aspx
@@ -447,7 +447,7 @@ class VirtualChannelCapability(CompositeType):
         
 class SoundCapability(CompositeType):
     """
-    Use to exchange sound capability
+    @summary: Use to exchange sound capability
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240552.aspx
     """
@@ -460,7 +460,7 @@ class SoundCapability(CompositeType):
         
 class ControlCapability(CompositeType):
     """
-    client -> server but server ignore contents! Thanks krosoft for brandwidth
+    @summary: client -> server but server ignore contents! Thanks krosoft for brandwidth
     @see: http://msdn.microsoft.com/en-us/library/cc240568.aspx
     """
     _TYPE_ = CapsType.CAPSTYPE_CONTROL
@@ -474,7 +474,7 @@ class ControlCapability(CompositeType):
     
 class WindowActivationCapability(CompositeType):
     """
-    client -> server but server ignore contents! Thanks krosoft for brandwidth
+    @summary: client -> server but server ignore contents! Thanks krosoft for brandwidth
     @see: http://msdn.microsoft.com/en-us/library/cc240569.aspx
     """
     _TYPE_ = CapsType.CAPSTYPE_ACTIVATION
@@ -488,7 +488,7 @@ class WindowActivationCapability(CompositeType):
         
 class FontCapability(CompositeType):
     """
-    Use to indicate font support
+    @summary: Use to indicate font support
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240571.aspx
@@ -515,7 +515,7 @@ class ColorCacheCapability(CompositeType):
         
 class ShareCapability(CompositeType):
     """
-    Use to advertise channel id of server
+    @summary: Use to advertise channel id of server
     client -> server
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240570.aspx

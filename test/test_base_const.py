@@ -18,7 +18,7 @@
 #
 
 """
-unit test for rdpy.base.const module
+unit test for rdpy.core.const module
 """
 
 import os, sys
@@ -26,8 +26,8 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import unittest
-import rdpy.base.const
-import rdpy.network.type
+import rdpy.core.const
+import rdpy.core.type
 
 class ConstCase(unittest.TestCase):
     '''
@@ -38,19 +38,19 @@ class ConstCase(unittest.TestCase):
         '''
         test if type attributes decorator works
         '''
-        @rdpy.base.const.TypeAttributes(rdpy.network.type.UInt16Le)
+        @rdpy.core.const.TypeAttributes(rdpy.core.type.UInt16Le)
         class Test:
             MEMBER_1 = 1
             MEMBER_2 = 2
         
-        self.assertIsInstance(Test.MEMBER_1, rdpy.network.type.UInt16Le, "MEMBER_1 is not in correct type")
-        self.assertIsInstance(Test.MEMBER_2, rdpy.network.type.UInt16Le, "MEMBER_2 is not in correct type")
+        self.assertIsInstance(Test.MEMBER_1, rdpy.core.type.UInt16Le, "MEMBER_1 is not in correct type")
+        self.assertIsInstance(Test.MEMBER_2, rdpy.core.type.UInt16Le, "MEMBER_2 is not in correct type")
         
     def test_const(self):
         '''
         test if get on const class member generate new object each
         '''
-        @rdpy.base.const.ConstAttributes
+        @rdpy.core.const.ConstAttributes
         class Test:
             MEMBER_1 = 1
             MEMBER_2 = 2

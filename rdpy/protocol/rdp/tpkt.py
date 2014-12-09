@@ -22,9 +22,9 @@ Transport packet layer implementation
 
 Use to build correct size packet and handle slow path and fast path mode
 """
-from rdpy.network.layer import RawLayer
-from rdpy.network.type import UInt8, UInt16Be, sizeof
-from rdpy.base.error import CallPureVirtualFuntion
+from rdpy.core.layer import RawLayer
+from rdpy.core.type import UInt8, UInt16Be, sizeof
+from rdpy.core.error import CallPureVirtualFuntion
 
 class Action(object):
     """

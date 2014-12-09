@@ -26,10 +26,10 @@ QRemoteDesktop is a widget use for render in rdpy
 from PyQt4 import QtGui, QtCore
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
-from rdpy.base.error import CallPureVirtualFuntion
+from rdpy.core.error import CallPureVirtualFuntion
 import sys
 
-import rdpy.base.log as log
+import rdpy.core.log as log
 import rle
 
 class QAdaptor(object):

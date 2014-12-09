@@ -28,7 +28,7 @@ import sys, os, getopt
 from PyQt4 import QtCore, QtGui
 from rdpy.protocol.rdp import rdp
 from rdpy.ui.qt4 import RDPBitmapToQtImage
-import rdpy.base.log as log
+import rdpy.core.log as log
 from twisted.internet import task
 
 #set log level

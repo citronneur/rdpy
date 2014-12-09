@@ -21,9 +21,10 @@
 Some use full methods for security in RDP
 """
 
-import sha, md5, rsa, gcc, rc4
-from rdpy.network.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof
-from rdpy.network.layer import LayerAutomata, IStreamSender
+import sha, md5, rsa, gcc, rc4, lic
+from rdpy.core.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
+from rdpy.core.layer import LayerAutomata, IStreamSender
+from rdpy.core.error import InvalidExpectedDataException
 
 class SecurityFlag(object):
     """
@@ -182,19 +183,6 @@ def bin2bn(b):
     for ch in b:
         l = (l<<8) | ord(ch)
     return l
-
-def bn2bin(b):
-    """
-    @summary: convert Big number to binary
-    @param b: bignumber (long)
-    @return: binary stream
-    """
-    s = bytearray()
-    i = (b.bit_length() + 7) / 8
-    while i > 0:
-        s.append((b >> ((i - 1) * 8)) & 0xff)
-        i -= 1
-    return s
     
 class ClientSecurityExchangePDU(CompositeType):
     """
@@ -204,11 +192,12 @@ class ClientSecurityExchangePDU(CompositeType):
     def __init__(self):
         CompositeType.__init__(self)
         self.length = UInt32Le(lambda:(sizeof(self) - 4))
-        self.encryptedClientRandom = String(readLen = self.length)
+        self.encryptedClientRandom = String(readLen = UInt8(lambda:(self.length.value - 8)))
+        self.padding = String("\x00" * 8, readLen = UInt8(8))
         
 class RDPInfo(CompositeType):
     """
-    Client informations
+    @summary: Client informations
     Contains credentials (very important packet)
     @see: http://msdn.microsoft.com/en-us/library/cc240475.aspx
     """
@@ -235,7 +224,7 @@ class RDPInfo(CompositeType):
         
 class RDPExtendedInfo(CompositeType):
     """
-    Add more client informations
+    @summary: Add more client informations
     """
     def __init__(self, conditional):
         CompositeType.__init__(self, conditional = conditional)
@@ -255,6 +244,9 @@ class SecLayer(LayerAutomata, IStreamSender):
     This layer is Transparent as possible for upper layer 
     """
     def __init__(self, presentation):
+        """
+        @param presentation: Layer (generally pdu layer)
+        """
         LayerAutomata.__init__(self, presentation)
         self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_CORE).rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
         self._enableEncryption = False
@@ -264,49 +256,177 @@ class SecLayer(LayerAutomata, IStreamSender):
     def generateKeys(self):
         """
         @see: http://msdn.microsoft.com/en-us/library/cc240785.aspx
+        @return: finalHash(second128bit(sessionkey), sthird128bit(sessionkey))
         """
         preMasterSecret = self._clientRandom[:24] + self._serverRandom[:24]
         masterSecret = generateMicrosoftKeyABBCCC(preMasterSecret, self._clientRandom, self._serverRandom)
         self._sessionKey = generateMicrosoftKeyXYYZZZ(masterSecret, self._clientRandom, self._serverRandom)
         self._macKey128 = self._sessionKey[:16]
-        
+        return (finalHash(self._sessionKey[16:32], self._clientRandom, self._serverRandom), finalHash(self._sessionKey[32:48], self._clientRandom, self._serverRandom))
+    
+    def readEncryptedPayload(self, s):
+        """
+        @summary: decrypt basic RDP security payload
+        @param s: {Stream} encrypted stream
+        @return: {Stream} decrypted
+        """
+        signature = String(readLen = UInt8(8))
+        encryptedPayload = String()
+        s.readType((signature, encryptedPayload))
+        return Stream(rc4.crypt(self._decrypt, encryptedPayload.value))
+    
+    def writeEncryptedPayload(self, data):
+        """
+        @summary: sign and crypt data
+        @param s: {Stream} raw stream
+        @return: {Tuple} (signature, encryptedData)
+        """
+        s = Stream()
+        s.writeType(data)
+        return (String(macData(self._macKey128, s.getvalue())[:8]), String(rc4.crypt(self._encrypt, s.getvalue())))
+    
     def recv(self, data):
+        """
+        @summary: if basic RDP security layer is activate decrypt
+                    else pass to upper layer
+        @param data : {Stream} input Stream
+        """
         if not self._enableEncryption:
             self._presentation.recv(data)
             return
+        
+        securityFlag = UInt16Le()
+        securityFlagHi = UInt16Le()
+        data.readType((securityFlag, securityFlagHi))
+        
+        if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
+            data = self.readEncryptedPayload(data)
+        
+        self._presentation.recv(data)
         
     def send(self, data):
+        """
+        @summary: if basic RDP security layer is activate encrypt
+                    else pass to upper layer
+        @param data: {Type | Tuple}
+        """
         if not self._enableEncryption:
-            self._presentation.recv(data)
+            self._transport.send(data)
             return
         
-    def sendFlag(self, flag, data):
+        self.sendFlagged(SecurityFlag.SEC_ENCRYPT, data)
+    
+    def sendFlagged(self, flag, data):
+        """
+        @summary: explicit send flag method for particular packet
+                    (info packet or license packet)
+                    If encryption is enable apply it
+        @param flag: {integer} security flag
+        @param data: {Type | Tuple}
+        """
         if self._enableEncryption:
             flag |= SecurityFlag.SEC_ENCRYPT
+            data = self.writeEncryptedPayload(data)
+        self.__sendFlagged__(flag, data)
+    
+    def __sendFlagged__(self, flag, data):
+        """
+        @summary: format basic message of security layer
+        """
         self._transport.send((UInt16Le(flag), UInt16Le(), data))
     
-class SecClient(SecLayer):
+class Client(SecLayer):
+    """
+    @summary: Client side of security layer
+    """
+    def __init__(self, presentation):
+        SecLayer.__init__(self, presentation)
+        self._licenceManager = lic.LicenseManager(self)
+        
     def connect(self):
         """
         @summary: send client random
         """
-        if self._transport.getGCCClientSettings.getBlock(gcc.MessageType.CS_CORE).serverSelectedProtocol == 0:
+        if self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).serverSelectedProtocol == 0:
             #generate client random
-            self._clientRandom = rsa.randnum.read_random_bits(128)
+            self._clientRandom = rsa.randnum.read_random_bits(256)
             self._serverRandom = self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_SECURITY).serverRandom.value
-            self.generateKeys()
-            
-            self._decrypt = finalHash(self._sessionKey[16:32], self._clientRandom, self._serverRandom)
-            self._encrypt = finalHash(self._sessionKey[32:48], self._clientRandom, self._serverRandom)
+            self._decrypt, self._encrypt = self.generateKeys()
             
             #send client random encrypted with
             certificate = self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_SECURITY).serverCertificate.certData
-            serverPublicKey = rsa.PublicKey(bin2bn(certificate.PublicKeyBlob.modulus.value), certificate.PublicKeyBlob.pubExp.value)
+            serverPublicKey = rsa.PublicKey(bin2bn(certificate.PublicKeyBlob.modulus.value[::-1]), certificate.PublicKeyBlob.pubExp.value)
             
             message = ClientSecurityExchangePDU()
-            message.encryptedClientRandom.value = rsa.encrypt(self._clientRandom, serverPublicKey)
-            self.send(SecurityFlag.SEC_EXCHANGE_PKT, message)
+            message.encryptedClientRandom.value = rsa.encrypt(self._clientRandom[::-1], serverPublicKey)[::-1]
+            self.sendFlagged(SecurityFlag.SEC_EXCHANGE_PKT, message)
+            
+            #now all messages must be encrypted
             self._enableEncryption = True
             
-        self.send(SecurityFlag.SEC_INFO_PKT, self._info)
+        self.sendFlagged(SecurityFlag.SEC_INFO_PKT, self._info)
+        self.setNextState(self.recvLicenceInfo)
+        
+    def recvLicenceInfo(self, s):
+        """
+        @summary: Read license info packet and check if is a valid client info
+        Wait Demand Active PDU
+        @param s: Stream
+        """
+        #packet preambule
+        securityFlag = UInt16Le()
+        securityFlagHi = UInt16Le()
+        s.readType((securityFlag, securityFlagHi))
+        
+        if not (securityFlag.value & SecurityFlag.SEC_LICENSE_PKT):
+            raise InvalidExpectedDataException("Waiting license packet")
+        
+        if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
+            s = self.readEncryptedPayload(s)
+            
+        if self._licenceManager.recv(s):
+            self.setNextState()
+            #end of connection step of 
+            self._presentation.connect()
+
+class Server(SecLayer):
+    """
+    @summary: Client side of security layer
+    """
+    def __init__(self, presentation):
+        SecLayer.__init__(self, presentation)
+    
+    def connect(self):
+        """
+        @summary: init automata to wait info packet
+        """
+        self.setNextState(self.recvInfoPkt)
+        
+    def recvInfoPkt(self, s):
+        """
+        @summary: receive info packet from client
+        Client credentials
+        Send License valid error message
+        Send Demand Active PDU
+        Wait Confirm Active PDU
+        @param s: Stream
+        """
+        securityFlag = UInt16Le()
+        securityFlagHi = UInt16Le()
+        s.readType((securityFlag, securityFlagHi))
+        
+        if not (securityFlag.value & SecurityFlag.SEC_INFO_PKT):
+            raise InvalidExpectedDataException("Waiting info packet")
+        
+        s.readType(self._info)
+        #next state send error license
+        self.sendLicensingErrorMessage()
+        #reinit state
+        self.setNextState()
         self._presentation.connect()
+        
+    def sendLicensingErrorMessage(self):
+        """
+        @summary: Send a licensing error data
+        """
+        self.sendFlagged(SecurityFlag.SEC_LICENSE_PKT, lic.createValidClientLicensingErrorMessage())

@@ -23,7 +23,7 @@ Join RDPY design with twisted design
 RDPY use Layer Protocol design (like twisted)
 """
 
-from rdpy.base.error import CallPureVirtualFuntion
+from rdpy.core.error import CallPureVirtualFuntion
 
 class IStreamListener(object):
     """
@@ -99,7 +99,7 @@ class LayerAutomata(Layer, IStreamListener):
         @param callback: a callable object
         """
         if callback is None:
-            callback = self.__class__.recv
+            callback = lambda x:self.__class__.recv(self, x)
         
         self.recv = callback
 

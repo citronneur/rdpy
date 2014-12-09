@@ -22,9 +22,9 @@
 @see: http://msdn.microsoft.com/en-us/library/cc241880.aspx
 """
 
-from rdpy.network.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
-from rdpy.base.error import InvalidExpectedDataException
-import rdpy.base.log as log
+from rdpy.core.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
+from rdpy.core.error import InvalidExpectedDataException
+import rdpy.core.log as log
 import rc4, sec
 
 class MessageType(object):
@@ -316,7 +316,7 @@ class LicenseManager(object):
         message.encryptedPreMasterSecret.blobData = String(self._preMasterSecret + "\x00" * 8)
         message.ClientMachineName.blobData = String(self._hostname + "\x00")
         message.ClientUserName.blobData = String(self._username + "\x00")
-        self._transport.sendLicensePacket(LicPacket(message))
+        self._transport.sendFlagged(sec.SecurityFlag.SEC_LICENSE_PKT, LicPacket(message))
         
     def sendClientChallengeResponse(self):
         """
@@ -336,4 +336,4 @@ class LicenseManager(object):
         message.encryptedHWID.blobData.value = rc4.crypt(self._licenseKey, hwid)
         message.MACData.value = sec.macData(self._macSalt, serverChallenge + hwid)
         
-        self._transport.sendLicensePacket(LicPacket(message))
+        self._transport.sendFlagged(sec.SecurityFlag.SEC_LICENSE_PKT, LicPacket(message))

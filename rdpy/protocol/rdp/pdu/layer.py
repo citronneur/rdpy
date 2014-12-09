@@ -23,13 +23,13 @@ Implement the main graphic layer
 In this layer are managed all mains bitmap update orders end user inputs
 """
 
-from rdpy.network.layer import LayerAutomata
-from rdpy.base.error import InvalidExpectedDataException, CallPureVirtualFuntion
-from rdpy.network.type import UInt16Le
-import rdpy.base.log as log
+from rdpy.core.layer import LayerAutomata
+from rdpy.core.error import InvalidExpectedDataException, CallPureVirtualFuntion
+from rdpy.core.type import UInt16Le
+import rdpy.core.log as log
 import rdpy.protocol.rdp.gcc as gcc
 import rdpy.protocol.rdp.tpkt as tpkt
-import lic, data, caps
+import data, caps
 
 class PDUClientListener(object):
     """
@@ -112,7 +112,7 @@ class PDULayer(LayerAutomata):
         @summary: Send a PDU data to transport layer
         @param pduMessage: PDU message
         """
-        self._transport.send(data.PDU(self._transport.getUserId(), pduMessage))
+        self._transport.send(data.PDU(self._transport._transport.getUserId(), pduMessage))
         
     def sendDataPDU(self, pduData):
         """
@@ -133,17 +133,13 @@ class Client(PDULayer, tpkt.IFastPathListener):
         self._listener = listener
         #enable or not fast path
         self._fastPathSender = None
-        self._licenceManager = lic.LicenseManager(self)
         
     def connect(self):
         """
         @summary: Connect message in client automata
-        Send INfo packet (credentials)
-        Wait License info
         """
-        self.sendInfoPkt()
-        #next state is license info PDU
-        self.setNextState(self.recvLicenceInfo)
+        self._gccCore = self._transport._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE)
+        self.setNextState(self.recvDemandActivePDU)
         #check if client support fast path message
         self._clientFastPathSupported = False
         
@@ -160,23 +156,6 @@ class Client(PDULayer, tpkt.IFastPathListener):
         @note: implement tpkt.IFastPathListener
         """
         self._fastPathSender = fastPathSender
-        
-    def recvLicenceInfo(self, s):
-        """
-        @summary: Read license info packet and check if is a valid client info
-        Wait Demand Active PDU
-        @param s: Stream
-        """
-        #packet preambule
-        securityFlag = UInt16Le()
-        securityFlagHi = UInt16Le()
-        s.readType((securityFlag, securityFlagHi))
-        
-        if not (securityFlag.value & data.SecurityFlag.SEC_LICENSE_PKT):
-            raise InvalidExpectedDataException("Waiting license packet")
-        
-        if self._licenceManager.recv(s):
-            self.setNextState(self.recvDemandActivePDU)
                              
     def recvDemandActivePDU(self, s):
         """
@@ -325,16 +304,9 @@ class Client(PDULayer, tpkt.IFastPathListener):
         if updateDataPDU.updateType.value == data.UpdateType.UPDATETYPE_BITMAP:
             self._listener.onUpdate(updateDataPDU.updateData.rectangles._array)
         
-    def sendLicensePacket(self, licPkt):
-        """
-        @summary: send license packet
-        @param licPktr: license packet
-        """
-        self._transport.send((UInt16Le(data.SecurityFlag.SEC_LICENSE_PKT), UInt16Le(), licPkt))
-        
     def sendConfirmActivePDU(self):
         """
-        Send all client capabilities
+        @summary: Send all client capabilities
         """
         #init general capability
         generalCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
@@ -346,9 +318,9 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
         #init bitmap capability
         bitmapCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability
-        bitmapCapability.preferredBitsPerPixel = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).highColorDepth
-        bitmapCapability.desktopWidth = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).desktopWidth
-        bitmapCapability.desktopHeight = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).desktopHeight
+        bitmapCapability.preferredBitsPerPixel = self._gccCore.highColorDepth
+        bitmapCapability.desktopWidth = self._gccCore.desktopWidth
+        bitmapCapability.desktopHeight = self._gccCore.desktopHeight
          
         #init order capability
         orderCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_ORDER].capability
@@ -357,11 +329,11 @@ class Client(PDULayer, tpkt.IFastPathListener):
         #init input capability
         inputCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_INPUT].capability
         inputCapability.inputFlags.value = caps.InputFlags.INPUT_FLAG_SCANCODES | caps.InputFlags.INPUT_FLAG_MOUSEX | caps.InputFlags.INPUT_FLAG_UNICODE
-        inputCapability.keyboardLayout = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).kbdLayout
-        inputCapability.keyboardType = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardType
-        inputCapability.keyboardSubType = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardSubType
-        inputCapability.keyboardrFunctionKey = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).keyboardFnKeys
-        inputCapability.imeFileName = self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).imeFileName
+        inputCapability.keyboardLayout = self._gccCore.kbdLayout
+        inputCapability.keyboardType = self._gccCore.keyboardType
+        inputCapability.keyboardSubType = self._gccCore.keyboardSubType
+        inputCapability.keyboardrFunctionKey = self._gccCore.keyboardFnKeys
+        inputCapability.imeFileName = self._gccCore.imeFileName
         
         #make active PDU packet
         confirmActivePDU = data.ConfirmActivePDU()
@@ -373,7 +345,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         """
         send a synchronize PDU from client to server
         """
-        synchronizePDU = data.SynchronizeDataPDU(self._transport.getChannelId())
+        synchronizePDU = data.SynchronizeDataPDU(self._transport._transport.getChannelId())
         self.sendDataPDU(synchronizePDU)
         
         #ask for cooperation
@@ -415,38 +387,16 @@ class Server(PDULayer, tpkt.IFastPathListener):
     def connect(self):
         """
         Connect message for server automata
-        Wait Info Packet
         """
-        self.setNextState(self.recvInfoPkt)
+        self.sendDemandActivePDU()
+        self.setNextState(self.recvConfirmActivePDU)
         
     def setFastPathSender(self, fastPathSender):
         """
         @param fastPathSender: tpkt.FastPathSender
         @note: implement tpkt.IFastPathListener
         """
-        self._fastPathSender = fastPathSender
-        
-    def recvInfoPkt(self, s):
-        """
-        Receive info packet from client
-        Client credentials
-        Send License valid error message
-        Send Demand Active PDU
-        Wait Confirm Active PDU
-        @param s: Stream
-        """
-        securityFlag = UInt16Le()
-        securityFlagHi = UInt16Le()
-        s.readType((securityFlag, securityFlagHi))
-        
-        if not (securityFlag.value & data.SecurityFlag.SEC_INFO_PKT):
-            raise InvalidExpectedDataException("Waiting info packet")
-        
-        s.readType(self._info)
-        #next state send error license
-        self.sendLicensingErrorMessage()
-        self.sendDemandActivePDU()
-        self.setNextState(self.recvConfirmActivePDU)
+        self._fastPathSender = fastPathSender        
         
     def recvConfirmActivePDU(self, s):
         """
@@ -573,12 +523,6 @@ class Server(PDULayer, tpkt.IFastPathListener):
         """
         pass
         
-    def sendLicensingErrorMessage(self):
-        """
-        Send a licensing error data
-        """
-        self._transport.send((UInt16Le(data.SecurityFlag.SEC_LICENSE_PKT), UInt16Le(), lic.createValidClientLicensingErrorMessage()))
-        
     def sendDemandActivePDU(self):
         """
         @summary: Send server capabilities server automata PDU
@@ -601,7 +545,7 @@ class Server(PDULayer, tpkt.IFastPathListener):
         """
         Send last synchronize packet from server to client
         """
-        synchronizePDU = data.SynchronizeDataPDU(self._transport.getChannelId())
+        synchronizePDU = data.SynchronizeDataPDU(self._transport._transport.getChannelId())
         self.sendDataPDU(synchronizePDU)
         
         #ask for cooperation

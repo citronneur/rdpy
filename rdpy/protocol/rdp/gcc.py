@@ -22,10 +22,10 @@ Implement GCC structure use in RDP protocol
 http://msdn.microsoft.com/en-us/library/cc240508.aspx
 """
 
-from rdpy.network.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, Stream, sizeof, FactoryType, ArrayType
+from rdpy.core.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, Stream, sizeof, FactoryType, ArrayType
 import per, mcs
-from rdpy.base.error import InvalidExpectedDataException
-import rdpy.base.log as log
+from rdpy.core.error import InvalidExpectedDataException
+import rdpy.core.log as log
 
 t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
 
@@ -343,8 +343,8 @@ class RSAPublicKey(CompositeType):
         self.bitlen = UInt32Le()
         self.datalen = UInt32Le()
         self.pubExp = UInt32Le()
-        self.modulus = String(readLen = lambda:(self.keylen - 8))
-        self.padding = String("\x00" * 8, constant = True)
+        self.modulus = String(readLen = UInt16Le(lambda:(self.keylen.value - 8)))
+        self.padding = String(readLen = UInt8(8))
 
 class ChannelDef(CompositeType):
     """

@@ -31,7 +31,7 @@ Admin ----------------------|
 
 import sys, os, getopt, json
 
-from rdpy.base import log, error
+from rdpy.core import log, error
 from rdpy.protocol.rdp import rdp
 from rdpy.ui import view
 from twisted.internet import reactor

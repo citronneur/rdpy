@@ -26,9 +26,9 @@ import sys, os, getopt, socket
 from PyQt4 import QtGui, QtCore
 from rdpy.ui.qt4 import RDPClientQt
 from rdpy.protocol.rdp import rdp
-from rdpy.base.error import RDPSecurityNegoFail
+from rdpy.core.error import RDPSecurityNegoFail
 
-import rdpy.base.log as log
+import rdpy.core.log as log
 log._LOG_LEVEL = log.Level.INFO
 
 class RDPClientQtFactory(rdp.ClientFactory):

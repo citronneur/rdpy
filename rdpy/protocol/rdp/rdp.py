@@ -21,12 +21,12 @@
 Use to manage RDP stack in twisted
 """
 
-from rdpy.network import layer
-from rdpy.base.error import CallPureVirtualFuntion, InvalidValue
+from rdpy.core import layer
+from rdpy.core.error import CallPureVirtualFuntion, InvalidValue
 import pdu.layer
 import pdu.data
 import pdu.caps
-import rdpy.base.log as log
+import rdpy.core.log as log
 import tpkt, x224, mcs, gcc, sec
 
 class RDPClientController(pdu.layer.PDUClientListener):
@@ -39,7 +39,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         #PDU layer
         self._pduLayer = pdu.layer.Client(self)
         #secure layer
-        self._secLayer = sec.SecLayer(self._pduLayer)
+        self._secLayer = sec.Client(self._pduLayer)
         #multi channel service
         self._mcsLayer = mcs.Client(self._secLayer)
         #transport pdu layer
@@ -72,7 +72,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         """
         @summary: Set particular flag in RDP stack to avoid wall-paper, theme, menu animation etc...
         """
-        self._pduLayer._info.extendedInfo.performanceFlags.value = pdu.data.PerfFlag.PERF_DISABLE_WALLPAPER | pdu.data.PerfFlag.PERF_DISABLE_MENUANIMATIONS | pdu.data.PerfFlag.PERF_DISABLE_CURSOR_SHADOW | pdu.data.PerfFlag.PERF_DISABLE_THEMING | pdu.data.PerfFlag.PERF_DISABLE_FULLWINDOWDRAG
+        self._secLayer._info.extendedInfo.performanceFlags.value = sec.PerfFlag.PERF_DISABLE_WALLPAPER | sec.PerfFlag.PERF_DISABLE_MENUANIMATIONS | sec.PerfFlag.PERF_DISABLE_CURSOR_SHADOW | sec.PerfFlag.PERF_DISABLE_THEMING | sec.PerfFlag.PERF_DISABLE_FULLWINDOWDRAG
         
     def setScreen(self, width, height):
         """
@@ -90,8 +90,8 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @param username: username of session
         """
         #username in PDU info packet
-        self._pduLayer._info.userName.value = username
-        self._pduLayer._licenceManager._username = username
+        self._secLayer._info.userName.value = username
+        self._secLayer._licenceManager._username = username
         
     def setPassword(self, password):
         """
@@ -99,20 +99,20 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @param password: password of session
         """
         self.setAutologon()
-        self._pduLayer._info.password.value = password
+        self._secLayer._info.password.value = password
         
     def setDomain(self, domain):
         """
         @summary: Set the windows domain of session
         @param domain: domain of session
         """
-        self._pduLayer._info.domain.value = domain
+        self._secLayer._info.domain.value = domain
         
     def setAutologon(self):
         """
         @summary: enable autologon
         """
-        self._pduLayer._info.flag |= pdu.data.InfoFlag.INFO_AUTOLOGON
+        self._secLayer._info.flag |= sec.InfoFlag.INFO_AUTOLOGON
         
     def setKeyboardLayout(self, layout):
         """
@@ -129,7 +129,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @summary: set hostname of machine
         """
         self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).clientName.value = hostname[:15] + "\x00" * (15 - len(hostname))
-        self._pduLayer._licenceManager._hostname = hostname
+        self._secLayer._licenceManager._hostname = hostname
         
     def setRDPBasicSecurity(self):
         """
@@ -332,8 +332,10 @@ class RDPServerController(pdu.layer.PDUServerListener):
         self._serverObserver = []
         #build RDP protocol stack
         self._pduLayer = pdu.layer.Server(self)
+        #secure layer
+        self._secLayer = sec.Server(self._pduLayer)
         #multi channel service
-        self._mcsLayer = mcs.Server(self._pduLayer)
+        self._mcsLayer = mcs.Server(self._secLayer)
         #transport pdu layer
         self._x224Layer = x224.Server(self._mcsLayer, privateKeyFileName, certificateFileName)
         #transport packet (protocol layer)
@@ -359,21 +361,21 @@ class RDPServerController(pdu.layer.PDUServerListener):
         @summary: Must be call after on ready event else always empty string
         @return: username send by client may be an empty string
         """
-        return self._pduLayer._info.userName.value
+        return self._secLayer._info.userName.value
     
     def getPassword(self):
         """
         @summary: Must be call after on ready event else always empty string
         @return: password send by client may be an empty string
         """
-        return self._pduLayer._info.password.value
+        return self._secLayer._info.password.value
     
     def getDomain(self):
         """
         @summary: Must be call after on ready event else always empty string
         @return: domain send by client may be an empty string
         """
-        return self._pduLayer._info.domain.value
+        return self._secLayer._info.domain.value
     
     def getCredentials(self):
         """
@@ -492,7 +494,8 @@ class ClientFactory(layer.RawLayerClientFactory):
         #retrieve controller
         x224Layer = tpktLayer._presentation
         mcsLayer = x224Layer._presentation
-        pduLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
+        secLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
+        pduLayer = secLayer._presentation
         controller = pduLayer._listener
         controller.onClose()
         
@@ -534,7 +537,8 @@ class ServerFactory(layer.RawLayerServerFactory):
         #retrieve controller
         x224Layer = tpktLayer._presentation
         mcsLayer = x224Layer._presentation
-        pduLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
+        secLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
+        pduLayer = secLayer._presentation
         controller = pduLayer._listener
         controller.onClose()
     

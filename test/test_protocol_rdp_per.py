@@ -27,8 +27,8 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import unittest
 import rdpy.protocol.rdp.per as per
-import rdpy.network.type as type
-import rdpy.base.error as error
+import rdpy.core.type as type
+import rdpy.core.error as error
 
 class PERCase(unittest.TestCase):
     """
