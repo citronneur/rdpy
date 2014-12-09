@@ -380,9 +380,6 @@ class Client(SecLayer):
         
         if not (securityFlag.value & SecurityFlag.SEC_LICENSE_PKT):
             raise InvalidExpectedDataException("Waiting license packet")
-        
-        if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
-            s = self.readEncryptedPayload(s)
             
         if self._licenceManager.recv(s):
             self.setNextState()
