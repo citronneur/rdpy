@@ -275,6 +275,7 @@ class LicenseManager(object):
         sessionKeyBlob = sec.generateMicrosoftKeyABBCCC(masterSecret, self._serverRandom, self._clientRandom)
         self._macSalt = sessionKeyBlob[:16]
         self._licenseKey = sec.finalHash(sessionKeyBlob[16:32], self._clientRandom, self._serverRandom)
+        self._rc4LicenseKey = rc4.RC4Key(self._licenseKey)
         
     def recv(self, s):
         """
@@ -324,7 +325,7 @@ class LicenseManager(object):
         """
         #decrypt server challenge
         #it should be TEST word in unicode format
-        serverChallenge = rc4.crypt(self._licenseKey, self._serverEncryptedChallenge)
+        serverChallenge = rc4.crypt(self._rc4LicenseKey, self._serverEncryptedChallenge)
         
         #generate hwid
         s = Stream()
@@ -333,7 +334,7 @@ class LicenseManager(object):
         
         message = ClientPLatformChallengeResponse()
         message.encryptedPlatformChallengeResponse.blobData.value = self._serverEncryptedChallenge
-        message.encryptedHWID.blobData.value = rc4.crypt(self._licenseKey, hwid)
+        message.encryptedHWID.blobData.value = rc4.crypt(self._rc4LicenseKey, hwid)
         message.MACData.value = sec.macData(self._macSalt, serverChallenge + hwid)
         
         self._transport.sendFlagged(sec.SecurityFlag.SEC_LICENSE_PKT, LicPacket(message))

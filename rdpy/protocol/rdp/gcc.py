@@ -34,7 +34,7 @@ h221_sc_key = "McDn";
 
 class MessageType(object):
     """
-    Server to Client block 
+    @summary: Server to Client block 
     GCC conference messages
     @see: http://msdn.microsoft.com/en-us/library/cc240509.aspx
     """
@@ -52,7 +52,7 @@ class MessageType(object):
 
 class ColorDepth(object):
     """
-    Depth color
+    @summary: Depth color
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     """
     RNS_UD_COLOR_8BPP = 0xCA01
@@ -62,7 +62,7 @@ class ColorDepth(object):
     
 class HighColor(object):
     """
-    High color of client
+    @summary: High color of client
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     """
     HIGH_COLOR_4BPP = 0x0004
@@ -73,7 +73,7 @@ class HighColor(object):
 
 class Support(object):
     """
-    Supported depth flag
+    @summary: Supported depth flag
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     """
     RNS_UD_24BPP_SUPPORT = 0x0001
@@ -83,7 +83,7 @@ class Support(object):
 
 class CapabilityFlags(object):
     """
-    For more details on each flags click above
+    @summary: For more details on each flags click above
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     """
     RNS_UD_CS_SUPPORT_ERRINFO_PDU = 0x0001
@@ -100,7 +100,7 @@ class CapabilityFlags(object):
 
 class ConnectionType(object):
     """
-    This information is correct if 
+    @summary: This information is correct if 
     RNS_UD_CS_VALID_CONNECTION_TYPE flag is set on capabilityFlag
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     """
@@ -114,7 +114,7 @@ class ConnectionType(object):
 
 class Version(object):
     """
-    Supported version of RDP
+    @summary: Supported version of RDP
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     """
     RDP_VERSION_4 = 0x00080001
@@ -125,7 +125,7 @@ class Sequence(object):
      
 class Encryption(object):
     """
-    Encryption methods supported
+    @summary: Encryption methods supported
     @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
     """
     ENCRYPTION_FLAG_40BIT = 0x00000001
@@ -135,7 +135,7 @@ class Encryption(object):
        
 class ChannelOptions(object):
     """
-    Channel options
+    @summary: Channel options
     @see: http://msdn.microsoft.com/en-us/library/cc240513.aspx
     """
     CHANNEL_OPTION_INITIALIZED = 0x80000000
@@ -152,8 +152,8 @@ class ChannelOptions(object):
  
 class KeyboardType(object):
     """
-    Keyboard type
-    IBM_101_102_KEYS is the most common keyboard type
+    @summary: Keyboard type
+    @see: IBM_101_102_KEYS is the most common keyboard type
     """
     IBM_PC_XT_83_KEY = 0x00000001
     OLIVETTI = 0x00000002
@@ -165,7 +165,7 @@ class KeyboardType(object):
   
 class KeyboardLayout(object):
     """
-    Keyboard layout definition
+    @summary: Keyboard layout definition
     @see: http://technet.microsoft.com/en-us/library/cc766503%28WS.10%29.aspx
     """
     ARABIC = 0x00000401
@@ -197,7 +197,7 @@ class CertificateType(object):
     
 class DataBlock(CompositeType):
     """
-    Block settings
+    @summary: Block settings
     """
     def __init__(self, dataBlock = None):
         CompositeType.__init__(self)

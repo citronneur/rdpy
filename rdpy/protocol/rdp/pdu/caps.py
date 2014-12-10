@@ -362,8 +362,9 @@ class PointerCapability(CompositeType):
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.colorPointerFlag = UInt16Le()
-        self.colorPointerCacheSize = UInt16Le()
-        self.pointerCacheSize = UInt16Le()
+        self.colorPointerCacheSize = UInt16Le(20)
+        #old version of rdp doesn't support ...
+        #self.pointerCacheSize = UInt16Le()
         
 class InputCapability(CompositeType):
     """

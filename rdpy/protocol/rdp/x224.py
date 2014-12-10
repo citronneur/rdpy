@@ -132,7 +132,7 @@ class X224Layer(LayerAutomata, IStreamSender):
         LayerAutomata.__init__(self, presentation)
         #default selectedProtocol is SSl
         #client requested selectedProtocol
-        self._requestedProtocol = Protocols.PROTOCOL_RDP
+        self._requestedProtocol = Protocols.PROTOCOL_RDP | Protocols.PROTOCOL_SSL
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     

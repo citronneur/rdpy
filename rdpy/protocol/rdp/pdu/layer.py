@@ -24,8 +24,7 @@ In this layer are managed all mains bitmap update orders end user inputs
 """
 
 from rdpy.core.layer import LayerAutomata
-from rdpy.core.error import InvalidExpectedDataException, CallPureVirtualFuntion
-from rdpy.core.type import UInt16Le
+from rdpy.core.error import CallPureVirtualFuntion
 import rdpy.core.log as log
 import rdpy.protocol.rdp.gcc as gcc
 import rdpy.protocol.rdp.tpkt as tpkt
@@ -71,7 +70,7 @@ class PDUServerListener(object):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onSlowPathInput", "PDUServerListener"))
     
-class PDULayer(LayerAutomata):
+class PDULayer(LayerAutomata, tpkt.IFastPathListener):
     """
     @summary: Global channel for MCS that handle session
     identification user, licensing management, and capabilities exchange
@@ -106,6 +105,15 @@ class PDULayer(LayerAutomata):
         }
         #share id between client and server
         self._shareId = 0x103EA
+        #enable or not fast path
+        self._fastPathSender = None
+        
+    def setFastPathSender(self, fastPathSender):
+        """
+        @param fastPathSender: {tpkt.FastPathSender}
+        @note: implement tpkt.IFastPathListener
+        """
+        self._fastPathSender = fastPathSender
     
     def sendPDU(self, pduMessage):
         """
@@ -121,7 +129,7 @@ class PDULayer(LayerAutomata):
         """
         self.sendPDU(data.DataPDU(pduData, self._shareId))
 
-class Client(PDULayer, tpkt.IFastPathListener):
+class Client(PDULayer):
     """
     @summary: Client automata of PDU layer
     """
@@ -131,8 +139,6 @@ class Client(PDULayer, tpkt.IFastPathListener):
         """
         PDULayer.__init__(self)
         self._listener = listener
-        #enable or not fast path
-        self._fastPathSender = None
         
     def connect(self):
         """
@@ -149,13 +155,6 @@ class Client(PDULayer, tpkt.IFastPathListener):
         """
         self._transport.close()
         #self.sendDataPDU(data.ShutdownRequestPDU())
-        
-    def setFastPathSender(self, fastPathSender):
-        """
-        @param fastPathSender: tpkt.FastPathSender
-        @note: implement tpkt.IFastPathListener
-        """
-        self._fastPathSender = fastPathSender
                              
     def recvDemandActivePDU(self, s):
         """
@@ -267,11 +266,12 @@ class Client(PDULayer, tpkt.IFastPathListener):
             #http://msdn.microsoft.com/en-us/library/cc240454.aspx
             self.setNextState(self.recvDemandActivePDU)
         
-    def recvFastPath(self, fastPathS):
+    def recvFastPath(self, secFlag, fastPathS):
         """
         @summary: Implement IFastPathListener interface
         Fast path is needed by RDP 8.0
-        @param fastPathS: Stream that contain fast path data
+        @param fastPathS: {Stream} that contain fast path data
+        @param secFlag: {SecFlags}
         """
         fastPathPDU = data.FastPathUpdatePDU()
         fastPathS.readType(fastPathPDU)
@@ -343,7 +343,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         
     def sendClientFinalizeSynchronizePDU(self):
         """
-        send a synchronize PDU from client to server
+        @summary: send a synchronize PDU from client to server
         """
         synchronizePDU = data.SynchronizeDataPDU(self._transport._transport.getChannelId())
         self.sendDataPDU(synchronizePDU)
@@ -371,7 +371,7 @@ class Client(PDULayer, tpkt.IFastPathListener):
         pdu.slowPathInputEvents._array = [data.SlowPathInputEvent(x) for x in pointerEvents]
         self.sendDataPDU(pdu)
         
-class Server(PDULayer, tpkt.IFastPathListener):
+class Server(PDULayer):
     """
     Server Automata of PDU layer
     """
@@ -389,14 +389,7 @@ class Server(PDULayer, tpkt.IFastPathListener):
         Connect message for server automata
         """
         self.sendDemandActivePDU()
-        self.setNextState(self.recvConfirmActivePDU)
-        
-    def setFastPathSender(self, fastPathSender):
-        """
-        @param fastPathSender: tpkt.FastPathSender
-        @note: implement tpkt.IFastPathListener
-        """
-        self._fastPathSender = fastPathSender        
+        self.setNextState(self.recvConfirmActivePDU)      
         
     def recvConfirmActivePDU(self, s):
         """
@@ -588,7 +581,8 @@ class Server(PDULayer, tpkt.IFastPathListener):
             #fast path case
             fastPathUpdateDataPDU = data.FastPathBitmapUpdateDataPDU()
             fastPathUpdateDataPDU.rectangles._array = bitmapDatas
-            self._fastPathSender.sendFastPath(data.FastPathUpdatePDU(fastPathUpdateDataPDU))
+            self._fastPathSender.sendFastPath(0, data.FastPathUpdatePDU(fastPathUpdateDataPDU))
+            
         else:
             #slow path case
             updateDataPDU = data.BitmapUpdateDataPDU()

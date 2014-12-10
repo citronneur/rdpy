@@ -50,7 +50,8 @@ def RC4(key):
     S = KSA(key)
     return PRGA(S)
 
-def crypt(key, plaintext):
-    keystream = RC4([ord(c) for c in key])
-    
+def RC4Key(key):
+    return RC4([ord(c) for c in key])
+
+def crypt(keystream, plaintext):
     return "".join([chr(ord(c) ^ keystream.next()) for c in plaintext])

@@ -35,5 +35,6 @@ setup(name='rdpy',
           	'pyopenssl',
           	'service_identity',
           	'qt4reactor',
+          	'rsa',
 	  	],
 )

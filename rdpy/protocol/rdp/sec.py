@@ -21,7 +21,8 @@
 Some use full methods for security in RDP
 """
 
-import sha, md5, rsa, gcc, rc4, lic
+import sha, md5, rsa, rc4
+import gcc, lic, tpkt
 from rdpy.core.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.error import InvalidExpectedDataException
@@ -238,7 +239,7 @@ class RDPExtendedInfo(CompositeType):
         self.clientSessionId = UInt32Le()
         self.performanceFlags = UInt32Le()
 
-class SecLayer(LayerAutomata, IStreamSender):
+class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastPathSender):
     """
     @summary: Basic RDP security manager
     This layer is Transparent as possible for upper layer 
@@ -248,10 +249,25 @@ class SecLayer(LayerAutomata, IStreamSender):
         @param presentation: Layer (generally pdu layer)
         """
         LayerAutomata.__init__(self, presentation)
+        #thios layer is like a fastpath proxy
+        self._fastPathTransport = None
+        self._fastPathPresentation = None
+        
+        #credentials
         self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_CORE).rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
+        
+        #True if classic encryption is enable
         self._enableEncryption = False
+        
+        #crypto random
+        self._clientRandom = None
+        self._serverRandom = None
+        #initialise decrypt and encrypt keys
         self._decryt = None
         self._encrypt = None
+        #current rc4 map key
+        self._decryptRc4 = None
+        self._encryptRc4 = None
         
     def generateKeys(self):
         """
@@ -273,7 +289,12 @@ class SecLayer(LayerAutomata, IStreamSender):
         signature = String(readLen = UInt8(8))
         encryptedPayload = String()
         s.readType((signature, encryptedPayload))
-        return Stream(rc4.crypt(self._decrypt, encryptedPayload.value))
+        decrypted = rc4.crypt(self._decryptRc4, encryptedPayload.value)
+        #ckeck signature
+        if macData(self._macKey128, decrypted)[:8] != signature.value:
+            raise InvalidExpectedDataException("Bad packet signature")
+
+        return Stream(decrypted)
     
     def writeEncryptedPayload(self, data):
         """
@@ -283,7 +304,7 @@ class SecLayer(LayerAutomata, IStreamSender):
         """
         s = Stream()
         s.writeType(data)
-        return (String(macData(self._macKey128, s.getvalue())[:8]), String(rc4.crypt(self._encrypt, s.getvalue())))
+        return (String(macData(self._macKey128, s.getvalue())[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
     
     def recv(self, data):
         """
@@ -301,7 +322,7 @@ class SecLayer(LayerAutomata, IStreamSender):
         
         if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
             data = self.readEncryptedPayload(data)
-        
+            
         self._presentation.recv(data)
         
     def send(self, data):
@@ -324,16 +345,44 @@ class SecLayer(LayerAutomata, IStreamSender):
         @param flag: {integer} security flag
         @param data: {Type | Tuple}
         """
-        if self._enableEncryption:
-            flag |= SecurityFlag.SEC_ENCRYPT
+        if flag & SecurityFlag.SEC_ENCRYPT:
             data = self.writeEncryptedPayload(data)
-        self.__sendFlagged__(flag, data)
-    
-    def __sendFlagged__(self, flag, data):
-        """
-        @summary: format basic message of security layer
-        """
         self._transport.send((UInt16Le(flag), UInt16Le(), data))
+        
+    def recvFastPath(self, secFlag, fastPathS):
+        """
+        @summary: Call when fast path packet is received
+        @param secFlag: {SecFlags}
+        @param fastPathS: {Stream}
+        """
+        if self._enableEncryption and secFlag & tpkt.SecFlags.FASTPATH_OUTPUT_ENCRYPTED:
+            fastPathS = self.readEncryptedPayload(fastPathS)
+        
+        self._fastPathPresentation.recvFastPath(secFlag, fastPathS)
+        
+    def setFastPathListener(self, fastPathListener):
+        """
+        @param fastPathListener : {IFastPathListener}
+        """
+        self._fastPathPresentation = fastPathListener
+        
+    def sendFastPath(self, secFlag, fastPathS):
+        """
+        @summary: Send fastPathS Type as fast path packet
+        @param secFlag: {SecFlags}
+        @param fastPathS: {Stream} type transform to stream and send as fastpath
+        """
+        if self._enableEncryption:
+            secFlag |= tpkt.SecFlags.FASTPATH_OUTPUT_ENCRYPTED
+            fastPathS = self.writeEncryptedPayload(fastPathS)
+        
+        self._fastPathTransport.sendFastPath(secFlag, fastPathS)
+        
+    def setFastPathSender(self, fastPathSender):
+        """
+        @param fastPathSender: {tpkt.FastPathSender}
+        """
+        self._fastPathTransport = fastPathSender
     
 class Client(SecLayer):
     """
@@ -352,19 +401,27 @@ class Client(SecLayer):
             self._clientRandom = rsa.randnum.read_random_bits(256)
             self._serverRandom = self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_SECURITY).serverRandom.value
             self._decrypt, self._encrypt = self.generateKeys()
+            self._decryptRc4 = rc4.RC4Key(self._decrypt)
+            self._encryptRc4 = rc4.RC4Key(self._encrypt)
             
             #send client random encrypted with
             certificate = self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_SECURITY).serverCertificate.certData
+            #reverse because bignum in little endian
             serverPublicKey = rsa.PublicKey(bin2bn(certificate.PublicKeyBlob.modulus.value[::-1]), certificate.PublicKeyBlob.pubExp.value)
             
             message = ClientSecurityExchangePDU()
+            #reverse because bignum in little endian
             message.encryptedClientRandom.value = rsa.encrypt(self._clientRandom[::-1], serverPublicKey)[::-1]
             self.sendFlagged(SecurityFlag.SEC_EXCHANGE_PKT, message)
             
             #now all messages must be encrypted
             self._enableEncryption = True
-            
-        self.sendFlagged(SecurityFlag.SEC_INFO_PKT, self._info)
+        
+        secFlag = SecurityFlag.SEC_INFO_PKT
+        if self._enableEncryption:
+            secFlag |= SecurityFlag.SEC_ENCRYPT
+        self.sendFlagged(secFlag, self._info)
+        
         self.setNextState(self.recvLicenceInfo)
         
     def recvLicenceInfo(self, s):

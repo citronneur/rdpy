@@ -45,7 +45,10 @@ class RDPClientController(pdu.layer.PDUClientListener):
         #transport pdu layer
         self._x224Layer = x224.Client(self._mcsLayer)
         #transport packet (protocol layer)
-        self._tpktLayer = tpkt.TPKT(self._x224Layer, self._pduLayer)
+        self._tpktLayer = tpkt.TPKT(self._x224Layer)
+        #fastpath stack
+        self._pduLayer.initFastPath(self._secLayer)
+        self._secLayer.initFastPath(self._tpktLayer)
         #is pdu layer is ready to send
         self._isReady = False
         

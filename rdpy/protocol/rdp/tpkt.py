@@ -33,36 +33,67 @@ class Action(object):
     """
     FASTPATH_ACTION_FASTPATH = 0x0
     FASTPATH_ACTION_X224 = 0x3
+    
+class SecFlags(object):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc240621.aspx
+    """
+    #hihi 'secure' checksum but private key is public !!!
+    FASTPATH_OUTPUT_SECURE_CHECKSUM = 0x1
+    FASTPATH_OUTPUT_ENCRYPTED = 0x2
 
 class IFastPathListener(object):
     """
     @summary:  Fast path packet listener
                 Usually X224 layer
     """
-    def recvFastPath(self, fastPathS):
+    def recvFastPath(self, secFlag, fastPathS):
         """
         @summary: Call when fast path packet is received
-        @param fastPathS: Stream
+        @param secFlag: {SecFlags}
+        @param fastPathS: {Stream}
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recvFastPath", "recvFastPath"))
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recvFastPath", "IFastPathListener"))
+    
+    def initFastPath(self, fastPathSender):
+        """
+        @summary: initialize stack
+        @param fastPathSender: {IFastPathSender}
+        """
+        self.setFastPathSender(fastPathSender)
+        fastPathSender.setFastPathListener(self)
     
     def setFastPathSender(self, fastPathSender):
         """
-        @summary: Call to set a fast path sender to listener
-        @param fastPathSender: IFastPathSender
+        @param fastPathSender : {IFastPathSender}
         """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "setFastPathSender", "recvFastPath"))
-
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "setFastPathSender", "IFastPathListener"))
+    
 class IFastPathSender(object):
     """
     @summary: Fast path send capability
     """
-    def sendFastPath(self, fastPathS):
+    def sendFastPath(self, secFlag, fastPathS):
         """
         @summary: Send fastPathS Type as fast path packet
+        @param secFlag: {SecFlags}
         @param fastPathS: type transform to stream and send as fastpath
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendFastPath", "IFastPathSender"))
+    
+    def initFastPath(self, fastPathListener):
+        """
+        @summary: initialize stack
+        @param fastPathListener: {IFastPathListener}
+        """
+        self.setFastPathListener(fastPathListener)
+        fastPathListener.setFastPathSender(self)
+        
+    def setFastPathListener(self, fastPathListener):
+        """
+        @param fastPathListener: {IFastPathListener}
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "setFastPathListener", "IFastPathSender"))
 
 class TPKT(RawLayer, IFastPathSender):
     """
@@ -70,20 +101,24 @@ class TPKT(RawLayer, IFastPathSender):
                 represent the Raw Layer in stack (first layer)
                 This layer only handle size of packet and determine if is a fast path packet
     """
-    def __init__(self, presentation, fastPathListener = None):
+    def __init__(self, presentation):
         """
         @param presentation: presentation layer, in RDP case is x224 layer
-        @param fastPathListener: IFastPathListener
         """
         RawLayer.__init__(self, presentation)
         #length may be coded on more than 1 bytes
         self._lastShortLength = UInt8()
         #fast path listener
+        self._fastPathListener = None
+        #last secure flag
+        self._secFlag = 0
+            
+    def setFastPathListener(self, fastPathListener):
+        """
+        @param fastPathListener : {IFastPathListener}
+        @note: implement IFastPathSender
+        """
         self._fastPathListener = fastPathListener
-        
-        if not fastPathListener is None:
-            #set me as fast path sender
-            fastPathListener.setFastPathSender(self)
         
     def connect(self):
         """
@@ -112,6 +147,7 @@ class TPKT(RawLayer, IFastPathSender):
             self.expect(2, self.readExtendedHeader)
         else:
             #is fast path packet
+            self._secFlag = version.value >> 6
             data.readType(self._lastShortLength)
             if self._lastShortLength.value & 0x80:
                 #size is 1 byte more
@@ -147,7 +183,7 @@ class TPKT(RawLayer, IFastPathSender):
         Fast path data
         @param data: Stream from twisted layer
         """
-        self._fastPathListener.recvFastPath(data)
+        self._fastPathListener.recvFastPath(self._secFlag, data)
         self.expect(2, self.readHeader)
     
     def readData(self, data):
@@ -166,8 +202,9 @@ class TPKT(RawLayer, IFastPathSender):
         """
         RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_X224), UInt8(0), UInt16Be(sizeof(message) + 4), message))
         
-    def sendFastPath(self, fastPathS):
+    def sendFastPath(self, secFlag, fastPathS):
         """
         @param fastPathS: type transform to stream and send as fastpath
+        @param secFlag: {SecFlags}
         """
-        RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_FASTPATH), UInt16Be((sizeof(fastPathS) + 3) | 0x8000), fastPathS))
+        RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_FASTPATH | secFlag), UInt16Be((sizeof(fastPathS) + 3) | 0x8000), fastPathS))
