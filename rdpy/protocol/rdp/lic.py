@@ -124,10 +124,10 @@ class ProductInformation(CompositeType):
         self.dwVersion = UInt32Le()
         self.cbCompanyName = UInt32Le(lambda:sizeof(self.pbCompanyName))
         #may contain "Microsoft Corporation" from server microsoft
-        self.pbCompanyName = String(readLen = self.cbCompanyName, unicode = True)
+        self.pbCompanyName = String("Microsoft Corporation", readLen = self.cbCompanyName, unicode = True)
         self.cbProductId = UInt32Le(lambda:sizeof(self.pbProductId))
         #may contain "A02" from microsoft license server
-        self.pbProductId = String(readLen = self.cbProductId, unicode = True)
+        self.pbProductId = String("A02", readLen = self.cbProductId, unicode = True)
 
 
 class Scope(CompositeType):
@@ -159,7 +159,7 @@ class ServerLicenseRequest(CompositeType):
     
     def __init__(self):
         CompositeType.__init__(self)
-        self.serverRandom = String(readLen = UInt8(32))
+        self.serverRandom = String("\x00" * 32, readLen = UInt8(32))
         self.productInfo = ProductInformation()
         self.keyExchangeList = LicenseBinaryBlob(BinaryBlobType.BB_KEY_EXCHG_ALG_BLOB)
         self.serverCertificate = LicenseBinaryBlob(BinaryBlobType.BB_CERTIFICATE_BLOB)
@@ -180,7 +180,7 @@ class ClientNewLicenseRequest(CompositeType):
         #pure microsoft client ;-)
         #http://msdn.microsoft.com/en-us/library/1040af38-c733-4fb3-acd1-8db8cc979eda#id10
         self.platformId = UInt32Le(0x04000000 | 0x00010000)
-        self.clientRandom = String("\x00" * 32)
+        self.clientRandom = String("\x00" * 32, readLen = UInt8(32))
         self.encryptedPreMasterSecret = LicenseBinaryBlob(BinaryBlobType.BB_RANDOM_BLOB)
         self.ClientUserName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_USER_NAME_BLOB)
         self.ClientMachineName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_MACHINE_NAME_BLOB)
@@ -271,11 +271,10 @@ class LicenseManager(object):
         """
         @summary: generate key for license session
         """
-        masterSecret = sec.generateMicrosoftKeyABBCCC(self._preMasterSecret, self._clientRandom, self._serverRandom)
-        sessionKeyBlob = sec.generateMicrosoftKeyABBCCC(masterSecret, self._serverRandom, self._clientRandom)
+        masterSecret = sec.masterSecret(self._preMasterSecret, self._clientRandom, self._serverRandom)
+        sessionKeyBlob = sec.masterSecret(masterSecret, self._serverRandom, self._clientRandom)
         self._macSalt = sessionKeyBlob[:16]
         self._licenseKey = sec.finalHash(sessionKeyBlob[16:32], self._clientRandom, self._serverRandom)
-        self._rc4LicenseKey = rc4.RC4Key(self._licenseKey)
         
     def recv(self, s):
         """
@@ -293,10 +292,12 @@ class LicenseManager(object):
             self._serverRandom = licPacket.licensingMessage.serverRandom.value
             self.generateKeys()
             self.sendClientNewLicenseRequest()
+            return False
             
         elif licPacket.bMsgtype.value == MessageType.PLATFORM_CHALLENGE:
             self._serverEncryptedChallenge = licPacket.licensingMessage.encryptedPlatformChallenge.blobData.value
             self.sendClientChallengeResponse()
+            return False
         
         #yes get a new license
         elif licPacket.bMsgtype.value == MessageType.NEW_LICENSE:
@@ -325,7 +326,7 @@ class LicenseManager(object):
         """
         #decrypt server challenge
         #it should be TEST word in unicode format
-        serverChallenge = rc4.crypt(self._rc4LicenseKey, self._serverEncryptedChallenge)
+        serverChallenge = rc4.crypt(rc4.RC4Key(self._licenseKey), self._serverEncryptedChallenge)
         
         #generate hwid
         s = Stream()
@@ -334,7 +335,7 @@ class LicenseManager(object):
         
         message = ClientPLatformChallengeResponse()
         message.encryptedPlatformChallengeResponse.blobData.value = self._serverEncryptedChallenge
-        message.encryptedHWID.blobData.value = rc4.crypt(self._rc4LicenseKey, hwid)
+        message.encryptedHWID.blobData.value = rc4.crypt(rc4.RC4Key(self._licenseKey), hwid)
         message.MACData.value = sec.macData(self._macSalt, serverChallenge + hwid)
         
         self._transport.sendFlagged(sec.SecurityFlag.SEC_LICENSE_PKT, LicPacket(message))

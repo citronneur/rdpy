@@ -26,6 +26,7 @@ import gcc, lic, tpkt
 from rdpy.core.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.error import InvalidExpectedDataException
+from rdpy.core import log
 
 class SecurityFlag(object):
     """
@@ -131,16 +132,17 @@ def finalHash(key, random1, random2):
     md5Digest.update(random2)
     return md5Digest.digest()
 
-def generateMicrosoftKeyABBCCC(secret, random1, random2):
+def masterSecret(secret, random1, random2):
     """
     @summary: Generate master secret
-    @param secret: secret
-    @param clientRandom : client random
-    @param serverRandom : server random
+    @param secret: {str} secret
+    @param clientRandom : {str} client random
+    @param serverRandom : {str} server random
+    @see: http://msdn.microsoft.com/en-us/library/cc241992.aspx
     """
     return saltedHash("A", secret, random1, random2) + saltedHash("BB", secret, random1, random2) + saltedHash("CCC", secret, random1, random2)
 
-def generateMicrosoftKeyXYYZZZ(secret, random1, random2):
+def sessionKeyBlob(secret, random1, random2):
     """
     @summary: Generate master secret
     @param secret: secret
@@ -174,11 +176,67 @@ def macData(macSaltKey, data):
     
     return md5Digest.digest()
 
+def gen40bits(data):
+    """
+    @summary: generate 40 bits data from 128 bits data
+    @param data: {str} 128 bits data
+    @return: {str} 40 bits data
+    @see: http://msdn.microsoft.com/en-us/library/cc240785.aspx
+    """
+    return "\xd1\x26\x9e" + data[:8][-5:]
+
+def gen56bits(data):
+    """
+    @summary: generate 56 bits data from 128 bits data
+    @param data: {str} 128 bits data
+    @return: {str} 56 bits data
+    @see: http://msdn.microsoft.com/en-us/library/cc240785.aspx
+    """
+    return "\xd1" + data[:8][-7:]
+
+def generateKeys(clientRandom, serverRandom, method):
+    """
+    @param method: {gcc.Encryption}
+    @param clientRandom: {str[32]} client random
+    @param serverRandom: {str[32]} server random
+    @see: http://msdn.microsoft.com/en-us/library/cc240785.aspx
+    @return: MACKey, initialFirstKey128(ClientdecryptKey, serverEncryptKey), initialSecondKey128(ServerDecryptKey, ClientEncryptKey)
+    """
+    preMasterHash = clientRandom[:24] + serverRandom[:24]
+    masterHash = masterSecret(preMasterHash, clientRandom, serverRandom)
+    sessionKey = sessionKeyBlob(masterHash, clientRandom, serverRandom)
+    macKey128 = sessionKey[:16]
+    initialFirstKey128 = finalHash(sessionKey[16:32], clientRandom, serverRandom)
+    initialSecondKey128 = finalHash(sessionKey[32:48], clientRandom, serverRandom)
+    
+    #generate valid key
+    if method == gcc.Encryption.ENCRYPTION_FLAG_40BIT:
+        return gen40bits(macKey128), gen40bits(initialFirstKey128), gen40bits(initialSecondKey128)
+    
+    elif method == gcc.Encryption.ENCRYPTION_FLAG_56BIT:
+        return gen56bits(macKey128), gen56bits(initialFirstKey128), gen56bits(initialSecondKey128)
+    
+    elif method == gcc.Encryption.ENCRYPTION_FLAG_128BIT:
+        return macKey128, initialFirstKey128, initialSecondKey128
+    
+    raise InvalidExpectedDataException("Bad encryption method")
+
+def updateKeys(initialKey, currentKey, method):
+    """
+    @summary: update session key
+    @param initialKey: {str} Initial key
+    @param currentKey: {str} Current key
+    @return newKey: {str} key to use
+    @see: http://msdn.microsoft.com/en-us/library/cc240792.aspx
+    """
+    tempKey128 = macData(initialKey, currentKey)
+    return rc4.crypt(rc4.RC4Key(tempKey128), tempKey128)
+
 def bin2bn(b):
     """
     @summary: convert binary string to bignum
-    @param b: binary string
-    @return bignum
+    @param b: {str} binary string
+    @return: {long} bignum
     """
     l = 0L
     for ch in b:
@@ -207,7 +265,7 @@ class RDPInfo(CompositeType):
         #code page
         self.codePage = UInt32Le()
         #support flag
-        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_LOGONERRORS)
+        self.flag = UInt32Le(InfoFlag.INFO_MOUSE | InfoFlag.INFO_UNICODE | InfoFlag.INFO_LOGONNOTIFY | InfoFlag.INFO_LOGONERRORS | InfoFlag.INFO_DISABLECTRLALTDEL)
         self.cbDomain = UInt16Le(lambda:sizeof(self.domain) - 2)
         self.cbUserName = UInt16Le(lambda:sizeof(self.userName) - 2)
         self.cbPassword = UInt16Le(lambda:sizeof(self.password) - 2)
@@ -241,7 +299,7 @@ class RDPExtendedInfo(CompositeType):
 
 class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastPathSender):
     """
-    @summary: Basic RDP security manager
+    @summary: Standard RDP security layer
     This layer is Transparent as possible for upper layer 
     """
     def __init__(self, presentation):
@@ -254,31 +312,26 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         self._fastPathPresentation = None
         
         #credentials
-        self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_CORE).rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
+        self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().SC_CORE.rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
         
         #True if classic encryption is enable
         self._enableEncryption = False
         
-        #crypto random
-        self._clientRandom = None
-        self._serverRandom = None
         #initialise decrypt and encrypt keys
-        self._decryt = None
-        self._encrypt = None
-        #current rc4 map key
+        self._macKey = None
+        self._initialDecrytKey = None
+        self._initialEncryptKey = None
+        self._currentDecrytKey = None
+        self._currentEncryptKey = None
+        
+        #counter before update
+        self._nbEncryptedPacket = 0
+        self._nbDecryptedPacket = 0
+        
+        #current rc4 tab
         self._decryptRc4 = None
         self._encryptRc4 = None
         
-    def generateKeys(self):
-        """
-        @see: http://msdn.microsoft.com/en-us/library/cc240785.aspx
-        @return: finalHash(second128bit(sessionkey), sthird128bit(sessionkey))
-        """
-        preMasterSecret = self._clientRandom[:24] + self._serverRandom[:24]
-        masterSecret = generateMicrosoftKeyABBCCC(preMasterSecret, self._clientRandom, self._serverRandom)
-        self._sessionKey = generateMicrosoftKeyXYYZZZ(masterSecret, self._clientRandom, self._serverRandom)
-        self._macKey128 = self._sessionKey[:16]
-        return (finalHash(self._sessionKey[16:32], self._clientRandom, self._serverRandom), finalHash(self._sessionKey[32:48], self._clientRandom, self._serverRandom))
     
     def readEncryptedPayload(self, s):
         """
@@ -286,13 +339,24 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         @param s: {Stream} encrypted stream
         @return: {Stream} decrypted
         """
+        #if update is needed
+        if self._nbDecryptedPacket == 4096:
+            log.debug("Update decrypt key")
+            self._currentDecrytKey = updateKeys(self._initialDecrytKey, self._currentDecrytKey, None)
+            self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
+            self._nbDecryptedPacket = 0
+        
         signature = String(readLen = UInt8(8))
         encryptedPayload = String()
         s.readType((signature, encryptedPayload))
         decrypted = rc4.crypt(self._decryptRc4, encryptedPayload.value)
+
         #ckeck signature
-        if macData(self._macKey128, decrypted)[:8] != signature.value:
+        if macData(self._macKey, decrypted)[:8] != signature.value:
             raise InvalidExpectedDataException("Bad packet signature")
+        
+        #count
+        self._nbDecryptedPacket += 1
 
         return Stream(decrypted)
     
@@ -302,9 +366,16 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         @param s: {Stream} raw stream
         @return: {Tuple} (signature, encryptedData)
         """
+        if self._nbEncryptedPacket == 4096:
+            log.debug("Update encrypt key")
+            self._currentEncryptKey = updateKeys(self._initialEncryptKey, self._currentEncryptKey, None)
+            self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
+            self._nbEncryptedPacket = 0
+            
+        self._nbEncryptedPacket += 1
         s = Stream()
         s.writeType(data)
-        return (String(macData(self._macKey128, s.getvalue())[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
+        return (String(macData(self._macKey, s.getvalue())[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
     
     def recv(self, data):
         """
@@ -396,26 +467,30 @@ class Client(SecLayer):
         """
         @summary: send client random
         """
-        if self._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE).serverSelectedProtocol == 0:
+
+        self._enableEncryption = self._transport.getGCCClientSettings().CS_CORE.serverSelectedProtocol == 0
+        
+        if self._enableEncryption:
             #generate client random
-            self._clientRandom = rsa.randnum.read_random_bits(256)
-            self._serverRandom = self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_SECURITY).serverRandom.value
-            self._decrypt, self._encrypt = self.generateKeys()
-            self._decryptRc4 = rc4.RC4Key(self._decrypt)
-            self._encryptRc4 = rc4.RC4Key(self._encrypt)
+            clientRandom = rsa.randnum.read_random_bits(256)
+            self._macKey, self._initialDecrytKey, self._initialEncryptKey = generateKeys(   clientRandom, 
+                                                                                            self._transport.getGCCServerSettings().SC_SECURITY.serverRandom.value, 
+                                                                                            self._transport.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
+            #initialize keys
+            self._currentDecrytKey = self._initialDecrytKey
+            self._currentEncryptKey = self._initialEncryptKey
+            self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
+            self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
             
             #send client random encrypted with
-            certificate = self._transport.getGCCServerSettings().getBlock(gcc.MessageType.SC_SECURITY).serverCertificate.certData
+            certificate = self._transport.getGCCServerSettings().SC_SECURITY.serverCertificate.certData
             #reverse because bignum in little endian
             serverPublicKey = rsa.PublicKey(bin2bn(certificate.PublicKeyBlob.modulus.value[::-1]), certificate.PublicKeyBlob.pubExp.value)
             
             message = ClientSecurityExchangePDU()
             #reverse because bignum in little endian
-            message.encryptedClientRandom.value = rsa.encrypt(self._clientRandom[::-1], serverPublicKey)[::-1]
+            message.encryptedClientRandom.value = rsa.encrypt(clientRandom[::-1], serverPublicKey)[::-1]
             self.sendFlagged(SecurityFlag.SEC_EXCHANGE_PKT, message)
-            
-            #now all messages must be encrypted
-            self._enableEncryption = True
         
         secFlag = SecurityFlag.SEC_INFO_PKT
         if self._enableEncryption:

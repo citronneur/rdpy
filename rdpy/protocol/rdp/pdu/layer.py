@@ -144,7 +144,7 @@ class Client(PDULayer):
         """
         @summary: Connect message in client automata
         """
-        self._gccCore = self._transport._transport.getGCCClientSettings().getBlock(gcc.MessageType.CS_CORE)
+        self._gccCore = self._transport._transport.getGCCClientSettings().CS_CORE
         self.setNextState(self.recvDemandActivePDU)
         #check if client support fast path message
         self._clientFastPathSupported = False

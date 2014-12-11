@@ -29,7 +29,7 @@ import unittest
 import rdpy.core.type
 from rdpy.core.error import InvalidSize
 
-class TypeCase(unittest.TestCase):
+class TypeTest(unittest.TestCase):
     """
     @summary: represent test case for all classes and function
                 present in rdpy.network.type

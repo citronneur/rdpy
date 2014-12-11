@@ -28,7 +28,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 import unittest
 import rdpy.core.layer
 
-class LayerCase(unittest.TestCase):
+class LayerTest(unittest.TestCase):
     """
     @summary:  represent test case for all classes and function
                 present in rdpy.core.layer
@@ -46,9 +46,9 @@ class LayerCase(unittest.TestCase):
         """
         class TestConnect(rdpy.core.layer.Layer):
             def connect(self):
-                raise LayerCase.LayerCaseException()
+                raise LayerTest.LayerCaseException()
             
-        self.assertRaises(LayerCase.LayerCaseException, rdpy.core.layer.Layer(presentation = TestConnect()).connect)
+        self.assertRaises(LayerTest.LayerCaseException, rdpy.core.layer.Layer(presentation = TestConnect()).connect)
         
     def test_layer_automata_more_than_expected(self):
         """
@@ -57,11 +57,11 @@ class LayerCase(unittest.TestCase):
         class TestAutomata(rdpy.core.layer.RawLayer):
             def expectedCallBack(self, data):
                 if data.dataLen() == 4:
-                    raise LayerCase.LayerCaseException()
+                    raise LayerTest.LayerCaseException()
             
         t = TestAutomata()
         t.expect(4, t.expectedCallBack)
-        self.assertRaises(LayerCase.LayerCaseException, t.dataReceived, "\x00\x00\x00\x00\x00")
+        self.assertRaises(LayerTest.LayerCaseException, t.dataReceived, "\x00\x00\x00\x00\x00")
         
     def test_layer_automata_less_than_expected(self):
         """
@@ -70,7 +70,7 @@ class LayerCase(unittest.TestCase):
         class TestAutomata(rdpy.core.layer.RawLayer):
             def expectedCallBack(self, data):
                 if data.dataLen() == 4:
-                    raise LayerCase.LayerCaseException()
+                    raise LayerTest.LayerCaseException()
             
         t = TestAutomata()
         t.expect(4, t.expectedCallBack)

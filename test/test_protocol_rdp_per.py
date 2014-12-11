@@ -30,7 +30,7 @@ import rdpy.protocol.rdp.per as per
 import rdpy.core.type as type
 import rdpy.core.error as error
 
-class PERCase(unittest.TestCase):
+class PERTest(unittest.TestCase):
     """
     @summary: test case for per layer (RDP)
     """

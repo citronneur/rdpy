@@ -30,7 +30,7 @@ import rdpy.protocol.rdp.tpkt as tpkt
 import rdpy.core.type as type
 import rdpy.core.error as error
 
-class TPKTCase(unittest.TestCase):
+class TPKTTest(unittest.TestCase):
     """
     @summary: test case for tpkt layer (RDP)
     """
@@ -47,10 +47,10 @@ class TPKTCase(unittest.TestCase):
         """
         class Presentation(object):
             def connect(self):
-                raise TPKTCase.TPKT_PASS()
+                raise TPKTTest.TPKT_PASS()
             
-        layer = tpkt.TPKT(Presentation(), None)
-        self.assertRaises(TPKTCase.TPKT_PASS, layer.connect)
+        layer = tpkt.TPKT(Presentation())
+        self.assertRaises(TPKTTest.TPKT_PASS, layer.connect)
         
     def test_tpkt_layer_recv(self):
         """
@@ -61,16 +61,16 @@ class TPKTCase(unittest.TestCase):
                 pass
             def recv(self, data):
                 data.readType(type.String("test_tpkt_layer_recv", constant = True))
-                raise TPKTCase.TPKT_PASS()
+                raise TPKTTest.TPKT_PASS()
             
         message = type.String("test_tpkt_layer_recv")
         
         s = type.Stream()
         s.writeType((type.UInt8(tpkt.Action.FASTPATH_ACTION_X224), type.UInt8(), type.UInt16Be(type.sizeof(message) + 4), message))
         
-        layer = tpkt.TPKT(Presentation(), None)
+        layer = tpkt.TPKT(Presentation())
         layer.connect()
-        self.assertRaises(TPKTCase.TPKT_PASS, layer.dataReceived, s.getvalue())
+        self.assertRaises(TPKTTest.TPKT_PASS, layer.dataReceived, s.getvalue())
         
     def test_tpkt_layer_recv_fastpath(self):
         """
@@ -79,18 +79,19 @@ class TPKTCase(unittest.TestCase):
         class FastPathLayer(tpkt.IFastPathListener):
             def setFastPathSender(self, fastPathSender):
                 pass
-            def recvFastPath(self, fastPathS):
+            def recvFastPath(self, secFlag, fastPathS):
                 fastPathS.readType(type.String("test_tpkt_layer_recv_fastpath", constant = True))
-                raise TPKTCase.TPKT_PASS()
+                raise TPKTTest.TPKT_PASS()
             
         message = type.String("test_tpkt_layer_recv_fastpath")
         
         s = type.Stream()
         s.writeType((type.UInt8(tpkt.Action.FASTPATH_ACTION_FASTPATH), type.UInt8(type.sizeof(message) + 2), message))
         
-        layer = tpkt.TPKT(None, FastPathLayer())
+        layer = tpkt.TPKT(None)
+        layer.initFastPath(FastPathLayer())
         layer.connect()
-        self.assertRaises(TPKTCase.TPKT_PASS, layer.dataReceived, s.getvalue())
+        self.assertRaises(TPKTTest.TPKT_PASS, layer.dataReceived, s.getvalue())
         
     def test_tpkt_layer_recv_fastpath_ext_length(self):
         """
@@ -99,15 +100,16 @@ class TPKTCase(unittest.TestCase):
         class FastPathLayer(tpkt.IFastPathListener):
             def setFastPathSender(self, fastPathSender):
                 pass
-            def recvFastPath(self, fastPathS):
+            def recvFastPath(self, secflag, fastPathS):
                 fastPathS.readType(type.String("test_tpkt_layer_recv_fastpath_ext_length", constant = True))
-                raise TPKTCase.TPKT_PASS()
+                raise TPKTTest.TPKT_PASS()
             
         message = type.String("test_tpkt_layer_recv_fastpath_ext_length")
         
         s = type.Stream()
         s.writeType((type.UInt8(tpkt.Action.FASTPATH_ACTION_FASTPATH), type.UInt16Be((type.sizeof(message) + 3) | 0x8000), message))
         
-        layer = tpkt.TPKT(None, FastPathLayer())
+        layer = tpkt.TPKT(None)
+        layer.initFastPath(FastPathLayer())
         layer.connect()
-        self.assertRaises(TPKTCase.TPKT_PASS, layer.dataReceived, s.getvalue())
+        self.assertRaises(TPKTTest.TPKT_PASS, layer.dataReceived, s.getvalue())

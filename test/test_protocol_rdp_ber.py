@@ -30,7 +30,7 @@ import rdpy.protocol.rdp.ber as ber
 import rdpy.core.type as type
 import rdpy.core.error as error
 
-class BERCase(unittest.TestCase):
+class BERTest(unittest.TestCase):
     """
     @summary: test case for ber layer (RDP)
     """

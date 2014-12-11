@@ -403,6 +403,15 @@ class Settings(CompositeType):
             if i.type.value == messageType:
                 return i.dataBlock
         return None
+    
+    def __getattr__(self, name):
+        """
+        @summary: Magic function for better access
+        @return: _value parameter
+        """
+        if not name in MessageType.__dict__:
+            return None
+        return self.getBlock(MessageType.__dict__[name])
         
 def clientSettings():
     """

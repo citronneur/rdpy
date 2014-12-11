@@ -29,7 +29,7 @@ import unittest
 import rdpy.core.const
 import rdpy.core.type
 
-class ConstCase(unittest.TestCase):
+class ConstTest(unittest.TestCase):
     '''
     represent test case for all classes and function
     present in rdpy.base.const
