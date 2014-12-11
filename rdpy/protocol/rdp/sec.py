@@ -176,6 +176,25 @@ def macData(macSaltKey, data):
     
     return md5Digest.digest()
 
+def tempKey(initialKey, currentKey):
+    """
+    @see: http://msdn.microsoft.com/en-us/library/cc240792.aspx
+    """
+    sha1Digest = sha.new()
+    md5Digest = md5.new()
+    
+    sha1Digest.update(initialKey)
+    sha1Digest.update("\x36" * 40)
+    sha1Digest.update(currentKey)
+    
+    sha1Sig = sha1Digest.digest()
+    
+    md5Digest.update(initialKey)
+    md5Digest.update("\x5c" * 48)
+    md5Digest.update(sha1Sig)
+    
+    return md5Digest.digest()
+
 def gen40bits(data):
     """
     @summary: generate 40 bits data from 128 bits data
@@ -221,7 +240,7 @@ def generateKeys(clientRandom, serverRandom, method):
     
     raise InvalidExpectedDataException("Bad encryption method")
 
-def updateKeys(initialKey, currentKey, method):
+def updateKey(initialKey, currentKey, method):
     """
     @summary: update session key
     @param initialKey: {str} Initial key
@@ -229,8 +248,18 @@ def updateKeys(initialKey, currentKey, method):
     @return newKey: {str} key to use
     @see: http://msdn.microsoft.com/en-us/library/cc240792.aspx
     """
-    tempKey128 = macData(initialKey, currentKey)
-    return rc4.crypt(rc4.RC4Key(tempKey128), tempKey128)
+    #generate valid key
+    if method == gcc.Encryption.ENCRYPTION_FLAG_40BIT:
+        tempKey128 = tempKey(initialKey[:8], currentKey[:8])
+        return gen40bits(rc4.crypt(rc4.RC4Key(tempKey128[:8]), tempKey128[:8]))
+    
+    elif method == gcc.Encryption.ENCRYPTION_FLAG_56BIT:
+        tempKey128 = tempKey(initialKey[:8], currentKey[:8])
+        return gen56bits(rc4.crypt(rc4.RC4Key(tempKey128[:8]), tempKey128[:8]))
+    
+    elif method == gcc.Encryption.ENCRYPTION_FLAG_128BIT:
+        tempKey128 = tempKey(initialKey, currentKey)
+        return rc4.crypt(rc4.RC4Key(tempKey128), tempKey128)
 
 def bin2bn(b):
     """
@@ -341,8 +370,9 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         """
         #if update is needed
         if self._nbDecryptedPacket == 4096:
-            log.debug("Update decrypt key")
-            self._currentDecrytKey = updateKeys(self._initialDecrytKey, self._currentDecrytKey, None)
+            log.info("update decrypt key")
+            self._currentDecrytKey = updateKey( self._initialDecrytKey, self._currentDecrytKey, 
+                                                self._transport.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
             self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
             self._nbDecryptedPacket = 0
         
@@ -367,8 +397,9 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         @return: {Tuple} (signature, encryptedData)
         """
         if self._nbEncryptedPacket == 4096:
-            log.debug("Update encrypt key")
-            self._currentEncryptKey = updateKeys(self._initialEncryptKey, self._currentEncryptKey, None)
+            log.info("update encrypt key")
+            self._currentEncryptKey = updateKey(    self._initialEncryptKey, self._currentEncryptKey, 
+                                                    self._transport.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
             self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
             self._nbEncryptedPacket = 0
             
@@ -511,7 +542,7 @@ class Client(SecLayer):
         s.readType((securityFlag, securityFlagHi))
         
         if not (securityFlag.value & SecurityFlag.SEC_LICENSE_PKT):
-            raise InvalidExpectedDataException("Waiting license packet")
+            raise InvalidExpectedDataException("waiting license packet")
             
         if self._licenceManager.recv(s):
             self.setNextState()
@@ -538,7 +569,7 @@ class Server(SecLayer):
         Send License valid error message
         Send Demand Active PDU
         Wait Confirm Active PDU
-        @param s: Stream
+        @param s: {Stream}
         """
         securityFlag = UInt16Le()
         securityFlagHi = UInt16Le()
