@@ -959,6 +959,13 @@ class ArrayType(Type):
         @param s: Stream
         """
         s.writeType(self._array)
+        
+    def __getitem__(self, item):
+        """
+        @summary: Magic function to be FactoryType as transparent as possible
+        @return: index of _value
+        """
+        return self._array.__getitem__(item)
     
     def __sizeof__(self):
         """

@@ -306,7 +306,7 @@ class Client(MCSLayer):
         
         #static virtual channel
         if self._nbChannelRequested < self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelCount.value:
-            channelId = self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelIdArray._array[self._nbChannelRequested]
+            channelId = self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelIdArray[self._nbChannelRequested]
             self._nbChannelRequested += 1
             self.sendChannelJoinRequest(channelId)
             return
@@ -384,7 +384,7 @@ class Client(MCSLayer):
         if confirm == 0:
             serverNet = self._serverSettings.getBlock(gcc.MessageType.SC_NET)
             for i in range(0, serverNet.channelCount.value):
-                if channelId == serverNet.channelIdArray._array[i].value:
+                if channelId == serverNet.channelIdArray[i].value:
                     self._channels[channelId] = self._virtualChannels[i][1] 
         
         self.connectNextChannel()

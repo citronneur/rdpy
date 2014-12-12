@@ -299,7 +299,7 @@ class ServerCertificate(CompositeType):
     @summary: Server certificate structure
     @see: http://msdn.microsoft.com/en-us/library/cc240521.aspx
     """
-    def __init__(self, readLen, conditional):
+    def __init__(self, readLen = None, conditional = lambda:True):
         CompositeType.__init__(self, readLen = readLen, conditional = conditional)
         self.dwVersion = UInt32Le()
         
@@ -307,10 +307,10 @@ class ServerCertificate(CompositeType):
             """
             Closure for capability factory
             """
-            for c in [ProprietaryServerCertificate]:
+            for c in [ProprietaryServerCertificate, X509CertificateChain]:
                 if self.dwVersion.value & 0x7fffffff == c._TYPE_:
                     return c()
-            raise InvalidExpectedDataException("unknown certificate type : %s (RDPY doesn't support x.509 format please repport a bug)"%hex(self.dwVersion.value))
+            raise InvalidExpectedDataException("unknown certificate type : %s "%hex(self.dwVersion.value))
             
         self.certData = FactoryType(CertificateFactory)
         
@@ -331,6 +331,29 @@ class ProprietaryServerCertificate(CompositeType):
         self.wSignatureBlobType = UInt16Le(0x0008, constant = True)
         self.wSignatureBlobLen = UInt16Le(lambda:sizeof(self.SignatureBlob))
         self.SignatureBlob = String(readLen = self.wSignatureBlobLen)
+
+class CertBlob(CompositeType):
+    """
+    @summary: certificate blob, contain x509 data
+    @see: http://msdn.microsoft.com/en-us/library/cc241911.aspx
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.cbCert = UInt32Le(lambda:sizeof(self.abCert))
+        self.abCert = String(readLen = self.cbCert)
+
+class X509CertificateChain(CompositeType):
+    """
+    @summary: X509 certificate chain
+    @see: http://msdn.microsoft.com/en-us/library/cc241910.aspx
+    """
+    _TYPE_ = CertificateType.CERT_CHAIN_VERSION_2
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.NumCertBlobs = UInt32Le()
+        self.CertBlobArray = ArrayType(CertBlob, readLen = self.NumCertBlobs)
+        self.padding = String(readLen = UInt8(lambda:(8 + 4 * self.NumCertBlobs.value)))
         
 class RSAPublicKey(CompositeType):
     """

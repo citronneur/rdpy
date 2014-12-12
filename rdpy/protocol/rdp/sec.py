@@ -26,7 +26,7 @@ import gcc, lic, tpkt
 from rdpy.core.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.error import InvalidExpectedDataException
-from rdpy.core import log
+from rdpy.core import log, x509
 
 class SecurityFlag(object):
     """
@@ -155,6 +155,9 @@ def sessionKeyBlob(secret, random1, random2):
 def macData(macSaltKey, data):
     """
     @see: http://msdn.microsoft.com/en-us/library/cc241995.aspx
+    @param macSaltKey: {str} mac key
+    @param data: {str} data to sign
+    @return: {str} signature
     """
     sha1Digest = sha.new()
     md5Digest = md5.new()
@@ -179,6 +182,9 @@ def macData(macSaltKey, data):
 def tempKey(initialKey, currentKey):
     """
     @see: http://msdn.microsoft.com/en-us/library/cc240792.aspx
+    @param initialKey: {str} key computed first time
+    @param currentKey: {str} key actually used
+    @return: {str} temp key
     """
     sha1Digest = sha.new()
     md5Digest = md5.new()
@@ -514,9 +520,17 @@ class Client(SecLayer):
             self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
             
             #send client random encrypted with
-            certificate = self._transport.getGCCServerSettings().SC_SECURITY.serverCertificate.certData
+            certificate = self._transport.getGCCServerSettings().SC_SECURITY.serverCertificate.certData._value
+            if isinstance(certificate, gcc.ProprietaryServerCertificate):
+                modulus = bin2bn(certificate.PublicKeyBlob.modulus.value[::-1])
+                publicExponent = certificate.PublicKeyBlob.pubExp.value
+            elif isinstance(certificate, gcc.X509CertificateChain):
+                modulus, publicExponent = x509.extractRSAKey(x509.load(certificate.CertBlobArray[-1].abCert.value))
+            else:
+                raise InvalidExpectedDataException("unknown certificate type")
+            
             #reverse because bignum in little endian
-            serverPublicKey = rsa.PublicKey(bin2bn(certificate.PublicKeyBlob.modulus.value[::-1]), certificate.PublicKeyBlob.pubExp.value)
+            serverPublicKey = rsa.PublicKey(modulus, publicExponent)
             
             message = ClientSecurityExchangePDU()
             #reverse because bignum in little endian

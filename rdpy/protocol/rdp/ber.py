@@ -50,7 +50,7 @@ class Tag(object):
 
 def berPC(pc):
     """
-    Return BER_CONSTRUCT if true
+    @summary: Return BER_CONSTRUCT if true
     BER_PRIMITIVE if false
     @param pc: boolean
     @return: BerPc value
@@ -62,7 +62,7 @@ def berPC(pc):
     
 def readLength(s):
     """
-    Read length of BER structure
+    @summary: Read length of BER structure
     length be on 1 2 or 3 bytes
     @param s: stream
     @return: int or Python long
@@ -86,7 +86,7 @@ def readLength(s):
 
 def writeLength(size):
     """
-    Return structure length as expected in BER specification
+    @summary: Return structure length as expected in BER specification
     @param size: int or python long
     @return: UInt8 or (UInt8(0x82), UInt16Be)
     """
@@ -97,7 +97,7 @@ def writeLength(size):
     
 def readUniversalTag(s, tag, pc):
     """
-    Read tag of BER packet
+    @summary: Read tag of BER packet
     @param tag: Tag class attributes
     @param pc: boolean
     @return: true if tag is correctly read
@@ -108,7 +108,7 @@ def readUniversalTag(s, tag, pc):
 
 def writeUniversalTag(tag, pc):
     """
-    Return universal tag byte
+    @summary: Return universal tag byte
     @param tag: tag class attributes
     @param pc: boolean
     @return: UInt8 
@@ -117,7 +117,7 @@ def writeUniversalTag(tag, pc):
 
 def readApplicationTag(s, tag):
     """
-    Read application tag
+    @summary: Read application tag
     @param s: stream
     @param tag: tag class attributes
     @return: length of application packet
@@ -138,7 +138,7 @@ def readApplicationTag(s, tag):
 
 def writeApplicationTag(tag, size):
     """
-    Return structure that represent BER application tag
+    @summary: Return structure that represent BER application tag
     @param tag: int python that match an uint8(0xff)
     @param size: size to rest of packet  
     """
@@ -149,7 +149,7 @@ def writeApplicationTag(tag, size):
     
 def readBoolean(s):
     """
-    Return boolean
+    @summary: Return boolean
     @param s: stream
     @return: boolean
     """
@@ -164,7 +164,7 @@ def readBoolean(s):
 
 def writeBoolean(b):
     """
-    Return structure that represent boolean in BER specification
+    @summary: Return structure that represent boolean in BER specification
     @param b: boolean
     @return: BER boolean block
     """
@@ -175,7 +175,7 @@ def writeBoolean(b):
 
 def readInteger(s):
     """
-    Read integer structure from stream
+    @summary: Read integer structure from stream
     @param s: stream
     @return: int or long python
     """
@@ -207,7 +207,7 @@ def readInteger(s):
     
 def writeInteger(value):
     """
-    Write integer value
+    @summary: Write integer value
     @param param: INT or Python long
     @return: BER integer block 
     """
@@ -220,7 +220,7 @@ def writeInteger(value):
 
 def readOctetString(s):
     """
-    Read BER string structure
+    @summary: Read BER string structure
     @param s: stream
     @return: string python
     """
@@ -231,7 +231,7 @@ def readOctetString(s):
 
 def writeOctetstring(value):
     """
-    Write string in BER representation
+    @summary: Write string in BER representation
     @param value: string
     @return: BER octet string block 
     """
@@ -239,7 +239,7 @@ def writeOctetstring(value):
 
 def readEnumerated(s):
     """
-    Read enumerated structure
+    @summary: Read enumerated structure
     @param s: Stream
     @return: int or long
     """
@@ -253,7 +253,7 @@ def readEnumerated(s):
 
 def writeEnumerated(enumerated):
     """
-    Write enumerated structure
+    @summary: Write enumerated structure
     @param s: Stream
     @return: BER enumerated block 
     """
