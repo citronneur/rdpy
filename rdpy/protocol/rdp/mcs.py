@@ -26,7 +26,7 @@ It exist channel for file system order, audio channel, clipboard etc...
 """
 from rdpy.core.layer import LayerAutomata, IStreamSender, Layer
 from rdpy.core.type import sizeof, Stream, UInt8, UInt16Le, String
-from rdpy.core.error import InvalidExpectedDataException, InvalidValue, InvalidSize
+from rdpy.core.error import InvalidExpectedDataException, InvalidValue, InvalidSize, CallPureVirtualFuntion
 from rdpy.protocol.rdp.ber import writeLength
 import rdpy.core.log as log
 
@@ -58,6 +58,38 @@ class Channel:
     """
     MCS_GLOBAL_CHANNEL = 1003
     MCS_USERCHANNEL_BASE = 1001
+    
+class IGCCConfig(object):
+    """
+    @summary: Channel information
+    """
+    def getUserId(self):
+        """
+        @return: {integer} mcs user id
+        @see: mcs.IGCCConfig
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getUserId", "IGCCConfig")) 
+    
+    def getChannelId(self):
+        """
+        @return: {integer} return channel id of proxy
+        @see: mcs.IGCCConfig
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getChannelId", "IGCCConfig")) 
+        
+    def getGCCClientSettings(self):
+        """
+        @return: {gcc.Settings} mcs layer gcc client settings
+        @see: mcs.IGCCConfig
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getGCCClientSettings", "IGCCConfig")) 
+    
+    def getGCCServerSettings(self):
+        """
+        @return: {gcc.Settings} mcs layer gcc server settings
+        @see: mcs.IGCCConfig
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getGCCServerSettings", "IGCCConfig")) 
 
 class MCSLayer(LayerAutomata):
     """
@@ -65,16 +97,16 @@ class MCSLayer(LayerAutomata):
     the main layer of RDP protocol
     is why he can do everything and more!
     """
-    class MCSProxySender(Layer, IStreamSender):
+    class MCSProxySender(Layer, IStreamSender, IGCCConfig):
         """
         @summary: Proxy use to set as transport layer for upper channel
         use to abstract channel id for presentation layer
         """
         def __init__(self, presentation, mcs, channelId):
             """
-            @param presentation: presentation layer 
-            @param mcs: MCS layer use as proxy
-            @param channelId: channel id for presentation layer 
+            @param presentation: {Layer} presentation layer 
+            @param mcs: {MCSLayer} MCS layer use as proxy
+            @param channelId: {integer} channel id for presentation layer 
             """
             Layer.__init__(self, presentation)
             self._mcs = mcs
@@ -84,6 +116,7 @@ class MCSLayer(LayerAutomata):
             """
             @summary: A send proxy function, use channel id and specific 
             send function of MCS layer
+            @param data: {type.Type | Tuple}
             """
             self._mcs.send(self._channelId, data)
             
@@ -95,35 +128,39 @@ class MCSLayer(LayerAutomata):
             
         def getUserId(self):
             """
-            @return: mcs user id
+            @return: {integer} mcs user id
+            @see: mcs.IGCCConfig
             """
             return self._mcs._userId
         
         def getChannelId(self):
             """
-            @return: return channel id of proxy
+            @return: {integer} return channel id of proxy
+            @see: mcs.IGCCConfig
             """
             return self._channelId
             
         def getGCCClientSettings(self):
             """
-            @return: mcs layer gcc client settings
+            @return: {gcc.Settings} mcs layer gcc client settings
+            @see: mcs.IGCCConfig
             """
             return self._mcs._clientSettings
         
         def getGCCServerSettings(self):
             """
-            @return: mcs layer gcc server settings
+            @return: {gcc.Settings} mcs layer gcc server settings
+            @see: mcs.IGCCConfig
             """
             return self._mcs._serverSettings
         
     
     def __init__(self, presentation, receiveOpcode, sendOpcode, virtualChannels = []):
         """
-        @param presentation: presentation layer
-        @param virtualChannels: list additional channels like rdpsnd... [tuple(mcs.ChannelDef, layer)]
-        @param receiveOpcode: opcode check when receive data
-        @param sendOpcode: opcode use when send data
+        @param presentation: {Layer} presentation layer
+        @param virtualChannels: {Array(Layer]} list additional channels like rdpsnd... [tuple(mcs.ChannelDef, layer)]
+        @param receiveOpcode: {integer} opcode check when receive data
+        @param sendOpcode: {integer} opcode use when send data
         """
         LayerAutomata.__init__(self, presentation)
         self._clientSettings = gcc.clientSettings()
@@ -163,8 +200,8 @@ class MCSLayer(LayerAutomata):
     def send(self, channelId, data):
         """
         @summary: Specific send function for channelId
-        @param channelId: Channel use to send
-        @param data: message to send
+        @param channelId: {integer} Channel use to send
+        @param data: {type.type | tuple} message to send
         """
         self._transport.send((self.writeMCSPDUHeader(UInt8(self._sendOpcode)), 
                               per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE), 
@@ -175,7 +212,7 @@ class MCSLayer(LayerAutomata):
     def recvData(self, data):
         """
         @summary: Main receive method
-        @param data: Stream 
+        @param data: {Stream} 
         """
         opcode = UInt8()
         data.readType(opcode)
@@ -208,11 +245,11 @@ class MCSLayer(LayerAutomata):
         """
         @summary: Write a special domain parameter structure
         use in connection sequence
-        @param maxChannels: number of MCS channel use
-        @param maxUsers: number of MCS user used (1)
-        @param maxTokens: unknown
-        @param maxPduSize: unknown
-        @return: domain parameter structure
+        @param maxChannels: {integer} number of MCS channel use
+        @param maxUsers: {integer} number of MCS user used (1)
+        @param maxTokens: {integer} unknown
+        @param maxPduSize: {integer} unknown
+        @return: {Tuple(type)} domain parameter structure
         """
         domainParam = (ber.writeInteger(maxChannels), ber.writeInteger(maxUsers), ber.writeInteger(maxTokens),
                        ber.writeInteger(1), ber.writeInteger(0), ber.writeInteger(1),
@@ -222,25 +259,26 @@ class MCSLayer(LayerAutomata):
     def writeMCSPDUHeader(self, mcsPdu, options = 0):
         """
         @summary: Write MCS PDU header
-        @param mcsPdu: PDU code
-        @param options: option contains in header
-        @return: UInt8
+        @param mcsPdu: {integer} PDU code
+        @param options: {integer} option contains in header
+        @return: {integer}
         """
         return (mcsPdu << 2) | options
     
     def readMCSPDUHeader(self, opcode, mcsPdu):
         """
         @summary: Read mcsPdu header and return options parameter
-        @param opcode: opcode
-        @param mcsPdu: mcsPdu will be checked
-        @return: true if opcode is correct
+        @param opcode: {integer} opcode
+        @param mcsPdu: {integer} mcsPdu will be checked
+        @return: {boolean} true if opcode is correct
         """
         return (opcode >> 2) == mcsPdu
     
     def readDomainParams(self, s):
         """
         @summary: Read domain parameters structure
-        @return: (max_channels, max_users, max_tokens, max_pdu_size)
+        @param s: {Stream}
+        @return: {Tuple} (max_channels, max_users, max_tokens, max_pdu_size)
         """
         if not ber.readUniversalTag(s, ber.Tag.BER_TAG_SEQUENCE, True):
             raise InvalidValue("bad BER tags")
@@ -261,8 +299,8 @@ class Client(MCSLayer):
     """
     def __init__(self, presentation, virtualChannels = []):
         """
-        @param presentation: presentation layer
-        @param virtualChannels: list additional channels like rdpsnd... [tuple(mcs.ChannelDef, layer)]
+        @param presentation: {Layer} presentation layer
+        @param virtualChannels: {Array(Layer)} list additional channels like rdpsnd... [tuple(mcs.ChannelDef, layer)]
         """
         MCSLayer.__init__(self, presentation, DomainMCSPDU.SEND_DATA_INDICATION, DomainMCSPDU.SEND_DATA_REQUEST, virtualChannels)
         #use to know state of static channel
@@ -277,9 +315,9 @@ class Client(MCSLayer):
         Send ConnectInitial
         Wait ConnectResponse
         """
-        self._clientSettings.getBlock(gcc.MessageType.CS_CORE).serverSelectedProtocol.value = self._transport._selectedProtocol
+        self._clientSettings.CS_CORE.serverSelectedProtocol.value = self._transport._selectedProtocol
         #ask for virtual channel
-        self._clientSettings.getBlock(gcc.MessageType.CS_NET).channelDefArray._array = [x for (x, _) in self._virtualChannels]
+        self._clientSettings.CS_NET.channelDefArray._array = [x for (x, _) in self._virtualChannels]
         #send connect initial
         self.sendConnectInitial()
         #next wait response
@@ -319,7 +357,7 @@ class Client(MCSLayer):
         Send Erect domain Request
         Send Attach User Request
         Wait Attach User Confirm
-        @param data: Stream
+        @param data: {Stream}
         """
         ber.readApplicationTag(data, UInt8(Message.MCS_TYPE_CONNECT_RESPONSE))
         ber.readEnumerated(data)
@@ -343,7 +381,7 @@ class Client(MCSLayer):
         """
         @summary: Receive an attach user confirm
         Send Connect Channel
-        @param data: Stream
+        @param data: {Stream}
         """
         opcode = UInt8()
         data.readType(opcode)
@@ -362,7 +400,7 @@ class Client(MCSLayer):
         """
         @summary: Receive a channel join confirm from server
         client automata function
-        @param data: Stream
+        @param data: {Stream}
         """
         opcode = UInt8()
         data.readType(opcode)
@@ -423,7 +461,7 @@ class Client(MCSLayer):
         """
         @summary: Send a formated Channel join request from client to server
         client automata function
-        @param channelId: id of channel requested
+        @param channelId: {integer} id of channel requested
         """
         self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_REQUEST)), 
                               per.writeInteger16(self._userId, Channel.MCS_USERCHANNEL_BASE), 
@@ -435,8 +473,8 @@ class Server(MCSLayer):
     """
     def __init__(self, presentation, virtualChannels = []):
         """
-        @param presentation: presentation layer
-        @param virtualChannels: list additional channels like rdpsnd... [tuple(mcs.ChannelDef, layer)]
+        @param presentation: {Layer} presentation layer
+        @param virtualChannels: {List(Layer)} list additional channels like rdpsnd... [tuple(mcs.ChannelDef, layer)]
         """
         MCSLayer.__init__(self, presentation, DomainMCSPDU.SEND_DATA_REQUEST, DomainMCSPDU.SEND_DATA_INDICATION, virtualChannels)
         #nb channel requested
@@ -447,7 +485,12 @@ class Server(MCSLayer):
         @summary: Connect message for server automata
         Wait Connect Initial
         """
-        self._serverSettings.getBlock(gcc.MessageType.SC_CORE).clientRequestedProtocol.value = self._transport._requestedProtocol
+        #basic rdp security layer
+        if self._transport._selectedProtocol == 0:
+            self._serverSettings.SC_SECURITY.encryptionMethod.value = gcc.EncryptionMethod.ENCRYPTION_FLAG_128BIT
+            self._serverSettings.SC_SECURITY.encryptionLevel = gcc.EncryptionLevel.ENCRYPTION_LEVEL_HIGH
+            
+        self._serverSettings.SC_CORE.clientRequestedProtocol.value = self._transport._requestedProtocol
         self.setNextState(self.recvConnectInitial)
         
     def recvConnectInitial(self, data):
@@ -455,7 +498,7 @@ class Server(MCSLayer):
         @summary: Receive MCS connect initial from client
         Send Connect Response
         Wait Erect Domain Request
-        @param data: Stream
+        @param data: {Stream}
         """
         ber.readApplicationTag(data, UInt8(Message.MCS_TYPE_CONNECT_INITIAL))
         ber.readOctetString(data)
@@ -485,7 +528,7 @@ class Server(MCSLayer):
         """
         @summary: Receive erect domain request
         Wait Attach User Request
-        @param data: Stream
+        @param data: {Stream}
         """
         opcode = UInt8()
         data.readType(opcode)
@@ -503,7 +546,7 @@ class Server(MCSLayer):
         @summary: Receive Attach user request
         Send Attach User Confirm
         Wait Channel Join Request
-        @param data: Stream
+        @param data: {Stream}
         """
         opcode = UInt8()
         data.readType(opcode)
@@ -518,7 +561,7 @@ class Server(MCSLayer):
         """
         @summary: Receive for each client channel a request
         Send Channel Join Confirm or Connect upper layer when all channel are joined
-        @param data: Stream
+        @param data: {Stream}
         
         """
         opcode = UInt8()
@@ -562,8 +605,8 @@ class Server(MCSLayer):
     def sendChannelJoinConfirm(self, channelId, confirm):
         """
         @summary: Send a confirm channel (or not) to client
-        @param channelId: id of channel
-        @param confirm: connection state 
+        @param channelId: {integer} id of channel
+        @param confirm: {boolean} connection state 
         """
         self._transport.send((self.writeMCSPDUHeader(UInt8(DomainMCSPDU.CHANNEL_JOIN_CONFIRM), 2), 
                               per.writeEnumerates(int(confirm)), 

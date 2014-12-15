@@ -342,7 +342,10 @@ class RDPServerController(pdu.layer.PDUServerListener):
         #transport pdu layer
         self._x224Layer = x224.Server(self._mcsLayer, privateKeyFileName, certificateFileName)
         #transport packet (protocol layer)
-        self._tpktLayer = tpkt.TPKT(self._x224Layer, self._pduLayer)
+        self._tpktLayer = tpkt.TPKT(self._x224Layer)
+        #fastpath stack
+        self._pduLayer.initFastPath(self._secLayer)
+        self._secLayer.initFastPath(self._tpktLayer)
         #set color depth of session
         self.setColorDepth(colorDepth)
         

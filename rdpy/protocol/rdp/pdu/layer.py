@@ -26,7 +26,6 @@ In this layer are managed all mains bitmap update orders end user inputs
 from rdpy.core.layer import LayerAutomata
 from rdpy.core.error import CallPureVirtualFuntion
 import rdpy.core.log as log
-import rdpy.protocol.rdp.gcc as gcc
 import rdpy.protocol.rdp.tpkt as tpkt
 import data, caps
 
@@ -82,7 +81,7 @@ class PDULayer(LayerAutomata, tpkt.IFastPathListener):
             caps.CapsType.CAPSTYPE_GENERAL : caps.Capability(caps.GeneralCapability()),
             caps.CapsType.CAPSTYPE_BITMAP : caps.Capability(caps.BitmapCapability()),
             caps.CapsType.CAPSTYPE_ORDER : caps.Capability(caps.OrderCapability()),
-            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.PointerCapability()),
+            caps.CapsType.CAPSTYPE_POINTER : caps.Capability(caps.PointerCapability(isServer = True)),
             caps.CapsType.CAPSTYPE_INPUT : caps.Capability(caps.InputCapability()),
             caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.VirtualChannelCapability()),
             caps.CapsType.CAPSTYPE_FONT : caps.Capability(caps.FontCapability()),
@@ -120,7 +119,7 @@ class PDULayer(LayerAutomata, tpkt.IFastPathListener):
         @summary: Send a PDU data to transport layer
         @param pduMessage: PDU message
         """
-        self._transport.send(data.PDU(self._transport._transport.getUserId(), pduMessage))
+        self._transport.send(data.PDU(self._transport.getUserId(), pduMessage))
         
     def sendDataPDU(self, pduData):
         """
@@ -144,7 +143,7 @@ class Client(PDULayer):
         """
         @summary: Connect message in client automata
         """
-        self._gccCore = self._transport._transport.getGCCClientSettings().CS_CORE
+        self._gccCore = self._transport.getGCCClientSettings().CS_CORE
         self.setNextState(self.recvDemandActivePDU)
         #check if client support fast path message
         self._clientFastPathSupported = False
@@ -299,7 +298,7 @@ class Client(PDULayer):
         """
         @summary: Read an update data PDU data
         dispatch update data
-        @param: UpdateDataPDU object
+        @param: {UpdateDataPDU} object
         """
         if updateDataPDU.updateType.value == data.UpdateType.UPDATETYPE_BITMAP:
             self._listener.onUpdate(updateDataPDU.updateData.rectangles._array)
@@ -345,7 +344,7 @@ class Client(PDULayer):
         """
         @summary: send a synchronize PDU from client to server
         """
-        synchronizePDU = data.SynchronizeDataPDU(self._transport._transport.getChannelId())
+        synchronizePDU = data.SynchronizeDataPDU(self._transport.getChannelId())
         self.sendDataPDU(synchronizePDU)
         
         #ask for cooperation
@@ -364,7 +363,7 @@ class Client(PDULayer):
         
     def sendInputEvents(self, pointerEvents):
         """
-        send client input events
+        @summary: send client input events
         @param pointerEvents: list of pointer events
         """
         pdu = data.ClientInputEventPDU()
@@ -373,7 +372,7 @@ class Client(PDULayer):
         
 class Server(PDULayer):
     """
-    Server Automata of PDU layer
+    @summary: Server Automata of PDU layer
     """
     def __init__(self, listener):
         """
@@ -386,14 +385,14 @@ class Server(PDULayer):
         
     def connect(self):
         """
-        Connect message for server automata
+        @summary: Connect message for server automata
         """
         self.sendDemandActivePDU()
         self.setNextState(self.recvConfirmActivePDU)      
         
     def recvConfirmActivePDU(self, s):
         """
-        Receive confirm active PDU from client
+        @summary: Receive confirm active PDU from client
         Capabilities exchange
         Wait Client Synchronize PDU
         @param s: Stream
@@ -417,7 +416,7 @@ class Server(PDULayer):
         
     def recvClientSynchronizePDU(self, s):
         """
-        Receive from client 
+        @summary: Receive from client 
         Wait Control Cooperate PDU
         @param s: Stream from transport layer
         """
@@ -432,7 +431,7 @@ class Server(PDULayer):
         
     def recvClientControlCooperatePDU(self, s):
         """
-        Receive control cooperate PDU from client
+        @summary: Receive control cooperate PDU from client
         Wait Control Request PDU
         @param s: Stream from transport layer
         """
@@ -447,7 +446,7 @@ class Server(PDULayer):
         
     def recvClientControlRequestPDU(self, s):
         """
-        Receive last control PDU the request control PDU from client
+        @summary: Receive last control PDU the request control PDU from client
         Wait Font List PDU
         @param s: Stream from transport layer
         """
@@ -462,7 +461,7 @@ class Server(PDULayer):
         
     def recvClientFontListPDU(self, s):
         """
-        Last synchronize packet from client to server
+        @summary: Last synchronize packet from client to server
         Send Server Finalize PDUs
         Wait any PDU
         @param s: Stream from transport layer
@@ -483,7 +482,7 @@ class Server(PDULayer):
         
     def recvPDU(self, s):
         """
-        Main receive function after connection sequence
+        @summary: Main receive function after connection sequence
         @param s: Stream from transport layer
         """
         pdu = data.PDU()
@@ -493,24 +492,25 @@ class Server(PDULayer):
             
     def readDataPDU(self, dataPDU):
         """
-        read a data PDU object
+        @summary: read a data PDU object
         @param dataPDU: DataPDU object
         """
         if dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
             errorMessage = "Unknown code %s"%hex(dataPDU.pduData.errorInfo.value)
             if data.ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
                 errorMessage = data.ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
-                
             log.error("INFO PDU : %s"%errorMessage)
+            
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_INPUT:
             self._listener.onSlowPathInput(dataPDU.pduData.slowPathInputEvents._array)
+            
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SHUTDOWN_REQUEST:
             log.debug("Receive Shutdown Request")
             self._transport.close()
             
     def recvFastPath(self, fastPathS):
         """
-        Implement IFastPathListener interface
+        @summary: Implement IFastPathListener interface
         Fast path is needed by RDP 8.0
         @param fastPathS: Stream that contain fast path data
         """
@@ -536,9 +536,9 @@ class Server(PDULayer):
         
     def sendServerFinalizeSynchronizePDU(self):
         """
-        Send last synchronize packet from server to client
+        @summary: Send last synchronize packet from server to client
         """
-        synchronizePDU = data.SynchronizeDataPDU(self._transport._transport.getChannelId())
+        synchronizePDU = data.SynchronizeDataPDU(self._transport.getChannelId())
         self.sendDataPDU(synchronizePDU)
         
         #ask for cooperation
@@ -557,7 +557,7 @@ class Server(PDULayer):
         
     def sendPDU(self, pduMessage):
         """
-        Send a PDU data to transport layer
+        @summary: Send a PDU data to transport layer
         @param pduMessage: PDU message
         """
         PDULayer.sendPDU(self, pduMessage)
@@ -568,7 +568,7 @@ class Server(PDULayer):
         
     def sendBitmapUpdatePDU(self, bitmapDatas):
         """
-        Send bitmap update data
+        @summary: Send bitmap update data
         @param bitmapDatas: List of data.BitmapData
         """
         #check bitmap header for client that want it (very old client)

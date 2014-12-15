@@ -21,12 +21,12 @@
 Some use full methods for security in RDP
 """
 
-import sha, md5, rsa, rc4
-import gcc, lic, tpkt
+import sha, md5, rsa
+import gcc, lic, tpkt, mcs
 from rdpy.core.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.error import InvalidExpectedDataException
-from rdpy.core import log, x509
+from rdpy.core import log, x509, rc4
 
 class SecurityFlag(object):
     """
@@ -235,13 +235,13 @@ def generateKeys(clientRandom, serverRandom, method):
     initialSecondKey128 = finalHash(sessionKey[32:48], clientRandom, serverRandom)
     
     #generate valid key
-    if method == gcc.Encryption.ENCRYPTION_FLAG_40BIT:
+    if method == gcc.EncryptionMethod.ENCRYPTION_FLAG_40BIT:
         return gen40bits(macKey128), gen40bits(initialFirstKey128), gen40bits(initialSecondKey128)
     
-    elif method == gcc.Encryption.ENCRYPTION_FLAG_56BIT:
+    elif method == gcc.EncryptionMethod.ENCRYPTION_FLAG_56BIT:
         return gen56bits(macKey128), gen56bits(initialFirstKey128), gen56bits(initialSecondKey128)
     
-    elif method == gcc.Encryption.ENCRYPTION_FLAG_128BIT:
+    elif method == gcc.EncryptionMethod.ENCRYPTION_FLAG_128BIT:
         return macKey128, initialFirstKey128, initialSecondKey128
     
     raise InvalidExpectedDataException("Bad encryption method")
@@ -255,28 +255,17 @@ def updateKey(initialKey, currentKey, method):
     @see: http://msdn.microsoft.com/en-us/library/cc240792.aspx
     """
     #generate valid key
-    if method == gcc.Encryption.ENCRYPTION_FLAG_40BIT:
+    if method == gcc.EncryptionMethod.ENCRYPTION_FLAG_40BIT:
         tempKey128 = tempKey(initialKey[:8], currentKey[:8])
         return gen40bits(rc4.crypt(rc4.RC4Key(tempKey128[:8]), tempKey128[:8]))
     
-    elif method == gcc.Encryption.ENCRYPTION_FLAG_56BIT:
+    elif method == gcc.EncryptionMethod.ENCRYPTION_FLAG_56BIT:
         tempKey128 = tempKey(initialKey[:8], currentKey[:8])
         return gen56bits(rc4.crypt(rc4.RC4Key(tempKey128[:8]), tempKey128[:8]))
     
-    elif method == gcc.Encryption.ENCRYPTION_FLAG_128BIT:
+    elif method == gcc.EncryptionMethod.ENCRYPTION_FLAG_128BIT:
         tempKey128 = tempKey(initialKey, currentKey)
         return rc4.crypt(rc4.RC4Key(tempKey128), tempKey128)
-
-def bin2bn(b):
-    """
-    @summary: convert binary string to bignum
-    @param b: {str} binary string
-    @return: {long} bignum
-    """
-    l = 0L
-    for ch in b:
-        l = (l<<8) | ord(ch)
-    return l
     
 class ClientSecurityExchangePDU(CompositeType):
     """
@@ -332,7 +321,7 @@ class RDPExtendedInfo(CompositeType):
         self.clientSessionId = UInt32Le()
         self.performanceFlags = UInt32Le()
 
-class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastPathSender):
+class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastPathSender, mcs.IGCCConfig):
     """
     @summary: Standard RDP security layer
     This layer is Transparent as possible for upper layer 
@@ -347,7 +336,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         self._fastPathPresentation = None
         
         #credentials
-        self._info = RDPInfo(extendedInfoConditional = lambda:(self._transport.getGCCServerSettings().SC_CORE.rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
+        self._info = RDPInfo(extendedInfoConditional = lambda:(self.getGCCServerSettings().SC_CORE.rdpVersion.value == gcc.Version.RDP_VERSION_5_PLUS))
         
         #True if classic encryption is enable
         self._enableEncryption = False
@@ -378,7 +367,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         if self._nbDecryptedPacket == 4096:
             log.info("update decrypt key")
             self._currentDecrytKey = updateKey( self._initialDecrytKey, self._currentDecrytKey, 
-                                                self._transport.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
+                                                self.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
             self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
             self._nbDecryptedPacket = 0
         
@@ -405,7 +394,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         if self._nbEncryptedPacket == 4096:
             log.info("update encrypt key")
             self._currentEncryptKey = updateKey(    self._initialEncryptKey, self._currentEncryptKey, 
-                                                    self._transport.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
+                                                    self.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
             self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
             self._nbEncryptedPacket = 0
             
@@ -491,6 +480,34 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         @param fastPathSender: {tpkt.FastPathSender}
         """
         self._fastPathTransport = fastPathSender
+        
+    def getUserId(self):
+        """
+        @return: {integer} mcs user id
+        @see: mcs.IGCCConfig
+        """
+        return self._transport.getUserId()
+    
+    def getChannelId(self):
+        """
+        @return: {integer} return channel id of proxy
+        @see: mcs.IGCCConfig
+        """
+        return self._transport.getChannelId()
+        
+    def getGCCClientSettings(self):
+        """
+        @return: {gcc.Settings} mcs layer gcc client settings
+        @see: mcs.IGCCConfig
+        """
+        return self._transport.getGCCClientSettings()
+    
+    def getGCCServerSettings(self):
+        """
+        @return: {gcc.Settings} mcs layer gcc server settings
+        @see: mcs.IGCCConfig
+        """
+        return self._transport.getGCCServerSettings()
     
 class Client(SecLayer):
     """
@@ -502,47 +519,49 @@ class Client(SecLayer):
         
     def connect(self):
         """
-        @summary: send client random
+        @summary: send client random if needed and send info packet
         """
-
-        self._enableEncryption = self._transport.getGCCClientSettings().CS_CORE.serverSelectedProtocol == 0
+        self._enableEncryption = self.getGCCClientSettings().CS_CORE.serverSelectedProtocol == 0
         
         if self._enableEncryption:
-            #generate client random
-            clientRandom = rsa.randnum.read_random_bits(256)
-            self._macKey, self._initialDecrytKey, self._initialEncryptKey = generateKeys(   clientRandom, 
-                                                                                            self._transport.getGCCServerSettings().SC_SECURITY.serverRandom.value, 
-                                                                                            self._transport.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
-            #initialize keys
-            self._currentDecrytKey = self._initialDecrytKey
-            self._currentEncryptKey = self._initialEncryptKey
-            self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
-            self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
-            
-            #send client random encrypted with
-            certificate = self._transport.getGCCServerSettings().SC_SECURITY.serverCertificate.certData._value
-            if isinstance(certificate, gcc.ProprietaryServerCertificate):
-                modulus = bin2bn(certificate.PublicKeyBlob.modulus.value[::-1])
-                publicExponent = certificate.PublicKeyBlob.pubExp.value
-            elif isinstance(certificate, gcc.X509CertificateChain):
-                modulus, publicExponent = x509.extractRSAKey(x509.load(certificate.CertBlobArray[-1].abCert.value))
-            else:
-                raise InvalidExpectedDataException("unknown certificate type")
-            
-            #reverse because bignum in little endian
-            serverPublicKey = rsa.PublicKey(modulus, publicExponent)
-            
-            message = ClientSecurityExchangePDU()
-            #reverse because bignum in little endian
-            message.encryptedClientRandom.value = rsa.encrypt(clientRandom[::-1], serverPublicKey)[::-1]
-            self.sendFlagged(SecurityFlag.SEC_EXCHANGE_PKT, message)
+            self.sendClientRandom()
         
+        self.sendInfoPkt()
+        
+    def sendInfoPkt(self):
+        """
+        @summary: send information packet (with credentials)
+                    next state -> recvLicenceInfo
+        """
         secFlag = SecurityFlag.SEC_INFO_PKT
         if self._enableEncryption:
             secFlag |= SecurityFlag.SEC_ENCRYPT
         self.sendFlagged(secFlag, self._info)
         
         self.setNextState(self.recvLicenceInfo)
+        
+    def sendClientRandom(self):
+        """
+        @summary: generate and send client random and init session keys 
+        """
+        #generate client random
+        clientRandom = rsa.randnum.read_random_bits(256)
+        self._macKey, self._initialDecrytKey, self._initialEncryptKey = generateKeys(   clientRandom, 
+                                                                                        self.getGCCServerSettings().SC_SECURITY.serverRandom.value, 
+                                                                                        self.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
+        #initialize keys
+        self._currentDecrytKey = self._initialDecrytKey
+        self._currentEncryptKey = self._initialEncryptKey
+        self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
+        self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
+        
+        #send client random encrypted with
+        modulus, publicExponent = self.getGCCServerSettings().SC_SECURITY.serverCertificate.certData.getPublicKey()
+        serverPublicKey = rsa.PublicKey(modulus, publicExponent)
+        message = ClientSecurityExchangePDU()
+        #reverse because bignum in little endian
+        message.encryptedClientRandom.value = rsa.encrypt(clientRandom[::-1], serverPublicKey)[::-1]
+        self.sendFlagged(SecurityFlag.SEC_EXCHANGE_PKT, message)
         
     def recvLicenceInfo(self, s):
         """
@@ -574,7 +593,20 @@ class Server(SecLayer):
         """
         @summary: init automata to wait info packet
         """
-        self.setNextState(self.recvInfoPkt)
+        self._enableEncryption = self.getGCCClientSettings().CS_CORE.serverSelectedProtocol == 0
+        if self._enableEncryption:
+            self.setNextState(self.recvClientRandom)
+        else:
+            self.setNextState(self.recvInfoPkt)
+        
+    def recvClientRandom(self, s):
+        """
+        @summary: receive client random and generate session keys
+        @param s: {Stream}
+        """
+        message = ClientSecurityExchangePDU()
+        s.readType(message)
+        
         
     def recvInfoPkt(self, s):
         """

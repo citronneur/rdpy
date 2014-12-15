@@ -130,9 +130,8 @@ class X224Layer(LayerAutomata, IStreamSender):
         @param presentation: upper layer, MCS layer in RDP case
         """
         LayerAutomata.__init__(self, presentation)
-        #default selectedProtocol is SSl
         #client requested selectedProtocol
-        self._requestedProtocol = Protocols.PROTOCOL_RDP 
+        self._requestedProtocol = Protocols.PROTOCOL_RDP | Protocols.PROTOCOL_SSL
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     

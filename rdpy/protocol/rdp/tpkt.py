@@ -76,8 +76,8 @@ class IFastPathSender(object):
     def sendFastPath(self, secFlag, fastPathS):
         """
         @summary: Send fastPathS Type as fast path packet
-        @param secFlag: {SecFlags}
-        @param fastPathS: type transform to stream and send as fastpath
+        @param secFlag: {integer} Security flag for fastpath packet
+        @param fastPathS: {Type | Tuple} type transform to stream and send as fastpath
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendFastPath", "IFastPathSender"))
     
@@ -103,7 +103,7 @@ class TPKT(RawLayer, IFastPathSender):
     """
     def __init__(self, presentation):
         """
-        @param presentation: presentation layer, in RDP case is x224 layer
+        @param presentation: {Layer} presentation layer, in RDP case is x224 layer
         """
         RawLayer.__init__(self, presentation)
         #length may be coded on more than 1 bytes
@@ -133,8 +133,8 @@ class TPKT(RawLayer, IFastPathSender):
         
     def readHeader(self, data):
         """
-        Read header of TPKT packet
-        @param data: Stream received from twisted layer
+        @summary: Read header of TPKT packet
+        @param data: {Stream} received from twisted layer
         """
         #first read packet version
         version = UInt8()
@@ -158,8 +158,8 @@ class TPKT(RawLayer, IFastPathSender):
         
     def readExtendedHeader(self, data):
         """
-        Header may be on 4 bytes
-        @param data: Stream from twisted layer
+        @summary: Header may be on 4 bytes
+        @param data: {Stream} from twisted layer
         """
         #next state is read data
         size = UInt16Be()
@@ -168,8 +168,8 @@ class TPKT(RawLayer, IFastPathSender):
     
     def readExtendedFastPathHeader(self, data):
         """
-        Fast path header may be on 1 byte more
-        @param data: Stream from twisted layer
+        @summary: Fast path header may be on 1 byte more
+        @param data: {Stream} from twisted layer
         """
         leftPart = UInt8()
         data.readType(leftPart)
@@ -180,16 +180,16 @@ class TPKT(RawLayer, IFastPathSender):
     
     def readFastPath(self, data):
         """
-        Fast path data
-        @param data: Stream from twisted layer
+        @summary: Fast path data
+        @param data: {Stream} from twisted layer
         """
         self._fastPathListener.recvFastPath(self._secFlag, data)
         self.expect(2, self.readHeader)
     
     def readData(self, data):
         """
-        Read classic TPKT packet, last state in tpkt automata
-        @param data: Stream with correct size
+        @summary: Read classic TPKT packet, last state in tpkt automata
+        @param data: {Stream} with correct size
         """
         #next state is pass to 
         self._presentation.recv(data)
@@ -197,14 +197,14 @@ class TPKT(RawLayer, IFastPathSender):
         
     def send(self, message):
         """
-        Send encompassed data
-        @param message: network.Type message to send
+        @summary: Send encompassed data
+        @param message: {network.Type} message to send
         """
         RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_X224), UInt8(0), UInt16Be(sizeof(message) + 4), message))
         
     def sendFastPath(self, secFlag, fastPathS):
         """
         @param fastPathS: type transform to stream and send as fastpath
-        @param secFlag: {SecFlags}
+        @param secFlag: {integer} Security flag for fastpath packet
         """
         RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_FASTPATH | secFlag), UInt16Be((sizeof(fastPathS) + 3) | 0x8000), fastPathS))

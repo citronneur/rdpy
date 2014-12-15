@@ -149,10 +149,16 @@ def extractRSAKey(certificate):
     @return: (modulus, public exponent)
     """
     #http://www.alvestrand.no/objectid/1.2.840.113549.1.1.1.html
-    #if certificate.getComponentByName('tbsCertificate').getComponentByName('subjectPublicKeyInfo').getComponentByName('algorithm').getComponentByName('algorithm')._value != (1, 2, 840, 113549, 1, 1, 1):
+    #disable check because nobody respect
+    #if certificate.getComponentByName('tbsCertificate').getComponentByName('subjectPublicKeyInfo').getComponentByName('algorithm').getComponentByName('algorithm')._value != (1, 3, 14, 3, 2, 15):
     #    raise InvalidExpectedDataException("Certificate doesn't contain RSA public key")
     
-    rsaKey = decoder.decode(encoder.encode(certificate.getComponentByName('tbsCertificate').getComponentByName('subjectPublicKeyInfo').getComponentByName('subjectPublicKey'))[3:], asn1Spec=RSAPublicKey())[0]
+    #extract binary data
+    l = 0L
+    for b in certificate.getComponentByName('tbsCertificate').getComponentByName('subjectPublicKeyInfo').getComponentByName('subjectPublicKey'):
+        l = (l << 1) | b
+        
+    rsaKey = decoder.decode(hex(l)[2:-1].decode('hex'), asn1Spec=RSAPublicKey())[0]
     return rsaKey.getComponentByName('modulus')._value , rsaKey.getComponentByName('publicExponent')._value
     
     

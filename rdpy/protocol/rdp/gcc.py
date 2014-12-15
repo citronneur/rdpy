@@ -25,7 +25,7 @@ http://msdn.microsoft.com/en-us/library/cc240508.aspx
 from rdpy.core.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, Stream, sizeof, FactoryType, ArrayType
 import per, mcs
 from rdpy.core.error import InvalidExpectedDataException
-import rdpy.core.log as log
+from rdpy.core import log, x509
 
 t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
 
@@ -123,7 +123,7 @@ class Version(object):
 class Sequence(object):
     RNS_UD_SAS_DEL = 0xAA03
      
-class Encryption(object):
+class EncryptionMethod(object):
     """
     @summary: Encryption methods supported
     @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
@@ -132,6 +132,17 @@ class Encryption(object):
     ENCRYPTION_FLAG_128BIT = 0x00000002
     ENCRYPTION_FLAG_56BIT = 0x00000008
     FIPS_ENCRYPTION_FLAG = 0x00000010
+    
+class EncryptionLevel(object):
+    """
+    @summary: level of 'security'
+    @see: http://msdn.microsoft.com/en-us/library/cc240518.aspx
+    """
+    ENCRYPTION_LEVEL_NONE = 0x00000000
+    ENCRYPTION_LEVEL_LOW = 0x00000000
+    ENCRYPTION_LEVEL_CLIENT_COMPATIBLE = 0x00000000
+    ENCRYPTION_LEVEL_HIGH = 0x00000000
+    ENCRYPTION_LEVEL_FIPS = 0x00000000
        
 class ChannelOptions(object):
     """
@@ -206,7 +217,7 @@ class DataBlock(CompositeType):
         
         def DataBlockFactory():
             """
-            build settings in accordance of type self.type.value
+            @summary: build settings in accordance of type self.type.value
             """
             for c in [ClientCoreData, ClientSecurityData, ClientNetworkData, ServerCoreData, ServerNetworkData, ServerSecurityData]:
                 if self.type.value == c._TYPE_:
@@ -224,7 +235,7 @@ class DataBlock(CompositeType):
 
 class ClientCoreData(CompositeType):
     """
-    Class that represent core setting of client
+    @summary: Class that represent core setting of client
     @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     """
     _TYPE_ = MessageType.CS_CORE
@@ -256,7 +267,7 @@ class ClientCoreData(CompositeType):
     
 class ServerCoreData(CompositeType):
     """
-    Server side core settings structure
+    @summary: Server side core settings structure
     @see: http://msdn.microsoft.com/en-us/library/cc240517.aspx
     """
     _TYPE_ = MessageType.SC_CORE
@@ -268,19 +279,19 @@ class ServerCoreData(CompositeType):
         
 class ClientSecurityData(CompositeType):
     """
-    Client security setting
+    @summary: Client security setting
     @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
     """
     _TYPE_ = MessageType.CS_SECURITY
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.encryptionMethods = UInt32Le(Encryption.ENCRYPTION_FLAG_40BIT)
+        self.encryptionMethods = UInt32Le(EncryptionMethod.ENCRYPTION_FLAG_40BIT | EncryptionMethod.ENCRYPTION_FLAG_56BIT | EncryptionMethod.ENCRYPTION_FLAG_128BIT)
         self.extEncryptionMethods = UInt32Le()
         
 class ServerSecurityData(CompositeType):
     """
-    Server security settings
+    @summary: Server security settings
     @see: http://msdn.microsoft.com/en-us/library/cc240518.aspx
     """
     _TYPE_ = MessageType.SC_SECURITY
@@ -314,6 +325,17 @@ class ServerCertificate(CompositeType):
             
         self.certData = FactoryType(CertificateFactory)
         
+def bin2bn(b):
+    """
+    @summary: convert binary string to bignum
+    @param b: {str} binary string
+    @return: {long} bignum
+    """
+    l = 0L
+    for ch in b:
+        l = (l<<8) | ord(ch)
+    return l
+        
 class ProprietaryServerCertificate(CompositeType):
     """
     @summary: microsoft proprietary certificate
@@ -331,6 +353,13 @@ class ProprietaryServerCertificate(CompositeType):
         self.wSignatureBlobType = UInt16Le(0x0008, constant = True)
         self.wSignatureBlobLen = UInt16Le(lambda:sizeof(self.SignatureBlob))
         self.SignatureBlob = String(readLen = self.wSignatureBlobLen)
+        
+    def getPublicKey(self):
+        """
+        @return: {Tuple} (modulus, publicExponent)
+        """
+        #reverse because bignum in little endian
+        return bin2bn(self.PublicKeyBlob.modulus.value[::-1]), self.PublicKeyBlob.pubExp.value
 
 class CertBlob(CompositeType):
     """
@@ -354,6 +383,13 @@ class X509CertificateChain(CompositeType):
         self.NumCertBlobs = UInt32Le()
         self.CertBlobArray = ArrayType(CertBlob, readLen = self.NumCertBlobs)
         self.padding = String(readLen = UInt8(lambda:(8 + 4 * self.NumCertBlobs.value)))
+        
+    def getPublicKey(self):
+        """
+        @return: {Tuple} (modulus, publicExponent)
+        """
+        #last certifcate contain publi key
+        return x509.extractRSAKey(x509.load(self.CertBlobArray[-1].abCert.value))
         
 class RSAPublicKey(CompositeType):
     """
