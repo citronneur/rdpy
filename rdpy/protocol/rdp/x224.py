@@ -220,16 +220,18 @@ class Server(X224Layer):
     """
     @summary: Server automata of X224 layer
     """
-    def __init__(self, presentation, privateKeyFileName, certificateFileName):
+    def __init__(self, presentation, privateKeyFileName = None, certificateFileName = None, forceSSL = False):
         """
-        @param presentation: upper layer, MCS layer in RDP case
-        @param privateKeyFileName: file contain server private key
-        @param certficiateFileName: file that contain public key
+        @param presentation: {layer} upper layer, MCS layer in RDP case
+        @param privateKeyFileName: {str} file contain server private key
+        @param certficiateFileName: {str} file that contain public key
+        @param forceSSL: {boolean} reject old client that doerasn't support SSL
         """
         X224Layer.__init__(self, presentation)
         #Server mode informations for TLS connection
         self._serverPrivateKeyFileName = privateKeyFileName
         self._serverCertificateFileName = certificateFileName
+        self._forceSSL = forceSSL and not self._serverPrivateKeyFileName is None and not self._serverCertificateFileName is None
         
     def connect(self):
         """
@@ -241,26 +243,33 @@ class Server(X224Layer):
         """
         @summary:  Read connection confirm packet
                     Next state is send connection confirm
-        @param data: Stream
+        @param data: {Stream}
         @see : http://msdn.microsoft.com/en-us/library/cc240470.aspx
         """
         message = ClientConnectionRequestPDU()
         data.readType(message)
         
-        if not message.protocolNeg._is_readed or message.protocolNeg.failureCode._is_readed:
-            raise InvalidExpectedDataException("Too older RDP client")
+        if not message.protocolNeg._is_readed:
+            self._requestedProtocol = Protocols.PROTOCOL_RDP
+        else:
+            self._requestedProtocol = message.protocolNeg.selectedProtocol.value
         
-        self._requestedProtocol = message.protocolNeg.selectedProtocol.value
+        #match best security layer available
+        if not self._serverPrivateKeyFileName is None and not self._serverCertificateFileName is None:
+            self._selectedProtocol = self._requestedProtocol & Protocols.PROTOCOL_SSL
+        else:
+            self._selectedProtocol = self._requestedProtocol & Protocols.PROTOCOL_RDP
         
-        if not self._requestedProtocol & Protocols.PROTOCOL_SSL:
+        #if force ssl is enable
+        if not self._selectedProtocol & Protocols.PROTOCOL_SSL and self._forceSSL:
             #send error message and quit
             message = ServerConnectionConfirm()
             message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_FAILURE
             message.protocolNeg.failureCode.value = NegotiationFailureCode.SSL_REQUIRED_BY_SERVER
             self._transport.send(message)
-            raise InvalidExpectedDataException("rdpy needs ssl client compliant")
+            self.close()
+            return
         
-        self._selectedProtocol = Protocols.PROTOCOL_SSL
         self.sendConnectionConfirm()
         
     def sendConnectionConfirm(self):
@@ -274,8 +283,10 @@ class Server(X224Layer):
         message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_RSP
         message.protocolNeg.selectedProtocol.value = self._selectedProtocol
         self._transport.send(message)
-        #_transport is TPKT and transport is TCP layer of twisted
-        self._transport.transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
+        if self._selectedProtocol == Protocols.PROTOCOL_SSL:
+            #_transport is TPKT and transport is TCP layer of twisted
+            self._transport.transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
+            
         #connection is done send to presentation
         self.setNextState(self.recvData)
         self._presentation.connect()

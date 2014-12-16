@@ -172,37 +172,6 @@ class X224Test(unittest.TestCase):
         self.assertTrue(presentation_connect, "connect event is not forwarded")
         self.assertRaises(X224Test.X224_PASS, layer.recv, type.String('\x01\x02'))
         
-    def test_x224_server_recvConnectionRequest_invalid_old_client(self):
-        """
-        @summary:  unit test for X224Server.recvConnectionRequest function
-                    old client with non protocol neg
-        """
-        message = x224.ClientConnectionRequestPDU()
-        del message._typeName[message._typeName.index("protocolNeg")]
-        s = type.Stream()
-        s.writeType(message)
-        s.pos = 0
-        
-        layer = x224.Server(None, "key", "cert")
-        layer.connect()
-        
-        self.assertRaises(error.InvalidExpectedDataException, layer.recv, s)
-        
-    def test_x224_server_recvConnectionRequest_invalid_protocol_neg_failure(self):
-        """
-        @summary:  unit test for X224Server.recvConnectionRequest function
-        """
-        message = x224.ClientConnectionRequestPDU()
-        message.protocolNeg.code.value = x224.NegociationType.TYPE_RDP_NEG_FAILURE
-        s = type.Stream()
-        s.writeType(message)
-        s.pos = 0
-        
-        layer = x224.Server(None, "key", "cert")
-        layer.connect()
-        
-        self.assertRaises(error.InvalidExpectedDataException, layer.recv, s)
-        
     def test_x224_server_recvConnectionRequest_client_accept_ssl(self):
         """
         @summary:  unit test for X224Server.recvConnectionRequest function
@@ -215,6 +184,8 @@ class X224Test(unittest.TestCase):
                     raise X224Test.X224_FAIL()
                 if data.protocolNeg.code.value != x224.NegociationType.TYPE_RDP_NEG_FAILURE or data.protocolNeg.failureCode.value != x224.NegotiationFailureCode.SSL_REQUIRED_BY_SERVER:
                     raise X224Test.X224_FAIL()
+            def close(self):
+                raise X224Test.X224_PASS()
         
         message = x224.ClientConnectionRequestPDU()
         message.protocolNeg.selectedProtocol.value = x224.Protocols.PROTOCOL_HYBRID
@@ -222,11 +193,11 @@ class X224Test(unittest.TestCase):
         s.writeType(message)
         s.pos = 0
         
-        layer = x224.Server(None, "key", "cert")
+        layer = x224.Server(None, "key", "cert", True)
         layer._transport = Transport()
         layer.connect()
         
-        self.assertRaises(error.InvalidExpectedDataException, layer.recv, s)
+        self.assertRaises(X224Test.X224_PASS, layer.recv, s)
         
     def test_x224_server_recvConnectionRequest_valid(self):
         """

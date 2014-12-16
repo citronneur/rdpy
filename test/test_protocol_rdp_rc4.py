@@ -26,7 +26,7 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import unittest
-import rdpy.protocol.rdp.rc4 as rc4
+import rdpy.core.rc4 as rc4
 
 
 class RC4Test(unittest.TestCase):

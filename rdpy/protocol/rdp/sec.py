@@ -586,8 +586,14 @@ class Server(SecLayer):
     """
     @summary: Client side of security layer
     """
-    def __init__(self, presentation):
+    def __init__(self, presentation, rsaKeys = None):
+        """
+        @param rsaKeys: {Tuple(rsa.PublicKey, rsa.PrivateKey)} rsa crypto
+        """
         SecLayer.__init__(self, presentation)
+        self._rsaPublicKey, self._rsaPrivateKey = None, None
+        if not rsaKeys is None:
+            self._rsaPublicKey, self._rsaPrivateKey = rsaKeys
     
     def connect(self):
         """
