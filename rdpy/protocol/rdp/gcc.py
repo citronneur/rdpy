@@ -310,7 +310,7 @@ class ServerCertificate(CompositeType):
     @summary: Server certificate structure
     @see: http://msdn.microsoft.com/en-us/library/cc240521.aspx
     """
-    def __init__(self, readLen = None, conditional = lambda:True):
+    def __init__(self, certData = None, readLen = None, conditional = lambda:True):
         CompositeType.__init__(self, readLen = readLen, conditional = conditional)
         self.dwVersion = UInt32Le()
         
@@ -322,7 +322,12 @@ class ServerCertificate(CompositeType):
                 if self.dwVersion.value & 0x7fffffff == c._TYPE_:
                     return c()
             raise InvalidExpectedDataException("unknown certificate type : %s "%hex(self.dwVersion.value))
-            
+        
+        if certData is None:
+            certData = FactoryType(CertificateFactory)
+        elif not "_TYPE_" in certData.__class__.__dict__:
+            raise InvalidExpectedDataException("Try to send an invalid Certificate")
+          
         self.certData = FactoryType(CertificateFactory)
         
 def bin2bn(b):
@@ -399,8 +404,8 @@ class RSAPublicKey(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.magic = UInt32Le(0x31415352, constant = True)
         self.keylen = UInt32Le(lambda:sizeof(self.modulus))
-        self.bitlen = UInt32Le()
-        self.datalen = UInt32Le()
+        self.bitlen = UInt32Le(lambda:((self.keylen.value - 8) * 8))
+        self.datalen = UInt32Le(lambda:((self.bitlen.value / 8) - 1))
         self.pubExp = UInt32Le()
         self.modulus = String(readLen = UInt16Le(lambda:(self.keylen.value - 8)))
         self.padding = String(readLen = UInt8(8))

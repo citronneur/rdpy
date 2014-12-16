@@ -586,15 +586,13 @@ class Server(SecLayer):
     """
     @summary: Client side of security layer
     """
-    def __init__(self, presentation, rsaKeys = None):
+    def __init__(self, presentation):
         """
-        @param rsaKeys: {Tuple(rsa.PublicKey, rsa.PrivateKey)} rsa crypto
+        @param presentation: {Layer}
         """
         SecLayer.__init__(self, presentation)
-        self._rsaPublicKey, self._rsaPrivateKey = None, None
-        if not rsaKeys is None:
-            self._rsaPublicKey, self._rsaPrivateKey = rsaKeys
-    
+        self._rsaPublicKey, self._rsaPrivateKey = rsa.newkeys(512)
+            
     def connect(self):
         """
         @summary: init automata to wait info packet
@@ -612,6 +610,18 @@ class Server(SecLayer):
         """
         message = ClientSecurityExchangePDU()
         s.readType(message)
+        clientRandom = rsa.decrypt(message.encryptedClientRandom.value, self._rsaPrivateKey)
+        
+        self._macKey, self._initialDecrytKey, self._initialEncryptKey = generateKeys(   clientRandom, 
+                                                                                        self.getGCCServerSettings().SC_SECURITY.serverRandom.value, 
+                                                                                        self.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
+        #initialize keys
+        self._currentDecrytKey = self._initialDecrytKey
+        self._currentEncryptKey = self._initialEncryptKey
+        self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
+        self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
+        
+        self.setNextState(self.recvInfoPkt)
         
         
     def recvInfoPkt(self, s):

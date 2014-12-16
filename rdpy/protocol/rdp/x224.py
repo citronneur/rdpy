@@ -256,7 +256,7 @@ class Server(X224Layer):
         
         #match best security layer available
         if not self._serverPrivateKeyFileName is None and not self._serverCertificateFileName is None:
-            self._selectedProtocol = self._requestedProtocol & Protocols.PROTOCOL_SSL
+            self._selectedProtocol = self._requestedProtocol & Protocols.PROTOCOL_RDP
         else:
             self._selectedProtocol = self._requestedProtocol & Protocols.PROTOCOL_RDP
         

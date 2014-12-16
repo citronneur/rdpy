@@ -324,11 +324,10 @@ class RDPServerController(pdu.layer.PDUServerListener):
     """
     @summary: Controller use in server side mode
     """               
-    def __init__(self, colorDepth, privateKeyFileName = None, certificateFileName = None, rsaKeys = None):
+    def __init__(self, colorDepth, privateKeyFileName = None, certificateFileName = None):
         """
         @param privateKeyFileName: file contain server private key
         @param certficiateFileName: file that contain public key
-        @param rsaKeys: {Tuple(rsa.PublicKey, rsa.PrivateKey)} rsa crypto 
         @param colorDepth: 15, 16, 24
         """
         self._isReady = False
@@ -337,7 +336,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
         #build RDP protocol stack
         self._pduLayer = pdu.layer.Server(self)
         #secure layer
-        self._secLayer = sec.Server(self._pduLayer, rsaKeys)
+        self._secLayer = sec.Server(self._pduLayer)
         #multi channel service
         self._mcsLayer = mcs.Server(self._secLayer)
         #transport pdu layer
