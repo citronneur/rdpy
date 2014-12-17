@@ -591,7 +591,7 @@ class Server(SecLayer):
         @param presentation: {Layer}
         """
         SecLayer.__init__(self, presentation)
-        self._rsaPublicKey, self._rsaPrivateKey = rsa.newkeys(512)
+        self._rsaPublicKey, self._rsaPrivaterKey = rsa.newkeys(512)
             
     def connect(self):
         """
@@ -602,6 +602,16 @@ class Server(SecLayer):
             self.setNextState(self.recvClientRandom)
         else:
             self.setNextState(self.recvInfoPkt)
+            
+    def getCertificate(self):
+        """
+        @summary: generate proprietary certificate from rsa public key
+        """
+        certificate = gcc.ProprietaryServerCertificate()
+        certificate.PublicKeyBlob.modulus.value = hex(self._rsaPublicKey.n)[2:-1].decode('hex')[::-1]
+        certificate.PublicKeyBlob.pubExp.value = self._rsaPublicKey.e
+        certificate.SignatureBlob.value = "\x00" * 72
+        return certificate
         
     def recvClientRandom(self, s):
         """

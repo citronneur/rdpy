@@ -488,14 +488,11 @@ class Server(MCSLayer):
         """
         #basic rdp security layer
         if self._transport._selectedProtocol == 0:
-            certificate = gcc.ProprietaryServerCertificate()
-            certificate.PublicKeyBlob.modulus.value = hex(self._presentation._rsaPublicKey.n)[2:-1].decode('hex')[::-1]
-            certificate.PublicKeyBlob.pubExp.value = self._presentation._rsaPublicKey.e
             
             self._serverSettings.SC_SECURITY.encryptionMethod.value = gcc.EncryptionMethod.ENCRYPTION_FLAG_128BIT
             self._serverSettings.SC_SECURITY.encryptionLevel.value = gcc.EncryptionLevel.ENCRYPTION_LEVEL_HIGH
             self._serverSettings.SC_SECURITY.serverRandom.value = rsa.randnum.read_random_bits(256)
-            self._serverSettings.SC_SECURITY.serverCertificate.certData = certificate
+            self._serverSettings.SC_SECURITY.serverCertificate.certData = self._presentation.getCertificate()
             
         self._serverSettings.SC_CORE.clientRequestedProtocol.value = self._transport._requestedProtocol
         self.setNextState(self.recvConnectInitial)
