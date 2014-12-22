@@ -26,7 +26,7 @@ import gcc, lic, tpkt, mcs
 from rdpy.core.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.error import InvalidExpectedDataException
-from rdpy.core import log, x509, rc4
+from rdpy.core import log, rc4
 
 class SecurityFlag(object):
     """
@@ -93,7 +93,35 @@ class AfInet(object):
     """
     AF_INET = 0x00002
     AF_INET6 = 0x0017
+    
+def terminalServicesSigningKey():
+    """
+    @summary: security is security ;-) Generate RSA private key
+    @see: http://msdn.microsoft.com/en-us/library/cc240776.aspx
+    """
+    modulus = "\x3d\x3a\x5e\xbd\x72\x43\x3e\xc9\x4d\xbb\xc1\x1e\x4a\xba\x5f\xcb\x3e\x88\x20\x87\xef\xf5\xc1\xe2\xd7\xb7\x6b\x9a\xf2\x52\x45\x95\xce\x63\x65\x6b\x58\x3a\xfe\xef\x7c\xe7\xbf\xfe\x3d\xf6\x5c\x7d\x6c\x5e\x06\x09\x1a\xf5\x61\xbb\x20\x93\x09\x5f\x05\x6d\xea\x87"
+    privateExponent = "\x87\xa7\x19\x32\xda\x11\x87\x55\x58\x00\x16\x16\x25\x65\x68\xf8\x24\x3e\xe6\xfa\xe9\x67\x49\x94\xcf\x92\xcc\x33\x99\xe8\x08\x60\x17\x9a\x12\x9f\x24\xdd\xb1\x24\x99\xc7\x3a\xb8\x0a\x7b\x0d\xdd\x35\x07\x79\x17\x0b\x51\x9b\xb3\xc7\x10\x01\x13\xe7\x3f\xf3\x5f"
+    publicExponent = "\x5b\x7b\x88\xc0"
+    return rsa.PublicKey(e = gcc.bin2bn(privateExponent[::-1]), n = gcc.bin2bn(modulus[::-1]))
 
+def terminalServicesSign(certificate):
+    """
+    @summary: sign proprietary certificate
+    @param certificate: {gcc.ProprietaryServerCertificate}
+    @see: http://msdn.microsoft.com/en-us/library/cc240778.aspx
+    """
+    s = Stream()
+    s.writeType(UInt32Le(gcc.ProprietaryServerCertificate._TYPE_))
+    s.writeType(certificate.dwSigAlgId)
+    s.writeType(certificate.dwKeyAlgId)
+    s.writeType(certificate.wPublicKeyBlobType)
+    s.writeType(certificate.wPublicKeyBlobLen)
+    s.writeType(certificate.PublicKeyBlob)
+    md5Digest = md5.new()
+    md5Digest.update(s.getvalue())
+    message = md5Digest.digest() + "\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"
+    return rsa.encrypt(message, terminalServicesSigningKey())
+       
 def saltedHash(inputData, salt, salt1, salt2):
     """
     @summary: Generate particular signature from combination of sha1 and md5
@@ -610,7 +638,7 @@ class Server(SecLayer):
         certificate = gcc.ProprietaryServerCertificate()
         certificate.PublicKeyBlob.modulus.value = hex(self._rsaPublicKey.n)[2:-1].decode('hex')[::-1]
         certificate.PublicKeyBlob.pubExp.value = self._rsaPublicKey.e
-        certificate.SignatureBlob.value = "\x00" * 72
+        certificate.SignatureBlob.value =  hex(terminalServicesSign(certificate))[2:-1].decode('hex')[::-1]
         return certificate
         
     def recvClientRandom(self, s):
