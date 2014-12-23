@@ -23,6 +23,7 @@ Implement transport PDU layer
 This layer have main goal to negociate SSL transport
 RDP basic security is supported only on client side
 """
+from rdpy.core import log
 
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
@@ -131,7 +132,7 @@ class X224Layer(LayerAutomata, IStreamSender):
         """
         LayerAutomata.__init__(self, presentation)
         #client requested selectedProtocol
-        self._requestedProtocol = Protocols.PROTOCOL_RDP | Protocols.PROTOCOL_SSL
+        self._requestedProtocol = Protocols.PROTOCOL_RDP
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     
@@ -207,6 +208,7 @@ class Client(X224Layer):
             raise InvalidExpectedDataException("RDPY doesn't support NLA security Layer")
         
         if self._selectedProtocol == Protocols.PROTOCOL_SSL:
+            log.debug("*" * 10 + " select SSL layer" + "*" * 10)
             #_transport is TPKT and transport is TCP layer of twisted
             self._transport.transport.startTLS(ClientTLSContext())
         
@@ -262,6 +264,7 @@ class Server(X224Layer):
         
         #if force ssl is enable
         if not self._selectedProtocol & Protocols.PROTOCOL_SSL and self._forceSSL:
+            log.warning("server reject client because doesn't support SSL")
             #send error message and quit
             message = ServerConnectionConfirm()
             message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_FAILURE
@@ -284,6 +287,7 @@ class Server(X224Layer):
         message.protocolNeg.selectedProtocol.value = self._selectedProtocol
         self._transport.send(message)
         if self._selectedProtocol == Protocols.PROTOCOL_SSL:
+            log.debug("*" * 5 + " select SSL layer")
             #_transport is TPKT and transport is TCP layer of twisted
             self._transport.transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
             

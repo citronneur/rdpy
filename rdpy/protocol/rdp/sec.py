@@ -21,12 +21,14 @@
 Some use full methods for security in RDP
 """
 
-import sha, md5, rsa
+import sha, md5
 import gcc, lic, tpkt, mcs
 from rdpy.core.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.error import InvalidExpectedDataException
-from rdpy.core import log, rc4
+from rdpy.core import log
+from rdpy.security import rc4
+import rdpy.security.rsa_wrapper as rsa
 
 class SecurityFlag(object):
     """
@@ -94,33 +96,39 @@ class AfInet(object):
     AF_INET = 0x00002
     AF_INET6 = 0x0017
     
-def terminalServicesSigningKey():
-    """
-    @summary: security is security ;-) Generate RSA private key
-    @see: http://msdn.microsoft.com/en-us/library/cc240776.aspx
-    """
-    modulus = "\x3d\x3a\x5e\xbd\x72\x43\x3e\xc9\x4d\xbb\xc1\x1e\x4a\xba\x5f\xcb\x3e\x88\x20\x87\xef\xf5\xc1\xe2\xd7\xb7\x6b\x9a\xf2\x52\x45\x95\xce\x63\x65\x6b\x58\x3a\xfe\xef\x7c\xe7\xbf\xfe\x3d\xf6\x5c\x7d\x6c\x5e\x06\x09\x1a\xf5\x61\xbb\x20\x93\x09\x5f\x05\x6d\xea\x87"
-    privateExponent = "\x87\xa7\x19\x32\xda\x11\x87\x55\x58\x00\x16\x16\x25\x65\x68\xf8\x24\x3e\xe6\xfa\xe9\x67\x49\x94\xcf\x92\xcc\x33\x99\xe8\x08\x60\x17\x9a\x12\x9f\x24\xdd\xb1\x24\x99\xc7\x3a\xb8\x0a\x7b\x0d\xdd\x35\x07\x79\x17\x0b\x51\x9b\xb3\xc7\x10\x01\x13\xe7\x3f\xf3\x5f"
-    publicExponent = "\x5b\x7b\x88\xc0"
-    return rsa.PublicKey(e = gcc.bin2bn(privateExponent[::-1]), n = gcc.bin2bn(modulus[::-1]))
-
 def terminalServicesSign(certificate):
     """
     @summary: sign proprietary certificate
     @param certificate: {gcc.ProprietaryServerCertificate}
     @see: http://msdn.microsoft.com/en-us/library/cc240778.aspx
     """
-    s = Stream()
-    s.writeType(UInt32Le(gcc.ProprietaryServerCertificate._TYPE_))
-    s.writeType(certificate.dwSigAlgId)
-    s.writeType(certificate.dwKeyAlgId)
-    s.writeType(certificate.wPublicKeyBlobType)
-    s.writeType(certificate.wPublicKeyBlobLen)
-    s.writeType(certificate.PublicKeyBlob)
+    modulus = "\x3d\x3a\x5e\xbd\x72\x43\x3e\xc9\x4d\xbb\xc1\x1e\x4a\xba\x5f\xcb\x3e\x88\x20\x87\xef\xf5\xc1\xe2\xd7\xb7\x6b\x9a\xf2\x52\x45\x95\xce\x63\x65\x6b\x58\x3a\xfe\xef\x7c\xe7\xbf\xfe\x3d\xf6\x5c\x7d\x6c\x5e\x06\x09\x1a\xf5\x61\xbb\x20\x93\x09\x5f\x05\x6d\xea\x87"
+    privateExponent = "\x87\xa7\x19\x32\xda\x11\x87\x55\x58\x00\x16\x16\x25\x65\x68\xf8\x24\x3e\xe6\xfa\xe9\x67\x49\x94\xcf\x92\xcc\x33\x99\xe8\x08\x60\x17\x9a\x12\x9f\x24\xdd\xb1\x24\x99\xc7\x3a\xb8\x0a\x7b\x0d\xdd\x35\x07\x79\x17\x0b\x51\x9b\xb3\xc7\x10\x01\x13\xe7\x3f\xf3\x5f"
+    publicExponent = "\x5b\x7b\x88\xc0"
+    
+    publicKeyBlob = Stream()
+    publicKeyBlob.writeType(certificate.wPublicKeyBlobType)
+    publicKeyBlob.writeType(certificate.wPublicKeyBlobLen)
+    publicKeyBlob.writeType(certificate.PublicKeyBlob)
+    
+    dwVersion = Stream()
+    dwVersion.writeType(UInt32Le(certificate.__class__._TYPE_))
+    
+    dwSigAlgId = Stream()
+    dwSigAlgId.writeType(certificate.dwSigAlgId)
+    
+    dwKeyAlgId = Stream()
+    dwKeyAlgId.writeType(certificate.dwKeyAlgId)
+    
     md5Digest = md5.new()
-    md5Digest.update(s.getvalue())
+    md5Digest.update(dwVersion.getvalue())
+    md5Digest.update(dwSigAlgId.getvalue())
+    md5Digest.update(dwKeyAlgId.getvalue())
+    md5Digest.update(publicKeyBlob.getvalue())
+    
     message = md5Digest.digest() + "\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"
-    return rsa.encrypt(message, terminalServicesSigningKey())
+    
+    return rsa.sign(message[::-1], rsa.PrivateKey(d = privateExponent[::-1], n = modulus[::-1]))
        
 def saltedHash(inputData, salt, salt1, salt2):
     """
@@ -178,7 +186,6 @@ def sessionKeyBlob(secret, random1, random2):
     @param serverRandom : server random
     """
     return saltedHash("X", secret, random1, random2) + saltedHash("YY", secret, random1, random2) + saltedHash("ZZZ", secret, random1, random2)
-
 
 def macData(macSaltKey, data):
     """
@@ -573,7 +580,7 @@ class Client(SecLayer):
         @summary: generate and send client random and init session keys 
         """
         #generate client random
-        clientRandom = rsa.randnum.read_random_bits(256)
+        clientRandom = rsa.random(256)
         self._macKey, self._initialDecrytKey, self._initialEncryptKey = generateKeys(   clientRandom, 
                                                                                         self.getGCCServerSettings().SC_SECURITY.serverRandom.value, 
                                                                                         self.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
@@ -584,8 +591,7 @@ class Client(SecLayer):
         self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
         
         #send client random encrypted with
-        modulus, publicExponent = self.getGCCServerSettings().SC_SECURITY.serverCertificate.certData.getPublicKey()
-        serverPublicKey = rsa.PublicKey(modulus, publicExponent)
+        serverPublicKey = self.getGCCServerSettings().SC_SECURITY.serverCertificate.certData.getPublicKey()
         message = ClientSecurityExchangePDU()
         #reverse because bignum in little endian
         message.encryptedClientRandom.value = rsa.encrypt(clientRandom[::-1], serverPublicKey)[::-1]
@@ -619,7 +625,7 @@ class Server(SecLayer):
         @param presentation: {Layer}
         """
         SecLayer.__init__(self, presentation)
-        self._rsaPublicKey, self._rsaPrivaterKey = rsa.newkeys(512)
+        self._rsaPublicKey, self._rsaPrivateKey = rsa.newkeys(512)
             
     def connect(self):
         """
@@ -636,9 +642,9 @@ class Server(SecLayer):
         @summary: generate proprietary certificate from rsa public key
         """
         certificate = gcc.ProprietaryServerCertificate()
-        certificate.PublicKeyBlob.modulus.value = hex(self._rsaPublicKey.n)[2:-1].decode('hex')[::-1]
+        certificate.PublicKeyBlob.modulus.value = rsa.int2bytes(self._rsaPublicKey.n)[::-1]
         certificate.PublicKeyBlob.pubExp.value = self._rsaPublicKey.e
-        certificate.SignatureBlob.value =  hex(terminalServicesSign(certificate))[2:-1].decode('hex')[::-1]
+        certificate.SignatureBlob.value = terminalServicesSign(certificate)[::-1] + "\x00" * 8
         return certificate
         
     def recvClientRandom(self, s):
@@ -646,11 +652,19 @@ class Server(SecLayer):
         @summary: receive client random and generate session keys
         @param s: {Stream}
         """
+        #packet preambule
+        securityFlag = UInt16Le()
+        securityFlagHi = UInt16Le()
+        s.readType((securityFlag, securityFlagHi))
+        
+        if not (securityFlag.value & SecurityFlag.SEC_EXCHANGE_PKT):
+            raise InvalidExpectedDataException("waiting client random")
+        
         message = ClientSecurityExchangePDU()
         s.readType(message)
-        clientRandom = rsa.decrypt(message.encryptedClientRandom.value, self._rsaPrivateKey)
+        clientRandom = rsa.decrypt(message.encryptedClientRandom.value[::-1], self._rsaPrivateKey)[::-1]
         
-        self._macKey, self._initialDecrytKey, self._initialEncryptKey = generateKeys(   clientRandom, 
+        self._macKey, self._initialEncryptKey, self._initialDecrytKey = generateKeys(   clientRandom, 
                                                                                         self.getGCCServerSettings().SC_SECURITY.serverRandom.value, 
                                                                                         self.getGCCServerSettings().SC_SECURITY.encryptionMethod.value)
         #initialize keys
@@ -660,7 +674,6 @@ class Server(SecLayer):
         self._encryptRc4 = rc4.RC4Key(self._currentEncryptKey)
         
         self.setNextState(self.recvInfoPkt)
-        
         
     def recvInfoPkt(self, s):
         """
@@ -677,6 +690,9 @@ class Server(SecLayer):
         
         if not (securityFlag.value & SecurityFlag.SEC_INFO_PKT):
             raise InvalidExpectedDataException("Waiting info packet")
+        
+        if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
+            s = self.readEncryptedPayload(s)
         
         s.readType(self._info)
         #next state send error license

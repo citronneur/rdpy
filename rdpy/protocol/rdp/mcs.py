@@ -31,7 +31,7 @@ from rdpy.protocol.rdp.ber import writeLength
 import rdpy.core.log as log
 
 import ber, gcc, per
-import rsa
+import rdpy.security.rsa_wrapper as rsa
 
 class Message(object):
     """
@@ -491,7 +491,7 @@ class Server(MCSLayer):
             
             self._serverSettings.SC_SECURITY.encryptionMethod.value = gcc.EncryptionMethod.ENCRYPTION_FLAG_128BIT
             self._serverSettings.SC_SECURITY.encryptionLevel.value = gcc.EncryptionLevel.ENCRYPTION_LEVEL_HIGH
-            self._serverSettings.SC_SECURITY.serverRandom.value = rsa.randnum.read_random_bits(256)
+            self._serverSettings.SC_SECURITY.serverRandom.value = rsa.random(256)
             self._serverSettings.SC_SECURITY.serverCertificate.certData = self._presentation.getCertificate()
             
         self._serverSettings.SC_CORE.clientRequestedProtocol.value = self._transport._requestedProtocol

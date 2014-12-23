@@ -28,7 +28,7 @@ Implement Remote FrameBuffer protocol use in VNC client and server
 from rdpy.core.layer import RawLayer, RawLayerClientFactory
 from rdpy.core.type import UInt8, UInt16Be, UInt32Be, SInt32Be, String, CompositeType
 from rdpy.core.error import InvalidValue, CallPureVirtualFuntion
-from rdpy.protocol.rfb.pyDes import des
+from rdpy.security.pyDes import des
 import rdpy.core.log as log
 
 class ProtocolVersion(object):

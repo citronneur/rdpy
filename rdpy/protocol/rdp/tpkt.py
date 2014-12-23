@@ -147,7 +147,7 @@ class TPKT(RawLayer, IFastPathSender):
             self.expect(2, self.readExtendedHeader)
         else:
             #is fast path packet
-            self._secFlag = version.value >> 6
+            self._secFlag = ((version.value >> 6) & 0x3)
             data.readType(self._lastShortLength)
             if self._lastShortLength.value & 0x80:
                 #size is 1 byte more
@@ -207,4 +207,4 @@ class TPKT(RawLayer, IFastPathSender):
         @param fastPathS: type transform to stream and send as fastpath
         @param secFlag: {integer} Security flag for fastpath packet
         """
-        RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_FASTPATH | secFlag), UInt16Be((sizeof(fastPathS) + 3) | 0x8000), fastPathS))
+        RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_FASTPATH | ((secFlag & 0x3) << 6)), UInt16Be((sizeof(fastPathS) + 3) | 0x8000), fastPathS))

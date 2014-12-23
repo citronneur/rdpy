@@ -22,9 +22,7 @@
 """
 
 from pyasn1.type import tag, namedtype, namedval, univ, constraint, char, useful
-from pyasn1.codec.ber import decoder, encoder
-from pyasn1 import error
-from error import InvalidExpectedDataException
+from pyasn1.codec.ber import decoder
 
 MAX = 64
 
@@ -149,9 +147,6 @@ def extractRSAKey(certificate):
     @return: (modulus, public exponent)
     """
     #http://www.alvestrand.no/objectid/1.2.840.113549.1.1.1.html
-    #disable check because nobody respect
-    #if certificate.getComponentByName('tbsCertificate').getComponentByName('subjectPublicKeyInfo').getComponentByName('algorithm').getComponentByName('algorithm')._value != (1, 3, 14, 3, 2, 15):
-    #    raise InvalidExpectedDataException("Certificate doesn't contain RSA public key")
     
     #extract binary data
     l = 0L

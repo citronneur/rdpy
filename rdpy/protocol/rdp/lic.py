@@ -25,8 +25,8 @@
 from rdpy.core.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
 from rdpy.core.error import InvalidExpectedDataException
 import rdpy.core.log as log
-import sec, gcc
-from rdpy.core import x509, rc4
+import sec
+from rdpy.security import rc4
 
 class MessageType(object):
     """

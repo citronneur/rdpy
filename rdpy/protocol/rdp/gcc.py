@@ -25,7 +25,9 @@ http://msdn.microsoft.com/en-us/library/cc240508.aspx
 from rdpy.core.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, Stream, sizeof, FactoryType, ArrayType
 import per, mcs
 from rdpy.core.error import InvalidExpectedDataException
-from rdpy.core import log, x509
+from rdpy.core import log
+from rdpy.security import x509
+import rdpy.security.rsa_wrapper as rsa
 
 t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
 
@@ -312,7 +314,7 @@ class ServerCertificate(CompositeType):
     """
     def __init__(self, certData = None, readLen = None, conditional = lambda:True):
         CompositeType.__init__(self, readLen = readLen, conditional = conditional)
-        self.dwVersion = UInt32Le()
+        self.dwVersion = UInt32Le(lambda:self.certData.__class__._TYPE_)
         
         def CertificateFactory():
             """
@@ -328,18 +330,7 @@ class ServerCertificate(CompositeType):
         elif not "_TYPE_" in certData.__class__.__dict__:
             raise InvalidExpectedDataException("Try to send an invalid Certificate")
           
-        self.certData = FactoryType(CertificateFactory)
-        
-def bin2bn(b):
-    """
-    @summary: convert binary string to bignum
-    @param b: {str} binary string
-    @return: {long} bignum
-    """
-    l = 0L
-    for ch in b:
-        l = (l<<8) | ord(ch)
-    return l
+        self.certData = FactoryType(CertificateFactory) 
         
 class ProprietaryServerCertificate(CompositeType):
     """
@@ -363,8 +354,9 @@ class ProprietaryServerCertificate(CompositeType):
         """
         @return: {Tuple} (modulus, publicExponent)
         """
+        log.debug("read RSA public key from proprietary certificate")
         #reverse because bignum in little endian
-        return bin2bn(self.PublicKeyBlob.modulus.value[::-1]), self.PublicKeyBlob.pubExp.value
+        return rsa.PublicKey(self.PublicKeyBlob.pubExp.value, self.PublicKeyBlob.modulus.value[::-1])
 
 class CertBlob(CompositeType):
     """
@@ -393,8 +385,10 @@ class X509CertificateChain(CompositeType):
         """
         @return: {Tuple} (modulus, publicExponent)
         """
-        #last certifcate contain publi key
-        return x509.extractRSAKey(x509.load(self.CertBlobArray[-1].abCert.value))
+        log.debug("read RSA public key from x509 certificate")
+        #last certifcate contain public key
+        n, e =  x509.extractRSAKey(x509.load(self.CertBlobArray[-1].abCert.value))
+        return rsa.PublicKey(e, n)
         
 class RSAPublicKey(CompositeType):
     """
