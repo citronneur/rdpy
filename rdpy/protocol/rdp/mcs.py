@@ -492,7 +492,7 @@ class Server(MCSLayer):
             self._serverSettings.SC_SECURITY.encryptionMethod.value = gcc.EncryptionMethod.ENCRYPTION_FLAG_128BIT
             self._serverSettings.SC_SECURITY.encryptionLevel.value = gcc.EncryptionLevel.ENCRYPTION_LEVEL_HIGH
             self._serverSettings.SC_SECURITY.serverRandom.value = rsa.random(256)
-            self._serverSettings.SC_SECURITY.serverCertificate.certData = self._presentation.getCertificate()
+            self._serverSettings.SC_SECURITY.serverCertificate = self._presentation.getCertificate()
             
         self._serverSettings.SC_CORE.clientRequestedProtocol.value = self._transport._requestedProtocol
         self.setNextState(self.recvConnectInitial)

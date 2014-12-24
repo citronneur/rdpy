@@ -132,7 +132,7 @@ class X224Layer(LayerAutomata, IStreamSender):
         """
         LayerAutomata.__init__(self, presentation)
         #client requested selectedProtocol
-        self._requestedProtocol = Protocols.PROTOCOL_RDP
+        self._requestedProtocol = Protocols.PROTOCOL_SSL
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     
@@ -258,7 +258,7 @@ class Server(X224Layer):
         
         #match best security layer available
         if not self._serverPrivateKeyFileName is None and not self._serverCertificateFileName is None:
-            self._selectedProtocol = self._requestedProtocol & Protocols.PROTOCOL_RDP
+            self._selectedProtocol = self._requestedProtocol & Protocols.PROTOCOL_SSL
         else:
             self._selectedProtocol = self._requestedProtocol & Protocols.PROTOCOL_RDP
         

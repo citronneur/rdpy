@@ -52,11 +52,11 @@ def PrivateKey(d, n):
         n = rsa.transform.bytes2int(n)
     return { 'd' : d, 'n' : n }
 
-def int2bytes(i):
+def int2bytes(i, fill_size=None):
     """
     @summary: wrapper of rsa.transform.int2bytes
     """
-    return rsa.transform.int2bytes(i)
+    return rsa.transform.int2bytes(i,fill_size)
 
 def random(size):
     """
@@ -71,7 +71,7 @@ def encrypt(message, publicKey):
     @param message: {str} source message
     @param publicKey: {rsa.PublicKey}
     """
-    return rsa.transform.int2bytes(rsa.core.encrypt_int(rsa.transform.bytes2int(message), publicKey['e'], publicKey['n']))
+    return rsa.transform.int2bytes(rsa.core.encrypt_int(rsa.transform.bytes2int(message), publicKey['e'], publicKey['n']), rsa.common.byte_size(publicKey['n']))
 
 def decrypt(message, privateKey):
     """
@@ -87,4 +87,12 @@ def sign(message, privateKey):
     @param message: {str} message to sign
     @param privateKey : {rsa.privateKey} key use to sugn
     """
-    return rsa.transform.int2bytes(rsa.core.encrypt_int(rsa.transform.bytes2int(message), privateKey['d'], privateKey['n']))
+    return rsa.transform.int2bytes(rsa.core.encrypt_int(rsa.transform.bytes2int(message), privateKey['d'], privateKey['n']), rsa.common.byte_size(privateKey['n']))
+
+def verify(message, publicKey):
+    """
+    @summary: return hash
+    @param message: {str} message to verify
+    @param publicKey : {rsa.publicKey} key use to sugn
+    """
+    return rsa.transform.int2bytes(rsa.core.decrypt_int(rsa.transform.bytes2int(message), publicKey['e'], publicKey['n']))

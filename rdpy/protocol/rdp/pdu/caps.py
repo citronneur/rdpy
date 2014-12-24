@@ -235,7 +235,7 @@ class Capability(CompositeType):
             """
             Closure for capability factory
             """
-            for c in [GeneralCapability, BitmapCapability, OrderCapability, BitmapCacheCapability, PointerCapability, InputCapability, BrushCapability, GlyphCapability, OffscreenBitmapCacheCapability, VirtualChannelCapability, SoundCapability, ControlCapability, WindowActivationCapability, FontCapability, ColorCacheCapability, ShareCapability]:
+            for c in [GeneralCapability, BitmapCapability, OrderCapability, BitmapCacheCapability, PointerCapability, InputCapability, BrushCapability, GlyphCapability, OffscreenBitmapCacheCapability, VirtualChannelCapability, SoundCapability, ControlCapability, WindowActivationCapability, FontCapability, ColorCacheCapability, ShareCapability, MultiFragmentUpdate]:
                 if self.capabilitySetType.value == c._TYPE_ and (self.lengthCapability.value - 4) > 0:
                     return c(readLen = self.lengthCapability - 4)
             log.debug("unknown Capability type : %s"%hex(self.capabilitySetType.value))
@@ -527,3 +527,16 @@ class ShareCapability(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.nodeId = UInt16Le()
         self.pad2octets = UInt16Le()
+        
+class MultiFragmentUpdate(CompositeType):
+    """
+    @summary: Use to advertise fast path max buffer to use
+    client -> server
+    server -> client
+    @see: http://msdn.microsoft.com/en-us/library/cc240649.aspx
+    """
+    _TYPE_ = CapsType.CAPSETTYPE_MULTIFRAGMENTUPDATE
+    
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.MaxRequestSize = UInt32Le(0xffffffff)

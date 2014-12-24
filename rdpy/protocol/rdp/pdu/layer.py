@@ -100,7 +100,8 @@ class PDULayer(LayerAutomata, tpkt.IFastPathListener):
             caps.CapsType.CAPSTYPE_GLYPHCACHE : caps.Capability(caps.GlyphCapability()),
             caps.CapsType.CAPSTYPE_OFFSCREENCACHE : caps.Capability(caps.OffscreenBitmapCacheCapability()),
             caps.CapsType.CAPSTYPE_VIRTUALCHANNEL : caps.Capability(caps.VirtualChannelCapability()),
-            caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.SoundCapability())
+            caps.CapsType.CAPSTYPE_SOUND : caps.Capability(caps.SoundCapability()),
+            caps.CapsType.CAPSETTYPE_MULTIFRAGMENTUPDATE : caps.Capability(caps.MultiFragmentUpdate())
         }
         #share id between client and server
         self._shareId = 0x103EA
@@ -410,8 +411,8 @@ class Server(PDULayer):
             self._clientCapabilities[cap.capabilitySetType] = cap
             
         #find use full flag
-        self._clientFastPathSupported = self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags.value & caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
-            
+        self._clientFastPathSupported = bool(self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags.value & (caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED | caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED))
+        
         self.setNextState(self.recvClientSynchronizePDU)
         
     def recvClientSynchronizePDU(self, s):
@@ -524,7 +525,7 @@ class Server(PDULayer):
         generalCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
         generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
         generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR
+        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
         
         inputCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_INPUT].capability
         inputCapability.inputFlags.value = caps.InputFlags.INPUT_FLAG_SCANCODES | caps.InputFlags.INPUT_FLAG_MOUSEX
@@ -582,7 +583,6 @@ class Server(PDULayer):
             fastPathUpdateDataPDU = data.FastPathBitmapUpdateDataPDU()
             fastPathUpdateDataPDU.rectangles._array = bitmapDatas
             self._fastPathSender.sendFastPath(0, data.FastPathUpdatePDU(fastPathUpdateDataPDU))
-            
         else:
             #slow path case
             updateDataPDU = data.BitmapUpdateDataPDU()
