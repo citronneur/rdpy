@@ -539,4 +539,4 @@ class MultiFragmentUpdate(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.MaxRequestSize = UInt32Le(0xffffffff)
+        self.MaxRequestSize = UInt32Le(0)

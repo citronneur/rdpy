@@ -29,7 +29,7 @@ import caps, order
  
 class PDUType(object):
     """
-    Data PDU type primary index
+    @summary: Data PDU type primary index
     @see: http://msdn.microsoft.com/en-us/library/cc240576.aspx
     """
     PDUTYPE_DEMANDACTIVEPDU = 0x11
@@ -40,7 +40,7 @@ class PDUType(object):
   
 class PDUType2(object):
     """
-    Data PDU type secondary index
+    @summary: Data PDU type secondary index
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     """
     PDUTYPE2_UPDATE = 0x02
@@ -70,7 +70,7 @@ class PDUType2(object):
      
 class StreamId(object):
     """
-    Stream priority
+    @summary: Stream priority
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     """
     STREAM_UNDEFINED = 0x00
@@ -80,7 +80,7 @@ class StreamId(object):
        
 class CompressionOrder(object):
     """
-    PDU compression order
+    @summary: PDU compression order
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     """
     CompressionTypeMask = 0x0F
@@ -90,7 +90,7 @@ class CompressionOrder(object):
     
 class CompressionType(object):
     """
-    PDU compression type
+    @summary: PDU compression type
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     """
     PACKET_COMPR_TYPE_8K = 0x0
@@ -100,7 +100,7 @@ class CompressionType(object):
     
 class Action(object):
     """
-    Action flag use in Control PDU packet
+    @summary: Action flag use in Control PDU packet
     @see: http://msdn.microsoft.com/en-us/library/cc240492.aspx
     """
     CTRLACTION_REQUEST_CONTROL = 0x0001
@@ -110,7 +110,7 @@ class Action(object):
     
 class PersistentKeyListFlag(object):
     """
-    Use to determine the number of persistent key packet
+    @summary: Use to determine the number of persistent key packet
     @see: http://msdn.microsoft.com/en-us/library/cc240495.aspx
     """
     PERSIST_FIRST_PDU = 0x01
@@ -118,7 +118,7 @@ class PersistentKeyListFlag(object):
 
 class BitmapFlag(object):
     """
-    Use in bitmap update PDU
+    @summary: Use in bitmap update PDU
     @see: http://msdn.microsoft.com/en-us/library/cc240612.aspx
     """
     BITMAP_COMPRESSION = 0x0001
@@ -126,7 +126,7 @@ class BitmapFlag(object):
  
 class UpdateType(object):
     """
-    Use in update PDU to determine which type of update
+    @summary: Use in update PDU to determine which type of update
     @see: http://msdn.microsoft.com/en-us/library/cc240608.aspx
     """
     UPDATETYPE_ORDERS = 0x0000
@@ -136,7 +136,7 @@ class UpdateType(object):
     
 class InputMessageType(object):
     """
-    Use in slow-path input PDU
+    @summary: Use in slow-path input PDU
     @see: http://msdn.microsoft.com/en-us/library/cc240583.aspx
     """
     INPUT_EVENT_SYNC = 0x0000
@@ -148,7 +148,7 @@ class InputMessageType(object):
     
 class PointerFlag(object):
     """
-    Use in Pointer event
+    @summary: Use in Pointer event
     @see: http://msdn.microsoft.com/en-us/library/cc240586.aspx
     """
     PTRFLAGS_HWHEEL = 0x0400
@@ -163,7 +163,7 @@ class PointerFlag(object):
     
 class KeyboardFlag(object):
     """
-    Use in scan code key event
+    @summary: Use in scan code key event
     @see: http://msdn.microsoft.com/en-us/library/cc240584.aspx
     """
     KBDFLAGS_EXTENDED = 0x0100
@@ -172,7 +172,7 @@ class KeyboardFlag(object):
     
 class FastPathUpdateType(object):
     """
-    Use in Fast Path update packet
+    @summary: Use in Fast Path update packet
     @see: http://msdn.microsoft.com/en-us/library/cc240622.aspx
     """
     FASTPATH_UPDATETYPE_ORDERS = 0x0
@@ -189,14 +189,14 @@ class FastPathUpdateType(object):
     
 class FastPathOutputCompression(object):
     """
-    Flag for compression
+    @summary: Flag for compression
     @see: http://msdn.microsoft.com/en-us/library/cc240622.aspx
     """
     FASTPATH_OUTPUT_COMPRESSION_USED = 0x2
     
 class Display(object):
     """
-    Use in supress output PDU
+    @summary: Use in supress output PDU
     @see: http://msdn.microsoft.com/en-us/library/cc240648.aspx
     """
     SUPPRESS_DISPLAY_UPDATES = 0x00
@@ -204,7 +204,7 @@ class Display(object):
     
 class ErrorInfo(object):
     """
-    Error code use in Error info PDU
+    @summary: Error code use in Error info PDU
     @see: http://msdn.microsoft.com/en-us/library/cc240544.aspx
     """
     ERRINFO_RPC_INITIATED_DISCONNECT = 0x00000001
@@ -417,12 +417,12 @@ class ErrorInfo(object):
 
 class ShareControlHeader(CompositeType):
     """
-    PDU share control header
+    @summary: PDU share control header
     @see: http://msdn.microsoft.com/en-us/library/cc240576.aspx
     """
     def __init__(self, totalLength, pduType, userId):
         """
-        Set pduType as constant
+        @summary: Set pduType as constant
         @param totalLength: total length of PDU packet
         """
         CompositeType.__init__(self)
@@ -433,7 +433,7 @@ class ShareControlHeader(CompositeType):
         
 class ShareDataHeader(CompositeType):
     """
-    PDU share data header
+    @summary: PDU share data header
     @see: http://msdn.microsoft.com/en-us/library/cc240577.aspx
     """
     def __init__(self, size, pduType2 = 0, shareId = 0):
@@ -448,7 +448,7 @@ class ShareDataHeader(CompositeType):
         
 class PDU(CompositeType):
     """
-    Main PDU message
+    @summary: Main PDU message
     """
     def __init__(self, userId = 0, pduMessage = None):
         CompositeType.__init__(self)
@@ -456,7 +456,7 @@ class PDU(CompositeType):
         
         def PDUMessageFactory():
             """
-            build message in accordance of type self.shareControlHeader.pduType.value
+            @summary: build message in accordance of type self.shareControlHeader.pduType.value
             """
             for c in [DemandActivePDU, ConfirmActivePDU, DataPDU, DeactiveAllPDU]:
                 if self.shareControlHeader.pduType.value == c._PDUTYPE_:
@@ -475,7 +475,7 @@ class PDU(CompositeType):
 class DemandActivePDU(CompositeType):
     """
     @see: http://msdn.microsoft.com/en-us/library/cc240485.aspx
-    Main use for capabilities exchange server -> client
+    @summary: Main use for capabilities exchange server -> client
     """
     #may declare the PDU type
     _PDUTYPE_ = PDUType.PDUTYPE_DEMANDACTIVEPDU
@@ -494,7 +494,7 @@ class DemandActivePDU(CompositeType):
 class ConfirmActivePDU(CompositeType):
     """
     @see: http://msdn.microsoft.com/en-us/library/cc240488.aspx
-    Main use for capabilities confirm client -> sever
+    @summary: Main use for capabilities confirm client -> sever
     """
     #may declare the PDU type
     _PDUTYPE_ = PDUType.PDUTYPE_CONFIRMACTIVEPDU
@@ -512,7 +512,7 @@ class ConfirmActivePDU(CompositeType):
         
 class DeactiveAllPDU(CompositeType):
     """
-    Use to signal already connected session
+    @summary: Use to signal already connected session
     @see: http://msdn.microsoft.com/en-us/library/cc240536.aspx
     """
     #may declare the PDU type
@@ -526,7 +526,7 @@ class DeactiveAllPDU(CompositeType):
 
 class DataPDU(CompositeType):
     """
-    Generic PDU packet use after connection sequence
+    @summary: Generic PDU packet use after connection sequence
     """
     #may declare the PDU type
     _PDUTYPE_ = PDUType.PDUTYPE_DATAPDU
@@ -537,7 +537,7 @@ class DataPDU(CompositeType):
         
         def PDUDataFactory():
             """
-            Create object in accordance self.shareDataHeader.pduType2 value
+            @summary: Create object in accordance self.shareDataHeader.pduType2 value
             """
             for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SupressOutputDataPDU]:
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
@@ -584,7 +584,7 @@ class ControlDataPDU(CompositeType):
         
 class ErrorInfoDataPDU(CompositeType):
     """
-    Use to inform error in PDU layer
+    @summary: Use to inform error in PDU layer
     @see: http://msdn.microsoft.com/en-us/library/cc240544.aspx
     """
     _PDUTYPE2_ = PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU
@@ -600,7 +600,7 @@ class ErrorInfoDataPDU(CompositeType):
         
 class FontListDataPDU(CompositeType):
     """
-    Use to indicate list of font. Deprecated packet
+    @summary: Use to indicate list of font. Deprecated packet
     client -> server
     @see: http://msdn.microsoft.com/en-us/library/cc240498.aspx
     """
@@ -618,7 +618,7 @@ class FontListDataPDU(CompositeType):
         
 class FontMapDataPDU(CompositeType):
     """
-    Use to indicate map of font. Deprecated packet (maybe the same as FontListDataPDU)
+    @summary: Use to indicate map of font. Deprecated packet (maybe the same as FontListDataPDU)
     server -> client
     @see: http://msdn.microsoft.com/en-us/library/cc240498.aspx
     """
@@ -636,7 +636,7 @@ class FontMapDataPDU(CompositeType):
         
 class PersistentListEntry(CompositeType):   
     """
-    Use to record persistent key in PersistentListPDU
+    @summary: Use to record persistent key in PersistentListPDU
     @see: http://msdn.microsoft.com/en-us/library/cc240496.aspx
     """  
     def __init__(self):
@@ -646,7 +646,7 @@ class PersistentListEntry(CompositeType):
     
 class PersistentListPDU(CompositeType):
     """
-    Use to indicate that bitmap cache was already
+    @summary: Use to indicate that bitmap cache was already
     Fill with some keys from previous session
     @see: http://msdn.microsoft.com/en-us/library/cc240495.aspx
     """
@@ -671,7 +671,7 @@ class PersistentListPDU(CompositeType):
 
 class ClientInputEventPDU(CompositeType):
     """
-    PDU use to send client inputs in slow path mode
+    @summary: PDU use to send client inputs in slow path mode
     @see: http://msdn.microsoft.com/en-us/library/cc746160.aspx
     """
     _PDUTYPE2_ = PDUType2.PDUTYPE2_INPUT
@@ -684,7 +684,7 @@ class ClientInputEventPDU(CompositeType):
 
 class ShutdownRequestPDU(CompositeType):
     """
-    PDU use to signal that the session will be closed
+    @summary: PDU use to signal that the session will be closed
     client -> server
     """  
     _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_REQUEST
@@ -693,7 +693,7 @@ class ShutdownRequestPDU(CompositeType):
              
 class ShutdownDeniedPDU(CompositeType):
     """
-    PDU use to signal which the session will be closed is connected
+    @summary: PDU use to signal which the session will be closed is connected
     server -> client
     """  
     _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_DENIED
@@ -737,7 +737,7 @@ class RefreshRectPDU(CompositeType):
 
 class UpdateDataPDU(CompositeType):
     """
-    Update data PDU use by server to inform update image or palet
+    @summary: Update data PDU use by server to inform update image or palet
     for example
     @see: http://msdn.microsoft.com/en-us/library/cc240608.aspx
     """
@@ -754,7 +754,7 @@ class UpdateDataPDU(CompositeType):
         
         def UpdateDataFactory():
             """
-            Create object in accordance self.updateType value
+            @summary: Create object in accordance self.updateType value
             """
             for c in [BitmapUpdateDataPDU]:
                 if self.updateType.value == c._UPDATE_TYPE_:
@@ -771,7 +771,7 @@ class UpdateDataPDU(CompositeType):
 
 class FastPathUpdatePDU(CompositeType):
     """
-    Fast path update PDU packet
+    @summary: Fast path update PDU packet
     @see: http://msdn.microsoft.com/en-us/library/cc240622.aspx
     """
     def __init__(self, updateData = None):
@@ -782,7 +782,7 @@ class FastPathUpdatePDU(CompositeType):
         
         def UpdateDataFactory():
             """
-            Create correct object in accordance to self.updateHeader field
+            @summary: Create correct object in accordance to self.updateHeader field
             """
             for c in [FastPathBitmapUpdateDataPDU]:
                 if (self.updateHeader.value & 0xf) == c._FASTPATH_UPDATE_TYPE_:
@@ -799,7 +799,7 @@ class FastPathUpdatePDU(CompositeType):
   
 class BitmapUpdateDataPDU(CompositeType):
     """
-    PDU use to send raw bitmap compressed or not
+    @summary: PDU use to send raw bitmap compressed or not
     @see: http://msdn.microsoft.com/en-us/library/dd306368.aspx
     """
     _UPDATE_TYPE_ = UpdateType.UPDATETYPE_BITMAP
@@ -814,7 +814,7 @@ class BitmapUpdateDataPDU(CompositeType):
         
 class OrderUpdateDataPDU(CompositeType):
     """
-    PDU type use to communicate Accelerated order (GDI)
+    @summary: PDU type use to communicate Accelerated order (GDI)
     @see: http://msdn.microsoft.com/en-us/library/cc241571.aspx
     @todo: not implemented yet but need it
     """
@@ -827,7 +827,7 @@ class OrderUpdateDataPDU(CompositeType):
 
 class BitmapCompressedDataHeader(CompositeType):
     """
-    Compressed header of bitmap
+    @summary: Compressed header of bitmap
     @see: http://msdn.microsoft.com/en-us/library/cc240644.aspx
     """
     def __init__(self, bodySize = 0, scanWidth = 0, uncompressedSize = 0, conditional = lambda:True):
@@ -846,7 +846,7 @@ class BitmapCompressedDataHeader(CompositeType):
 
 class BitmapData(CompositeType):
     """
-    Bitmap data here the screen capture
+    @summary: Bitmap data here the screen capture
     """
     def __init__(self, destLeft = 0, destTop = 0, destRight = 0, destBottom = 0, width = 0, height = 0, bitsPerPixel = 0, bitmapDataStream = ""):
         """
@@ -874,7 +874,7 @@ class BitmapData(CompositeType):
 
 class FastPathBitmapUpdateDataPDU(CompositeType):
     """
-    Fast path version of bitmap update PDU
+    @summary: Fast path version of bitmap update PDU
     @see: http://msdn.microsoft.com/en-us/library/dd306368.aspx
     """
     _FASTPATH_UPDATE_TYPE_ = FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP
@@ -887,7 +887,7 @@ class FastPathBitmapUpdateDataPDU(CompositeType):
     
 class SlowPathInputEvent(CompositeType):
     """
-    PDU use in slow-path sending client inputs
+    @summary: PDU use in slow-path sending client inputs
     @see: http://msdn.microsoft.com/en-us/library/cc240583.aspx
     """
     def __init__(self, messageData = None):
@@ -911,7 +911,7 @@ class SlowPathInputEvent(CompositeType):
             
 class PointerEvent(CompositeType):
     """
-    Event use to communicate mouse position
+    @summary: Event use to communicate mouse position
     @see: http://msdn.microsoft.com/en-us/library/cc240586.aspx
     """
     _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_MOUSE
@@ -924,7 +924,7 @@ class PointerEvent(CompositeType):
         
 class ScancodeKeyEvent(CompositeType):
     """
-    Event use to communicate keyboard informations
+    @summary: Event use to communicate keyboard informations
     @see: http://msdn.microsoft.com/en-us/library/cc240584.aspx
     """
     _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_SCANCODE
@@ -937,7 +937,7 @@ class ScancodeKeyEvent(CompositeType):
         
 class UnicodeKeyEvent(CompositeType):
     """
-    Event use to communicate keyboard informations
+    @summary: Event use to communicate keyboard informations
     @see: http://msdn.microsoft.com/en-us/library/cc240585.aspx
     """
     _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_UNICODE

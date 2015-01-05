@@ -25,8 +25,9 @@
 from rdpy.core.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
 from rdpy.core.error import InvalidExpectedDataException
 import rdpy.core.log as log
-import sec
+import sec, gcc
 from rdpy.security import rc4
+from rdpy.security import rsa_wrapper as rsa
 
 class MessageType(object):
     """
@@ -253,35 +254,31 @@ def createValidClientLicensingErrorMessage():
         
 class LicenseManager(object):
     """
-    @summary: handle license automata
+    @summary: handle license automata (client side)
     @see: http://msdn.microsoft.com/en-us/library/cc241890.aspx
     """
     def __init__(self, transport):
         """
         @param transport: layer use to send packet
         """
-        self._preMasterSecret = "\x00" * 64
-        self._clientRandom = "\x00" * 32
-        self._serverRandom = None
-        self._serverEncryptedChallenge = None
         self._transport = transport
         self._username = ""
         self._hostname = ""
         
     def generateKeys(self):
         """
-        @summary: generate key for license session
+        @summary: generate keys for license session
         """
-        masterSecret = sec.masterSecret(self._preMasterSecret, self._clientRandom, self._serverRandom)
-        sessionKeyBlob = sec.masterSecret(masterSecret, self._serverRandom, self._clientRandom)
-        self._macSalt = sessionKeyBlob[:16]
-        self._licenseKey = sec.finalHash(sessionKeyBlob[16:32], self._clientRandom, self._serverRandom)
+        
         
     def recv(self, s):
         """
         @summary: receive license packet from PDU layer
         @return true when license automata is finish
         """
+        with open("/tmp/toto", "wb") as f:
+            f.write(s.getvalue()[s.pos:].encode('base64'))
+            
         licPacket = LicPacket()
         s.readType(licPacket)
         
@@ -290,14 +287,11 @@ class LicenseManager(object):
             return True
         
         elif licPacket.bMsgtype.value == MessageType.LICENSE_REQUEST:
-            self._serverRandom = licPacket.licensingMessage.serverRandom.value
-            self.generateKeys()
-            self.sendClientNewLicenseRequest()
+            self.sendClientNewLicenseRequest(licPacket.licensingMessage)
             return False
             
         elif licPacket.bMsgtype.value == MessageType.PLATFORM_CHALLENGE:
-            self._serverEncryptedChallenge = licPacket.licensingMessage.encryptedPlatformChallenge.blobData.value
-            self.sendClientChallengeResponse()
+            self.sendClientChallengeResponse(licPacket.licensingMessage)
             return False
         
         #yes get a new license
@@ -308,34 +302,52 @@ class LicenseManager(object):
             raise InvalidExpectedDataException("Not a valid license packet")
         
     
-    def sendClientNewLicenseRequest(self):
+    def sendClientNewLicenseRequest(self, licenseRequest):
         """
         @summary: Create new license request in response to server license request
+        @param licenseRequest: {ServerLicenseRequest}
         @see: http://msdn.microsoft.com/en-us/library/cc241989.aspx
         @see: http://msdn.microsoft.com/en-us/library/cc241918.aspx
         """
+        #get server information
+        serverRandom = licenseRequest.serverRandom.value
+        s = Stream(licenseRequest.serverCertificate.blobData.value)
+        serverCertificate = gcc.ServerCertificate()
+        s.readType(serverCertificate)
+        
+        #generate crypto values
+        clientRandom = rsa.random(256)
+        preMasterSecret = rsa.random(384)
+        masterSecret = sec.masterSecret(preMasterSecret, clientRandom, serverRandom)
+        sessionKeyBlob = sec.masterSecret(masterSecret, serverRandom, clientRandom)
+        self._macSalt = sessionKeyBlob[:16]
+        self._licenseKey = sec.finalHash(sessionKeyBlob[16:32], clientRandom, serverRandom)
+        
+        #format message
         message = ClientNewLicenseRequest()
-        message.clientRandom.value = self._clientRandom
-        message.encryptedPreMasterSecret.blobData = String(self._preMasterSecret + "\x00" * 8)
-        message.ClientMachineName.blobData = String(self._hostname + "\x00")
-        message.ClientUserName.blobData = String(self._username + "\x00")
+        message.clientRandom.value = clientRandom
+        message.encryptedPreMasterSecret.blobData.value = rsa.encrypt(preMasterSecret[::-1], serverCertificate.certData.getPublicKey())[::-1] + "\x00" * 8
+        message.ClientMachineName.blobData.value = self._hostname + "\x00"
+        message.ClientUserName.blobData.value = self._username + "\x00"
         self._transport.sendFlagged(sec.SecurityFlag.SEC_LICENSE_PKT, LicPacket(message))
         
-    def sendClientChallengeResponse(self):
+    def sendClientChallengeResponse(self, platformChallenge):
         """
         @summary: generate valid challenge response
+        @param platformChallenge: {ServerPlatformChallenge}
         """
+        serverEncryptedChallenge = platformChallenge.encryptedPlatformChallenge.blobData.value
         #decrypt server challenge
         #it should be TEST word in unicode format
-        serverChallenge = rc4.crypt(rc4.RC4Key(self._licenseKey), self._serverEncryptedChallenge)
+        serverChallenge = rc4.crypt(rc4.RC4Key(self._licenseKey), serverEncryptedChallenge)
         
         #generate hwid
         s = Stream()
-        s.writeType((UInt32Le(2), String(self._hostname + "\x00" * 16)))
+        s.writeType((UInt32Le(2), String(self._hostname + self._username + "\x00" * 16)))
         hwid = s.getvalue()[:20]
         
         message = ClientPLatformChallengeResponse()
-        message.encryptedPlatformChallengeResponse.blobData.value = self._serverEncryptedChallenge
+        message.encryptedPlatformChallengeResponse.blobData.value = serverEncryptedChallenge
         message.encryptedHWID.blobData.value = rc4.crypt(rc4.RC4Key(self._licenseKey), hwid)
         message.MACData.value = sec.macData(self._macSalt, serverChallenge + hwid)
         

@@ -411,7 +411,7 @@ class Server(PDULayer):
             self._clientCapabilities[cap.capabilitySetType] = cap
             
         #find use full flag
-        self._clientFastPathSupported = bool(self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags.value & (caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED | caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED))
+        self._clientFastPathSupported = bool(self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags.value & caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED)
         
         self.setNextState(self.recvClientSynchronizePDU)
         

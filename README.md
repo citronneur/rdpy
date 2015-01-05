@@ -21,14 +21,14 @@ sudo apt-get install python-qt4
 
 x86 | x86_64
 ----|-------
-[PyQt4 x86](http://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.3/PyQt4-4.11.3-gpl-Py2.7-Qt4.8.6-x32.exe) | [PyQt4 x86_64](http://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.3/PyQt4-4.11.3-gpl-Py2.7-Qt4.8.6-x64.exe/download)
-[PyWin32 x86](http://sourceforge.net/projects/pywin32/files/pywin32/Build%20218/pywin32-218.win32-py2.7.exe/download) | [PyWin32 x86_64](http://sourceforge.net/projects/pywin32/files/pywin32/Build%20218/pywin32-218.win-amd64-py2.7.exe/download)
+[PyQt4](http://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.3/PyQt4-4.11.3-gpl-Py2.7-Qt4.8.6-x32.exe) | [PyQt4](http://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.3/PyQt4-4.11.3-gpl-Py2.7-Qt4.8.6-x64.exe/download)
+[PyWin32](http://sourceforge.net/projects/pywin32/files/pywin32/Build%20218/pywin32-218.win32-py2.7.exe/download) | [PyWin32](http://sourceforge.net/projects/pywin32/files/pywin32/Build%20218/pywin32-218.win-amd64-py2.7.exe/download)
 
 ### Build
 
 ```
 $ git clone https://github.com/citronneur/rdpy.git rdpy
-$ pip install twisted pyopenssl qt4reactor
+$ pip install twisted pyopenssl qt4reactor service_identity rsa
 $ python rdpy/setup.py install
 ```
 
@@ -81,36 +81,32 @@ $ rdpy-vncscreenshot.py [-p password] [-o output_file_path] XXX.XXX.XXX.XXX[:590
 
 ### rdpy-rdpproxy
 
-rdpy-rdpproxy is a RDP proxy. It is used to manage and control access to the RDP servers as well as watch live sessions through any RDP client. It can be compared to a HTTP reverse proxy with added spy features.
+rdpy-rdpproxy is a RDP proxy with shadow and record function.
 
 ```
-$ rdpy-rdpproxy.py -f credentials_file_path -k private_key_file_path -c certificate_file_path [-i admin_ip[:admin_port]] listen_port
+$ rdpy-rdpproxy.py -t target_ip[:target_port] [-k private_key_file_path] [-c certificate_file_path] [-i admin_ip[:admin_port]] listen_port
 ```
 
-The credentials file is JSON file that must conform with the following format:
+The target ip and port represent the target host.
 
+The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
+
+The IP and port admin are used in order to shadow active sessions thanks to a RDP client (rdpy-rdpclient, remina, mstsc) set username parameter like name of session printed by proxy.
+
+Exemple : 
 ```
-{
-	"domain1":
-	{
-		"username1":
-		[
-			{"ip":"machine1", "port":3389"},
-			{"ip":"machine2", "port":3389"}
-		],
-		"username2":
-		[
-			{"ip":"machine1", "port":3389"}
-		]
-	}
-}
+$ rdpy-rdpproxy.py -t [my_computer] -i 0.0.0.0:56654 3389
+$ INFO : Shadow listener on 0.0.0.0:56654
+$ INFO : **************************************************
+$ INFO : Now connected
+$ INFO : ['super-administrator']
+$ INFO : **************************************************
 ```
 
-In this exemple domain1\username1 can access to machine1 and machine2 and domain1\username2 can only access to machine1.
-
-The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer but RDPY is limited to SSL. The CredSSP security layer is planned for an upcoming release. The basic RDP security layer is not supported (windows wp sp1&2).
-
-The IP and port admin are used in order to spy active sessions thanks to a RDP client (rdpy-rdpclient, remina, mstsc). Common values are 127.0.0.1:3389 to protect from connections by unauthorized user.
+To shadow 'super-administrator' session :
+```
+$ rdpy-rdpclient.py -u super-administrator 127.0.0.1:56654
+```
 
 ## RDPY Qt Widget
 

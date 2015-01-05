@@ -208,7 +208,7 @@ class Client(X224Layer):
             raise InvalidExpectedDataException("RDPY doesn't support NLA security Layer")
         
         if self._selectedProtocol == Protocols.PROTOCOL_SSL:
-            log.debug("*" * 10 + " select SSL layer" + "*" * 10)
+            log.debug("*" * 10 + " select SSL layer " + "*" * 10)
             #_transport is TPKT and transport is TCP layer of twisted
             self._transport.transport.startTLS(ClientTLSContext())
         
@@ -287,7 +287,7 @@ class Server(X224Layer):
         message.protocolNeg.selectedProtocol.value = self._selectedProtocol
         self._transport.send(message)
         if self._selectedProtocol == Protocols.PROTOCOL_SSL:
-            log.debug("*" * 5 + " select SSL layer")
+            log.debug("*" * 10 + " select SSL layer " + "*" * 10)
             #_transport is TPKT and transport is TCP layer of twisted
             self._transport.transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
             

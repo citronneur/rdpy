@@ -35,16 +35,17 @@ class RDPClientQtFactory(rdp.ClientFactory):
     """
     @summary: Factory create a RDP GUI client
     """
-    def __init__(self, width, height, username, password, domain, fullscreen, keyboardLayout, optimized):
+    def __init__(self, width, height, username, password, domain, fullscreen, keyboardLayout, optimized, security):
         """
-        @param width: width of client
-        @param heigth: heigth of client
-        @param username: username present to the server
-        @param password: password present to the server
-        @param domain: microsoft domain
-        @param fullscreen: show widget in fullscreen mode
-        @param keyboardLayout: keyboard layout
-        @param optimized: enable optimized session orders
+        @param width: {integer} width of client
+        @param heigth: {integer} heigth of client
+        @param username: {str} username present to the server
+        @param password: {str} password present to the server
+        @param domain: {str} microsoft domain
+        @param fullscreen: {bool} show widget in fullscreen mode
+        @param keyboardLayout: {str} (fr|en) keyboard layout
+        @param optimized: {bool} enable optimized session orders
+        @param security: {str} (ssl | rdp | nego)
         """
         self._width = width
         self._height = height
@@ -54,8 +55,12 @@ class RDPClientQtFactory(rdp.ClientFactory):
         self._fullscreen = fullscreen
         self._keyboardLayout = keyboardLayout
         self._optimized = optimized
+        self._nego = security == "nego"
+        if self._nego:
+            self._security = "ssl"
+        else:
+            self._security = security
         self._w = None
-        self._basicRDPSecurity = False
         
     def buildObserver(self, controller, addr):
         """
@@ -66,9 +71,9 @@ class RDPClientQtFactory(rdp.ClientFactory):
         @return: RDPClientQt
         """
         #create client observer
-        client = RDPClientQt(controller, self._width, self._height)
+        self._client = RDPClientQt(controller, self._width, self._height)
         #create qt widget
-        self._w = client.getWidget()
+        self._w = self._client.getWidget()
         self._w.setWindowTitle('rdpy-rdpclient')
         if self._fullscreen:
             self._w.showFullScreen()
@@ -82,14 +87,9 @@ class RDPClientQtFactory(rdp.ClientFactory):
         controller.setHostname(socket.gethostname())
         if self._optimized:
             controller.setPerformanceSession()
-            
-        if self._basicRDPSecurity:
-            controller.setRDPBasicSecurity()
+        controller.setSecurityLevel(self._security)
         
-        return client
-        
-    def startedConnecting(self, connector):
-        pass
+        return self._client
     
     def clientConnectionLost(self, connector, reason):
         """
@@ -98,8 +98,12 @@ class RDPClientQtFactory(rdp.ClientFactory):
         @param reason: str use to advertise reason of lost connection
         """
         #try reconnect with basic RDP security
-        if reason.type == RDPSecurityNegoFail and not self._basicRDPSecurity:
-            self._basicRDPSecurity = True
+        if reason.type == RDPSecurityNegoFail and self._nego:
+            #stop nego
+            log.info("due to security nego error back to standard RDP security layer")
+            self._nego = False
+            self._security = "rdp"
+            self._client._widget.hide()
             connector.connect()
             return
         
@@ -205,12 +209,9 @@ if __name__ == '__main__':
         width = QtGui.QDesktopWidget().screenGeometry().width()
         height = QtGui.QDesktopWidget().screenGeometry().height()
     
-    
-        
-    
     log.info("keyboard layout set to %s"%keyboardLayout)
     
     from twisted.internet import reactor
-    reactor.connectTCP(ip, int(port), RDPClientQtFactory(width, height, username, password, domain, fullscreen, keyboardLayout, optimized))
+    reactor.connectTCP(ip, int(port), RDPClientQtFactory(width, height, username, password, domain, fullscreen, keyboardLayout, optimized, "nego"))
     reactor.runReturn()
     app.exec_()

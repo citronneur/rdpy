@@ -61,6 +61,7 @@ def int2bytes(i, fill_size=None):
 def random(size):
     """
     @summary: wrapper around rsa.randnum.read_random_bits function
+    @param size: {integer] size in bits
     @return: {str} random bytes array
     """
     return rsa.randnum.read_random_bits(size)

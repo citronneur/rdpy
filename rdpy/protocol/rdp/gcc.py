@@ -142,10 +142,10 @@ class EncryptionLevel(object):
     @see: http://msdn.microsoft.com/en-us/library/cc240518.aspx
     """
     ENCRYPTION_LEVEL_NONE = 0x00000000
-    ENCRYPTION_LEVEL_LOW = 0x00000000
-    ENCRYPTION_LEVEL_CLIENT_COMPATIBLE = 0x00000000
-    ENCRYPTION_LEVEL_HIGH = 0x00000000
-    ENCRYPTION_LEVEL_FIPS = 0x00000000
+    ENCRYPTION_LEVEL_LOW = 0x00000001
+    ENCRYPTION_LEVEL_CLIENT_COMPATIBLE = 0x00000002
+    ENCRYPTION_LEVEL_HIGH = 0x00000003
+    ENCRYPTION_LEVEL_FIPS = 0x00000004
        
 class ChannelOptions(object):
     """
@@ -355,7 +355,7 @@ class ProprietaryServerCertificate(CompositeType):
         self.wSignatureBlobType = UInt16Le(0x0008, constant = True)
         self.wSignatureBlobLen = UInt16Le(lambda:(sizeof(self.SignatureBlob) - 8))
         self.SignatureBlob = String(readLen = self.wSignatureBlobLen)
-        self.padding = String("\x00" * 8, readLen = UInt8(8))
+        self.padding = String(b"\x00" * 8, readLen = UInt8(8))
         
     def getPublicKey(self):
         """
@@ -380,7 +380,7 @@ class ProprietaryServerCertificate(CompositeType):
         md5Digest = md5.new()
         md5Digest.update(s.getvalue())
         
-        return md5Digest.digest() + "\x00\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01"
+        return md5Digest.digest() + "\x00" + "\xff" * 46 + "\x01"
         
     def sign(self):
         """

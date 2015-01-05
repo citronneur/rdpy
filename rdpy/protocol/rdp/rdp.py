@@ -123,22 +123,26 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @param layout: us | fr
         """
         if layout == "fr":
-            self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).kbdLayout.value = gcc.KeyboardLayout.FRENCH
+            self._mcsLayer._clientSettings.CS_CORE.kbdLayout.value = gcc.KeyboardLayout.FRENCH
         elif layout == "us":
-            self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).kbdLayout.value = gcc.KeyboardLayout.US
+            self._mcsLayer._clientSettings.CS_CORE.kbdLayout.value = gcc.KeyboardLayout.US
     
     def setHostname(self, hostname):
         """
         @summary: set hostname of machine
         """
-        self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).clientName.value = hostname[:15] + "\x00" * (15 - len(hostname))
+        self._mcsLayer._clientSettings.CS_CORE.clientName.value = hostname[:15] + "\x00" * (15 - len(hostname))
         self._secLayer._licenceManager._hostname = hostname
         
-    def setRDPBasicSecurity(self):
+    def setSecurityLevel(self, level):
         """
         @summary: Request basic security
+        @param level: {str} (ssl | rdp)
         """
-        self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_RDP
+        if level == "rdp":
+            self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_RDP
+        elif level == "ssl":
+            self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_SSL
         
     def addClientObserver(self, observer):
         """
@@ -362,6 +366,12 @@ class RDPServerController(pdu.layer.PDUServerListener):
         """
         return self._tpktLayer
     
+    def getHostname(self):
+        """
+        @return: name of client (information done by RDP)
+        """
+        return self._mcsLayer._clientSettings.CS_CORE.clientName.value.strip('\x00')
+    
     def getUsername(self):
         """
         @summary: Must be call after on ready event else always empty string
@@ -414,7 +424,8 @@ class RDPServerController(pdu.layer.PDUServerListener):
         """
         @summary:  Set color depth of session
                     if PDU stack is already connected send a deactive-reactive sequence
-        @param colorDepth: depth of session (15, 16, 24)
+                    and an onReady message is re send when client is ready
+        @param colorDepth: {integer} depth of session (15, 16, 24)
         """
         self._colorDepth = colorDepth
         self._pduLayer._serverCapabilities[pdu.caps.CapsType.CAPSTYPE_BITMAP].capability.preferredBitsPerPixel.value = colorDepth
@@ -526,15 +537,15 @@ class ServerFactory(layer.RawLayerServerFactory):
     """
     @summary: Factory of Server RDP protocol
     """
-    def __init__(self, privateKeyFileName, certificateFileName, colorDepth):
+    def __init__(self, colorDepth, privateKeyFileName = None, certificateFileName = None):
         """
-        @param privateKeyFileName: file contain server private key
-        @param certficiateFileName: file that contain public key
         @param colorDepth: color depth of session
+        @param privateKeyFileName: file contain server private key (if none -> back to standard RDP security)
+        @param certficiateFileName: file that contain public key (if none -> back to standard RDP security)
         """
+        self._colorDepth = colorDepth
         self._privateKeyFileName = privateKeyFileName
         self._certificateFileName = certificateFileName
-        self._colorDepth = colorDepth
     
     def connectionLost(self, tpktLayer, reason):
         """

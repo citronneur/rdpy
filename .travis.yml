@@ -7,7 +7,7 @@ before_install:
   - sudo apt-get install python-qt4
   - ln -s /usr/lib/python2.7/dist-packages/PyQt4/ $VIRTUAL_ENV/lib/python2.7/site-packages/
   - ln -s /usr/lib/python2.7/dist-packages/sip.so $VIRTUAL_ENV/lib/python2.7/site-packages/
-  - pip install qt4reactor pyopenssl twisted service_identity
+  - pip install qt4reactor pyopenssl twisted service_identity rsa
 
 install:
   - python setup.py install
