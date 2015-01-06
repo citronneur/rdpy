@@ -79,34 +79,28 @@ rdpy-vncscreenshot save first screen update in file.
 $ rdpy-vncscreenshot.py [-p password] [-o output_file_path] XXX.XXX.XXX.XXX[:5900]
 ```
 
-### rdpy-rdpproxy
+### rdpy-rdpmitm
 
-rdpy-rdpproxy is a RDP proxy with shadow and record function.
+rdpy-rdpmitm is a RDP proxy allows you to do a Man in the middle attack on RDP protocol.
+Record session bitmap and do a keylogger for RDP protocol.
 
 ```
-$ rdpy-rdpproxy.py -t target_ip[:target_port] [-k private_key_file_path] [-c certificate_file_path] [-i admin_ip[:admin_port]] listen_port
+$ rdpy-rdpmitm.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
 ```
-
-The target ip and port represent the target host.
 
 The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
 
-The IP and port admin are used in order to shadow active sessions thanks to a RDP client (rdpy-rdpclient, remina, mstsc) set username parameter like name of session printed by proxy.
+### rdpy-rdpshare
 
-Exemple : 
+rdpy-rdpshare is a RDP proxy allows you to share your desktop throws RDP clients.
+First connection is take as master.
+
 ```
-$ rdpy-rdpproxy.py -t [my_computer] -i 0.0.0.0:56654 3389
-$ INFO : Shadow listener on 0.0.0.0:56654
-$ INFO : **************************************************
-$ INFO : Now connected
-$ INFO : ['super-administrator']
-$ INFO : **************************************************
+$ rdpy-rdpmitm.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
 ```
 
-To shadow 'super-administrator' session :
-```
-$ rdpy-rdpclient.py -u super-administrator 127.0.0.1:56654
-```
+The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
+
 
 ## RDPY Qt Widget
 
