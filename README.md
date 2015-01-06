@@ -92,8 +92,8 @@ The private key file and the certificate file are classic cryptographic files fo
 
 ### rdpy-rdpshare
 
-rdpy-rdpshare is a RDP proxy allows you to share your desktop throws RDP clients.
-First connection is take as master.
+rdpy-rdpshare is a RDP proxy allows you to share your desktop through RDP clients (rdpy-rdpclient, mstsc, remmina, rdesktop).
+First connection is use as master connection (keep session control).
 
 ```
 $ rdpy-rdpmitm.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
