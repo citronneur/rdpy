@@ -96,7 +96,7 @@ rdpy-rdpshare is a RDP proxy allows you to share your desktop through RDP client
 First connection is use as master connection (keep session control).
 
 ```
-$ rdpy-rdpmitm.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
+$ rdpy-rdpshare.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
 ```
 
 The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
