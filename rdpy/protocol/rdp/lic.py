@@ -264,21 +264,12 @@ class LicenseManager(object):
         self._transport = transport
         self._username = ""
         self._hostname = ""
-        
-    def generateKeys(self):
-        """
-        @summary: generate keys for license session
-        """
-        
-        
+ 
     def recv(self, s):
         """
         @summary: receive license packet from PDU layer
         @return true when license automata is finish
-        """
-        with open("/tmp/toto", "wb") as f:
-            f.write(s.getvalue()[s.pos:].encode('base64'))
-            
+        """            
         licPacket = LicPacket()
         s.readType(licPacket)
         

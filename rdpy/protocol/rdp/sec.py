@@ -18,7 +18,7 @@
 #
 
 """
-Some use full methods for security in RDP
+RDP Standard security layer
 """
 
 import sha, md5

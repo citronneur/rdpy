@@ -101,19 +101,16 @@ class RDPScreenShotFactory(rdp.ClientFactory):
             """
             @summary: observer that connect, cache every image received and save at deconnection
             """
-            def __init__(self, controller, width, height, security, path, timeout, reactor):
+            def __init__(self, controller, width, height, path, timeout, reactor):
                 """
                 @param controller: {RDPClientController}
                 @param width: {integer} width of screen
                 @param height: {integer} height of screen
-                @param security: {str} (ssl | rdp) security level
                 @param path: {str} path of output screenshot
                 @param timeout: {float} close connection after timeout s without any updating
                 @param reactor: twisted reactor
                 """
                 rdp.RDPClientObserver.__init__(self, controller)
-                controller.setScreen(width, height);
-                controller.setSecurityLevel(security)
                 self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
                 self._path = path
                 self._timeout = timeout
@@ -147,8 +144,10 @@ class RDPScreenShotFactory(rdp.ClientFactory):
                 
             def checkUpdate(self):
                 self._controller.close();
-        
-        return ScreenShotObserver(controller, self._width, self._height, self._security, self._path, self._timeout, self._reactor)
+                
+        controller.setScreen(width, height);
+        controller.setSecurityLevel(self._security)
+        return ScreenShotObserver(controller, self._width, self._height, self._path, self._timeout, self._reactor)
     
 def main(width, height, path, timeout, hosts):
     """

