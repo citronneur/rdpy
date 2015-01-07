@@ -185,7 +185,7 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         #do something maybe a message
         pass
 
-def RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data):
+def RDPBitmapToQtImage(width, height, bitsPerPixel, isCompress, data):
     """
     @summary: Bitmap transformation to Qt object
     @param width: width of bitmap
@@ -309,7 +309,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param isCompress: use RLE compression
         @param data: bitmap data
         """
-        image = RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data);
+        image = RDPBitmapToQtImage(width, height, bitsPerPixel, isCompress, data);
         #if image need to be cut
         #For bit alignement server may send more than image pixel
         self._widget.notifyImage(destLeft, destTop, image, destRight - destLeft + 1, destBottom - destTop + 1)

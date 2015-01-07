@@ -21,20 +21,20 @@
 """
 RDP proxy with Man in the middle capabilities
 Save bitmap in file and keylogging
-               ---------------------------
+               ----------------------------
 Client RDP -> | ProxyServer | ProxyClient | -> Server RDP
-               ---------------------------
-                    | Save Session |
-                    --------------
+              ----------------------------
+                   | Record Session |
+                   -----------------
 """
 
-import sys, os, getopt, json
+import sys, os, getopt, time
 
-from rdpy.core import log, error
+from rdpy.core import log, error, type, rsr
 from rdpy.protocol.rdp import rdp
 from twisted.internet import reactor
 
-log._LOG_LEVEL = log.Level.DEBUG
+log._LOG_LEVEL = log.Level.INFO
 
 class ProxyServer(rdp.RDPServerObserver):
     """
@@ -161,6 +161,7 @@ class ProxyClient(rdp.RDPClientObserver):
         rdp.RDPClientObserver.__init__(self, controller)
         self._server = server
         self._connected = False
+        self._rsr = rsr.createRecorder("/tmp/toto")
         
     def onReady(self):
         """
@@ -199,6 +200,17 @@ class ProxyClient(rdp.RDPClientObserver):
         @param data: bitmap data
         @see: rdp.RDPClientObserver.onUpdate
         """
+        e = rsr.UpdateEvent()
+        e.destLeft.value = destLeft
+        e.destTop.value = destTop
+        e.destRight.value = destRight
+        e.destBottom.value = destBottom
+        e.width.value = width
+        e.height.value = height
+        e.bpp.value = bitsPerPixel
+        e.format.value = rsr.UpdateFormat.BMP if isCompress else rsr.UpdateFormat.RAW
+        e.data.value = data
+        self._rsr.add(e)
         self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
 
 class ProxyClientFactory(rdp.ClientFactory):
@@ -237,6 +249,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setUsername(self._username)
         controller.setPassword(self._password)
         controller.setSecurityLevel(self._security)
+        controller.setPerformanceSession()
         return ProxyClient(controller, self._server)          
     
 def help():

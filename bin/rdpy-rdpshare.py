@@ -30,7 +30,7 @@ Client RDP -> | ProxyServer | ProxyClient | -> Server RDP
 Shadow client ------------|
 """
 
-import sys, os, getopt, json
+import sys, os, getopt
 
 from rdpy.core import log, error
 from rdpy.protocol.rdp import rdp
@@ -241,6 +241,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setDomain(self._domain)
         controller.setUsername(self._username)
         controller.setPassword(self._password)
+        controller.setPerformanceSession()
         return ProxyClient(controller, self._server)          
     
 class Shadow(rdp.RDPServerObserver):
