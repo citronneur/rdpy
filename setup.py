@@ -26,7 +26,7 @@ setup(name='rdpy',
 	ext_modules=[Extension('rle', ['ext/rle.c'])],
 	scripts = [
 			'bin/rdpy-rdpclient.py', 
-			'bin/rdpy-rdpshare.py',
+			'bin/rdpy-rdpy-rsrplayer.py',
 			'bin/rdpy-rdpmitm.py',
 			'bin/rdpy-rdpscreenshot.py', 
 			'bin/rdpy-vncclient.py', 

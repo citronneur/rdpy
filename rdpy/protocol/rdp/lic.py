@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014 Sylvain Peyrefitte
+# Copyright (c) 2014-2015 Sylvain Peyrefitte
 #
 # This file is part of rdpy.
 #
@@ -331,6 +331,8 @@ class LicenseManager(object):
         #decrypt server challenge
         #it should be TEST word in unicode format
         serverChallenge = rc4.crypt(rc4.RC4Key(self._licenseKey), serverEncryptedChallenge)
+        if serverChallenge != "T\x00E\x00S\x00T\x00\x00\x00":
+            raise InvalidExpectedDataException("bad license server challenge")
         
         #generate hwid
         s = Stream()

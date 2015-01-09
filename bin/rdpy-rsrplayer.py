@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright (c) 2014 Sylvain Peyrefitte
+# Copyright (c) 2014-2015 Sylvain Peyrefitte
 #
 # This file is part of rdpy.
 #
@@ -26,58 +26,70 @@ import sys, os, getopt, socket
 from PyQt4 import QtGui, QtCore
 
 from rdpy.core import log, rsr
-from rdpy.ui.qt4 import RDPBitmapToQtImage
+from rdpy.ui.qt4 import QRemoteDesktop, RDPBitmapToQtImage
 log._LOG_LEVEL = log.Level.INFO
 
-class QRsrPlayer(QtGui.QWidget):
-    def __init__(self):
-        self._refresh = []
-        #buffer image
-        self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
-        self._f = rsr.createReader("/tmp/toto")
-        self._nextEvent = self._f.next()
+class RsrPlayerWidget(QRemoteDesktop):
+    """
+    @summary: special rsr player widget
+    """
+    def __init__(self, width, height):
+        class RsrAdaptor(object):
+            def sendMouseEvent(self, e, isPressed):
+                """ Not Handle """
+            def sendKeyEvent(self, e, isPressed):
+                """ Not Handle """
+            def sendWheelEvent(self, e):
+                """ Not Handle """
+            def closeEvent(self, e):
+                """ Not Handle """
+        QRemoteDesktop.__init__(self, width, height, RsrAdaptor())
         
-    def next(self):
-        #if self._nextEvent.type.value = rsr.EventType.UPDATE:
-        #    self.notifyImage(self._nextEvent.event., y, RDPBitmapToQtImage(width, height, bitsPerPixel, isCompress, data), width, height)
-        self._nextEvent = self._f.next()
-        QtCore.QTimer.singleShot(0,)
+    def drawInfos(self, username):
+        drawArea = QtGui.QImage(100, 100, QtGui.QImage.Format_RGB32)
+        #fill with background Color
+        drawArea.fill(QtCore.Qt.red)
+        with QtGui.QPainter(drawArea) as qp:
+            rect = QtCore.QRect(0, 0, 100, 100)
+            qp.setPen(QtCore.Qt.black)  
+            qp.setFont(QtGui.QFont('arial', 12, QtGui.QFont.Bold))
+            qp.drawText(rect, QtCore.Qt.AlignCenter, "username %s"%username)
+        
+        self.notifyImage(0, 0, drawArea, 100, 100)
     
-    def notifyImage(self, x, y, qimage, width, height):
-        """
-        @summary: Function call from QAdaptor
-        @param x: x position of new image
-        @param y: y position of new image
-        @param qimage: new QImage
-        """
-        #save in refresh list (order is important)
-        self._refresh.append((x, y, qimage, width, height))
-        #force update
-        self.update()
-        
-    def paintEvent(self, e):
-        """
-        @summary: Call when Qt renderer engine estimate that is needed
-        @param e: QEvent
-        """
-        #fill buffer image
-        with QtGui.QPainter(self._buffer) as qp:
-        #draw image
-            for (x, y, image, width, height) in self._refresh:
-                qp.drawImage(x, y, image, 0, 0, width, height)
-        #draw in widget
-        with QtGui.QPainter(self) as qp:
-            qp.drawImage(0, 0, self._buffer)
-
-        self._refresh = []
-        
 def help():
-    print "Usage: rdpy-rsrplayer [options] ip[:port]"
+    print "Usage: rdpy-rsrplayer [-h] path"
+    
+def loop(widget, rsrFile):
+    """
+    @summary: timer function
+    @param widget: {QRemoteDesktop}
+    @param rsrFile: {rsr.FileReader}
+    """
+    e = rsrFile.nextEvent()
+    if e is None:
+        widget.close()
+        return
+    
+    if e.type.value == rsr.EventType.UPDATE:
+        image = RDPBitmapToQtImage(e.event.width.value, e.event.height.value, e.event.bpp.value, e.event.format.value == rsr.UpdateFormat.BMP, e.event.data.value);
+        widget.notifyImage(e.event.destLeft.value, e.event.destTop.value, image, e.event.destRight.value - e.event.destLeft.value + 1, e.event.destBottom.value - e.event.destTop.value + 1)
         
+    elif e.type.value == rsr.EventType.RESIZE:
+        widget.resize(e.event.width.value, e.event.height.value)
+        
+    elif e.type.value == rsr.EventType.INFO:
+        widget.drawInfos(e.event.username)
+        log.info("*" * 50)
+        log.info("username : %s"%e.event.username.value)
+        log.info("password : %s"%e.event.password.value)
+        log.info("domain : %s"%e.event.domain.value)
+        log.info("hostname : %s"%e.event.hostname.value)
+        log.info("*" * 50)
+        
+    QtCore.QTimer.singleShot(e.timestamp.value+ 1000,lambda:loop(widget, rsrFile))
+
 if __name__ == '__main__':
-    
-    #default script argument
-    
     try:
         opts, args = getopt.getopt(sys.argv[1:], "h")
     except getopt.GetoptError:
@@ -90,4 +102,8 @@ if __name__ == '__main__':
     filepath = args[0]
     #create application
     app = QtGui.QApplication(sys.argv)
-    app.exec_()
+    widget = RsrPlayerWidget(800, 600)
+    widget.show()
+    rsrFile = rsr.createReader(filepath)
+    loop(widget, rsrFile)
+    sys.exit(app.exec_())

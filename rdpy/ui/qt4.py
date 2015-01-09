@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014 Sylvain Peyrefitte
+# Copyright (c) 2014-2015 Sylvain Peyrefitte
 #
 # This file is part of rdpy.
 #
@@ -60,12 +60,6 @@ class QAdaptor(object):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "sendWheelEvent", "QAdaptor")) 
     
-    def getWidget(self):
-        """
-        @return: widget use for render
-        """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getWidget", "QAdaptor"))
-    
     def closeEvent(self, e):
         """
         @summary: Call when you want to close connection
@@ -94,7 +88,7 @@ class RFBClientQt(RFBClientObserver, QAdaptor):
         @param height: height of widget
         """
         RFBClientObserver.__init__(self, controller)
-        self._widget = QRemoteDesktop(self, 1024, 800)
+        self._widget = QRemoteDesktop(1024, 800, self)
         
     def getWidget(self):
         """
@@ -244,7 +238,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param height: height of widget
         """
         RDPClientObserver.__init__(self, controller)
-        self._widget = QRemoteDesktop(self, width, height)
+        self._widget = QRemoteDesktop(width, height, self)
         #set widget screen to RDP stack
         controller.setScreen(width, height)
         
@@ -333,9 +327,11 @@ class QRemoteDesktop(QtGui.QWidget):
     """
     @summary: Qt display widget
     """
-    def __init__(self, adaptor, width, height):
+    def __init__(self, width, height, adaptor):
         """
-        @param adaptor: QAdaptor
+        @param adaptor: {QAdaptor}
+        @param width: {int} width of widget
+        @param height: {int} height of widget
         """
         super(QRemoteDesktop, self).__init__()
         #adaptor use to send
@@ -364,6 +360,15 @@ class QRemoteDesktop(QtGui.QWidget):
         self._refresh.append((x, y, qimage, width, height))
         #force update
         self.update()
+        
+    def resize(self, width, height):
+        """
+        @summary: override resize function
+        @param width: {int} width of widget
+        @param height: {int} height of widget
+        """
+        self._buffer = QtGui.QImage(width, height, QtGui.QImage.Format_RGB32)
+        QtGui.QWidget.resize(self, width, height)
         
     def paintEvent(self, e):
         """
