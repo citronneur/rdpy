@@ -18,23 +18,23 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 """
-rsr file player
+rss file player
 """
 
 import sys, os, getopt, socket
 
 from PyQt4 import QtGui, QtCore
 
-from rdpy.core import log, rsr
+from rdpy.core import log, rss
 from rdpy.ui.qt4 import QRemoteDesktop, RDPBitmapToQtImage
 log._LOG_LEVEL = log.Level.INFO
 
-class RsrPlayerWidget(QRemoteDesktop):
+class RssPlayerWidget(QRemoteDesktop):
     """
-    @summary: special rsr player widget
+    @summary: special rss player widget
     """
     def __init__(self, width, height):
-        class RsrAdaptor(object):
+        class RssAdaptor(object):
             def sendMouseEvent(self, e, isPressed):
                 """ Not Handle """
             def sendKeyEvent(self, e, isPressed):
@@ -43,51 +43,37 @@ class RsrPlayerWidget(QRemoteDesktop):
                 """ Not Handle """
             def closeEvent(self, e):
                 """ Not Handle """
-        QRemoteDesktop.__init__(self, width, height, RsrAdaptor())
+        QRemoteDesktop.__init__(self, width, height, RssAdaptor())
         
-    def drawInfos(self, username):
-        drawArea = QtGui.QImage(100, 100, QtGui.QImage.Format_RGB32)
-        #fill with background Color
-        drawArea.fill(QtCore.Qt.red)
-        with QtGui.QPainter(drawArea) as qp:
-            rect = QtCore.QRect(0, 0, 100, 100)
-            qp.setPen(QtCore.Qt.black)  
-            qp.setFont(QtGui.QFont('arial', 12, QtGui.QFont.Bold))
-            qp.drawText(rect, QtCore.Qt.AlignCenter, "username %s"%username)
-        
-        self.notifyImage(0, 0, drawArea, 100, 100)
-    
+    def drawInfos(self, domain, username, password, hostname):
+        QtGui.QMessageBox.about(self, "Credentials Event", "domain : %s\nusername : %s\npassword : %s\nhostname : %s" % (
+            domain, username, password, hostname))
+
 def help():
-    print "Usage: rdpy-rsrplayer [-h] path"
+    print "Usage: rdpy-rssplayer [-h] rss_filepath"
     
-def loop(widget, rsrFile):
+def loop(widget, rssFile):
     """
     @summary: timer function
     @param widget: {QRemoteDesktop}
-    @param rsrFile: {rsr.FileReader}
+    @param rssFile: {rss.FileReader}
     """
-    e = rsrFile.nextEvent()
+    e = rssFile.nextEvent()
     if e is None:
         widget.close()
         return
     
-    if e.type.value == rsr.EventType.UPDATE:
-        image = RDPBitmapToQtImage(e.event.width.value, e.event.height.value, e.event.bpp.value, e.event.format.value == rsr.UpdateFormat.BMP, e.event.data.value);
+    if e.type.value == rss.EventType.UPDATE:
+        image = RDPBitmapToQtImage(e.event.width.value, e.event.height.value, e.event.bpp.value, e.event.format.value == rss.UpdateFormat.BMP, e.event.data.value);
         widget.notifyImage(e.event.destLeft.value, e.event.destTop.value, image, e.event.destRight.value - e.event.destLeft.value + 1, e.event.destBottom.value - e.event.destTop.value + 1)
         
-    elif e.type.value == rsr.EventType.RESIZE:
+    elif e.type.value == rss.EventType.SCREEN:
         widget.resize(e.event.width.value, e.event.height.value)
         
-    elif e.type.value == rsr.EventType.INFO:
-        widget.drawInfos(e.event.username)
-        log.info("*" * 50)
-        log.info("username : %s"%e.event.username.value)
-        log.info("password : %s"%e.event.password.value)
-        log.info("domain : %s"%e.event.domain.value)
-        log.info("hostname : %s"%e.event.hostname.value)
-        log.info("*" * 50)
+    elif e.type.value == rss.EventType.INFO:
+        widget.drawInfos(e.event.domain.value, e.event.username.value, e.event.password.value, e.event.hostname.value)
         
-    QtCore.QTimer.singleShot(e.timestamp.value+ 1000,lambda:loop(widget, rsrFile))
+    QtCore.QTimer.singleShot(e.timestamp.value,lambda:loop(widget, rssFile))
 
 if __name__ == '__main__':
     try:
@@ -102,8 +88,8 @@ if __name__ == '__main__':
     filepath = args[0]
     #create application
     app = QtGui.QApplication(sys.argv)
-    widget = RsrPlayerWidget(800, 600)
+    widget = RssPlayerWidget(800, 600)
     widget.show()
-    rsrFile = rsr.createReader(filepath)
-    loop(widget, rsrFile)
+    rssFile = rss.createReader(filepath)
+    loop(widget, rssFile)
     sys.exit(app.exec_())

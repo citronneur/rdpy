@@ -2,7 +2,16 @@
 
 Remote Desktop Protocol in twisted PYthon.
 
-RDPY is a pure Python implementation of the Microsoft RDP (Remote Desktop Protocol) protocol. RDPY is built over the event driven network engine Twisted.
+RDPY is a pure Python implementation of the Microsoft RDP (Remote Desktop Protocol) protocol (Client and Server Side). RDPY is built over the event driven network engine Twisted.
+
+RDPY provide RDP and VNC binaries :
+* RDP Man In The Middle proxy which record session
+* RDP Honeypot
+* RDP screen shooter
+* RDP client
+* VNC client
+* VNC screen shooter
+* RSS Player
 
 ## Build
 
@@ -81,22 +90,22 @@ $ rdpy-vncscreenshot.py [-p password] [-o output_file_path] XXX.XXX.XXX.XXX[:590
 
 ### rdpy-rdpmitm
 
-rdpy-rdpmitm is a RDP proxy allows you to do a Man in the middle attack on RDP protocol.
-Record session bitmap and do a keylogger for RDP protocol.
+rdpy-rdpmitm is a RDP proxy allows you to do a Man In The Middle attack on RDP protocol.
+Record Session Scenario into rss file which can be replay by rdpy-rssplayer.
 
 ```
-$ rdpy-rdpmitm.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
+$ rdpy-rdpmitm.py -o output_dir [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
 ```
 
+Output directory is use to save rss file with following format (YYYYMMDDHHMMSS_ip_index.rss)
 The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
 
-### rdpy-rdpshare
+### rdpy-rdphoneypot
 
-rdpy-rdpshare is a RDP proxy allows you to share your desktop through RDP clients (rdpy-rdpclient, mstsc, remmina, rdesktop).
-First connection is use as master connection (keep session control).
+rdpy-rdphoneypot is a RDP honey Pot. Use Recorded Session Scenario to replay scenario through RDP Protocol.
 
 ```
-$ rdpy-rdpshare.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
+$ rdpy-rdphoneypot.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] rss_file_path
 ```
 
 The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.

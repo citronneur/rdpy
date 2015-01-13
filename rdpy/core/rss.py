@@ -18,7 +18,7 @@
 #
 
 """
-Remote Session Recorder File format
+Remote Session Scenario File format
 Private protocol format to save events
 """
 
@@ -31,7 +31,7 @@ class EventType(object):
     @summary: event type
     """
     UPDATE = 0x0001
-    RESIZE = 0x0002
+    SCREEN = 0x0002
     INFO = 0x0003
     
 class UpdateFormat(object):
@@ -55,7 +55,7 @@ class Event(CompositeType):
             """
             @summary: Closure for event factory
             """
-            for c in [UpdateEvent, ResizeEvent, InfoEvent]:
+            for c in [UpdateEvent, ScreenEvent, InfoEvent]:
                 if self.type.value == c._TYPE_:
                     return c(readLen = self.length)
             log.debug("unknown event type : %s"%hex(self.type.value))
@@ -103,15 +103,16 @@ class InfoEvent(CompositeType):
         self.lenHostname = UInt16Le(lambda:sizeof(self.hostname))
         self.hostname = String(readLen = self.lenHostname)
         
-class ResizeEvent(CompositeType):
+class ScreenEvent(CompositeType):
     """
-    @summary: resize event
+    @summary: screen information event
     """
-    _TYPE_ = EventType.RESIZE
+    _TYPE_ = EventType.SCREEN
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.width = UInt16Le()
         self.height = UInt16Le()
+        self.colorDepth = UInt8()
         
 def timeMs():
     """
@@ -174,16 +175,18 @@ class FileRecorder(object):
         updateEvent.data.value = data
         self.rec(updateEvent)
         
-    def recResize(self, width, height):
+    def recScreen(self, width, height, colorDepth):
         """
         @summary: record resize event of screen (maybe first event)
         @param width: {int} width of screen
         @param height: {int} height of screen
+        @param colorDepth: {int} colorDepth
         """
-        resizeEvent = ResizeEvent()
-        resizeEvent.width.value = width
-        resizeEvent.height.value = height
-        self.rec(resizeEvent)
+        screenEvent = ScreenEvent()
+        screenEvent.width.value = width
+        screenEvent.height.value = height
+        screenEvent.colorDepth.value = colorDepth
+        self.rec(screenEvent)
         
     def recInfo(self, username, password, domain = "", hostname = ""):
         """
