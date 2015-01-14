@@ -61,8 +61,10 @@ RDPY comes with some very useful binaries; These binaries are linux and windows 
 rdpy-rdpclient is a simple RDP Qt4 client .
 
 ```
-$ rdpy-rdpclient.py [-u username] [-p password] [-d domain] [...] XXX.XXX.XXX.XXX[:3389]
+$ rdpy-rdpclient.py [-u username] [-p password] [-d domain] [-r rss_ouput_file] [...] XXX.XXX.XXX.XXX[:3389]
 ```
+
+You can use rdpy-rdpclient as Recorder Session Scenarion, use in rdpy-rdphoneypot.
 
 ### rdpy-vncclient
 

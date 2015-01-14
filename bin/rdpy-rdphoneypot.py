@@ -37,6 +37,7 @@ class HoneyPotServer(rdp.RDPServerObserver):
         """
         rdp.RDPServerObserver.__init__(self, controller)
         self._rssFile = rssFile
+        self._dx, self._dy = 0, 0
         
     def onReady(self):
         """
@@ -46,7 +47,15 @@ class HoneyPotServer(rdp.RDPServerObserver):
                     restart a connection sequence
         @see: rdp.RDPServerObserver.onReady
         """
-        self.loopScenario()
+        domain, username, password = self._controller.getCredentials()
+        hostname = self._controller.getHostname()
+        log.info("""Credentials:
+        \tdomain : %s
+        \tusername : %s
+        \tpassword : %s
+        \thostname : %s
+        """%(domain, username, password, hostname));
+        self.start()
         
     def onClose(self):
         """ HoneyPot """
@@ -60,22 +69,32 @@ class HoneyPotServer(rdp.RDPServerObserver):
     def onPointerEvent(self, x, y, button, isPressed):
         """ HoneyPot """
         
-    def loopScenario(self):
+    def start(self):
+        self.loopScenario(self._rssFile.nextEvent())
+        
+    def loopScenario(self, nextEvent):
         """
         @summary: main loop event
         """
-        e = self._rssFile.nextEvent()
-        if e is None:
+        if nextEvent.type.value == rss.EventType.UPDATE:
+            self._controller.sendUpdate(nextEvent.event.destLeft.value + self._dx, nextEvent.event.destTop.value + self._dy, nextEvent.event.destRight.value + self._dx, nextEvent.event.destBottom.value + self._dy, nextEvent.event.width.value, nextEvent.event.height.value, nextEvent.event.bpp.value, nextEvent.event.format.value == rss.UpdateFormat.BMP, nextEvent.event.data.value)
+            
+        elif nextEvent.type.value == rss.EventType.CLOSE:
             self._controller.close()
             return
-        
-        if e.type.value == rss.EventType.UPDATE:
-            self._controller.sendUpdate(e.event.destLeft.value, e.event.destTop.value, e.event.destRight.value, e.event.destBottom.value, e.event.width.value, e.event.height.value, e.event.bpp.value, e.event.format.value == rss.UpdateFormat.BMP, e.event.data.value)
-        elif e.type.value == rss.EventType.SCREEN:
-            self._controller.setColorDepth(e.event.colorDepth.value)
+            
+        elif nextEvent.type.value == rss.EventType.SCREEN:
+            self._controller.setColorDepth(nextEvent.event.colorDepth.value)
+            #compute centering because we cannot resize client
+            clientSize = nextEvent.event.width.value, nextEvent.event.height.value
+            serverSize = self._controller.getScreen()
+            
+            self._dx, self._dy = (serverSize[0] - clientSize[0]) / 2, (serverSize[1] - clientSize[1]) / 2
             #restart connection sequence
             return
-        reactor.callLater(float(e.timestamp.value) / 1000.0, self.loopScenario)
+        
+        e = self._rssFile.nextEvent()
+        reactor.callLater(float(e.timestamp.value) / 1000.0, lambda:self.loopScenario(e))
         
 class HoneyPotServerFactory(rdp.ServerFactory):
     """
@@ -96,6 +115,7 @@ class HoneyPotServerFactory(rdp.ServerFactory):
         @param addr: destination address
         @see: rdp.ServerFactory.buildObserver
         """
+        log.info("Connection from %s:%s"%(addr.host, addr.port))
         return HoneyPotServer(controller, rss.createReader(self._rssFilePath))
     
 def help():

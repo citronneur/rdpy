@@ -33,6 +33,7 @@ class EventType(object):
     UPDATE = 0x0001
     SCREEN = 0x0002
     INFO = 0x0003
+    CLOSE = 0x0004
     
 class UpdateFormat(object):
     """
@@ -55,7 +56,7 @@ class Event(CompositeType):
             """
             @summary: Closure for event factory
             """
-            for c in [UpdateEvent, ScreenEvent, InfoEvent]:
+            for c in [UpdateEvent, ScreenEvent, InfoEvent, CloseEvent]:
                 if self.type.value == c._TYPE_:
                     return c(readLen = self.length)
             log.debug("unknown event type : %s"%hex(self.type.value))
@@ -114,6 +115,14 @@ class ScreenEvent(CompositeType):
         self.height = UInt16Le()
         self.colorDepth = UInt8()
         
+class CloseEvent(CompositeType):
+    """
+    @summary: end of session event
+    """
+    _TYPE_ = EventType.CLOSE
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        
 def timeMs():
     """
     @return: {int} time stamp in milliseconds
@@ -150,7 +159,7 @@ class FileRecorder(object):
         
         self._file.write(s.getvalue())
         
-    def recUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bpp, upateFormat, data):
+    def update(self, destLeft, destTop, destRight, destBottom, width, height, bpp, upateFormat, data):
         """
         @summary: record update event
         @param destLeft: {int} xmin position
@@ -175,7 +184,7 @@ class FileRecorder(object):
         updateEvent.data.value = data
         self.rec(updateEvent)
         
-    def recScreen(self, width, height, colorDepth):
+    def screen(self, width, height, colorDepth):
         """
         @summary: record resize event of screen (maybe first event)
         @param width: {int} width of screen
@@ -188,7 +197,7 @@ class FileRecorder(object):
         screenEvent.colorDepth.value = colorDepth
         self.rec(screenEvent)
         
-    def recInfo(self, username, password, domain = "", hostname = ""):
+    def credentials(self, username, password, domain = "", hostname = ""):
         """
         @summary: Record informations event
         @param username: {str} username of session
@@ -202,6 +211,12 @@ class FileRecorder(object):
         infoEvent.domain.value = domain 
         infoEvent.hostname.value = hostname 
         self.rec(infoEvent)
+    
+    def close(self):
+        """
+        @summary: end of scenario
+        """
+        self.rec(CloseEvent())
                 
 class FileReader(object):
     """

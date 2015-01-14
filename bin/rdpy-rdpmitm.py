@@ -35,7 +35,7 @@ from rdpy.core import log, error, rss
 from rdpy.protocol.rdp import rdp
 from twisted.internet import reactor
 
-log._LOG_LEVEL = log.Level.INFO
+log._LOG_LEVEL = log.Level.DEBUG
 
 class ProxyServer(rdp.RDPServerObserver):
     """
@@ -71,10 +71,10 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             #try a connection
             domain, username, password = self._controller.getCredentials()
-            self._rss.recInfo(username, password, domain, self._controller.getHostname())
+            self._rss.credentials(username, password, domain, self._controller.getHostname())
             
             width, height = self._controller.getScreen()
-            self._rss.recScreen(width, height, self._controller.getColorDepth())
+            self._rss.screen(width, height, self._controller.getColorDepth())
             
             reactor.connectTCP(self._target[0], int(self._target[1]), ProxyClientFactory(self, width, height, 
                                                             domain, username, password,self._clientSecurityLevel))
@@ -84,6 +84,10 @@ class ProxyServer(rdp.RDPServerObserver):
         @summary: Call when human client close connection
         @see: rdp.RDPServerObserver.onClose
         """
+        #end scenario
+        self._rss.close()
+        
+        #close network stack
         if self._client is None:
             return
         self._client._controller.close()
@@ -177,6 +181,8 @@ class ProxyClient(rdp.RDPClientObserver):
         @summary: Event inform that stack is close
         @see: rdp.RDPClientObserver.onClose
         """
+        #end scenario
+        self._server._rss.close()
         self._server._controller.close()
         
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
@@ -193,7 +199,7 @@ class ProxyClient(rdp.RDPClientObserver):
         @param data: {str} bitmap data
         @see: rdp.RDPClientObserver.onUpdate
         """
-        self._server._rss.recUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, rss.UpdateFormat.BMP if isCompress else rss.UpdateFormat.RAW, data)
+        self._server._rss.update(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, rss.UpdateFormat.BMP if isCompress else rss.UpdateFormat.RAW, data)
         self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
 
 class ProxyClientFactory(rdp.ClientFactory):

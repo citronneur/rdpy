@@ -233,9 +233,9 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
     """
     def __init__(self, controller, width, height):
         """
-        @param controller: RDP controller
-        @param width: width of widget
-        @param height: height of widget
+        @param controller: {RDPClientController} RDP controller
+        @param width: {int} width of widget
+        @param height: {int} height of widget
         """
         RDPClientObserver.__init__(self, controller)
         self._widget = QRemoteDesktop(width, height, self)
@@ -293,15 +293,15 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
         @summary: Notify bitmap update
-        @param destLeft: xmin position
-        @param destTop: ymin position
-        @param destRight: xmax position because RDP can send bitmap with padding
-        @param destBottom: ymax position because RDP can send bitmap with padding
-        @param width: width of bitmap
-        @param height: height of bitmap
-        @param bitsPerPixel: number of bit per pixel
-        @param isCompress: use RLE compression
-        @param data: bitmap data
+        @param destLeft: {int} xmin position
+        @param destTop: {int} ymin position
+        @param destRight: {int} xmax position because RDP can send bitmap with padding
+        @param destBottom: {int} ymax position because RDP can send bitmap with padding
+        @param width: {int} width of bitmap
+        @param height: {int} height of bitmap
+        @param bitsPerPixel: {int} number of bit per pixel
+        @param isCompress: {bool} use RLE compression
+        @param data: {str} bitmap data
         """
         image = RDPBitmapToQtImage(width, height, bitsPerPixel, isCompress, data);
         #if image need to be cut
@@ -313,14 +313,12 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @summary: Call when stack is ready
         """
         #do something maybe a loader
-        pass
     
     def onClose(self):
         """
         @summary: Call when stack is close
         """
         #do something maybe a message
-        pass
 
         
 class QRemoteDesktop(QtGui.QWidget):

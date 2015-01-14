@@ -51,29 +51,33 @@ class RssPlayerWidget(QRemoteDesktop):
 
 def help():
     print "Usage: rdpy-rssplayer [-h] rss_filepath"
-    
-def loop(widget, rssFile):
+
+def start(widget, rssFile):
+    loop(widget, rssFile, rssFile.nextEvent())
+  
+def loop(widget, rssFile, nextEvent):
     """
     @summary: timer function
     @param widget: {QRemoteDesktop}
     @param rssFile: {rss.FileReader}
     """
-    e = rssFile.nextEvent()
-    if e is None:
+   
+    if nextEvent.type.value == rss.EventType.UPDATE:
+        image = RDPBitmapToQtImage(nextEvent.event.width.value, nextEvent.event.height.value, nextEvent.event.bpp.value, nextEvent.event.format.value == rss.UpdateFormat.BMP, nextEvent.event.data.value);
+        widget.notifyImage(nextEvent.event.destLeft.value, nextEvent.event.destTop.value, image, nextEvent.event.destRight.value - nextEvent.event.destLeft.value + 1, nextEvent.event.destBottom.value - nextEvent.event.destTop.value + 1)
+        
+    elif nextEvent.type.value == rss.EventType.SCREEN:
+        widget.resize(nextEvent.event.width.value, nextEvent.event.height.value)
+        
+    elif nextEvent.type.value == rss.EventType.INFO:
+        widget.drawInfos(nextEvent.event.domain.value, nextEvent.event.username.value, nextEvent.event.password.value, nextEvent.event.hostname.value)
+        
+    elif nextEvent.type.value == rss.EventType.CLOSE:
         widget.close()
         return
     
-    if e.type.value == rss.EventType.UPDATE:
-        image = RDPBitmapToQtImage(e.event.width.value, e.event.height.value, e.event.bpp.value, e.event.format.value == rss.UpdateFormat.BMP, e.event.data.value);
-        widget.notifyImage(e.event.destLeft.value, e.event.destTop.value, image, e.event.destRight.value - e.event.destLeft.value + 1, e.event.destBottom.value - e.event.destTop.value + 1)
-        
-    elif e.type.value == rss.EventType.SCREEN:
-        widget.resize(e.event.width.value, e.event.height.value)
-        
-    elif e.type.value == rss.EventType.INFO:
-        widget.drawInfos(e.event.domain.value, e.event.username.value, e.event.password.value, e.event.hostname.value)
-        
-    QtCore.QTimer.singleShot(e.timestamp.value,lambda:loop(widget, rssFile))
+    e = rssFile.nextEvent()
+    QtCore.QTimer.singleShot(e.timestamp.value,lambda:loop(widget, rssFile, e))
 
 if __name__ == '__main__':
     try:
@@ -91,5 +95,5 @@ if __name__ == '__main__':
     widget = RssPlayerWidget(800, 600)
     widget.show()
     rssFile = rss.createReader(filepath)
-    loop(widget, rssFile)
+    start(widget, rssFile)
     sys.exit(app.exec_())
