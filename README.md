@@ -19,6 +19,12 @@ RDPY is fully implemented in python, except the bitmap uncompression algorithm w
 
 ### Depends
 
+Depends are only needed for pyqt4 binaries :
+* rdpy-rdpclient
+* rdpy-rdpscreenshot
+* rdpy-vncclient
+* rdpy-vncscreenshot
+
 #### Linux
 
 Exemple from Debian based system :
@@ -54,7 +60,7 @@ $ ln -s /usr/lib/python2.7/dist-packages/sip.so $VIRTUAL_ENV/lib/python2.7/site-
 
 ## RDPY Binaries
 
-RDPY comes with some very useful binaries; These binaries are linux and windows compatible.
+RDPY comes with some very useful binaries. These binaries are linux and windows compatible.
 
 ### rdpy-rdpclient
 
@@ -64,7 +70,7 @@ rdpy-rdpclient is a simple RDP Qt4 client .
 $ rdpy-rdpclient.py [-u username] [-p password] [-d domain] [-r rss_ouput_file] [...] XXX.XXX.XXX.XXX[:3389]
 ```
 
-You can use rdpy-rdpclient as Recorder Session Scenarion, use in rdpy-rdphoneypot.
+You can use rdpy-rdpclient as Recorder Session Scenario, used in rdpy-rdphoneypot.
 
 ### rdpy-vncclient
 
@@ -96,7 +102,7 @@ rdpy-rdpmitm is a RDP proxy allows you to do a Man In The Middle attack on RDP p
 Record Session Scenario into rss file which can be replay by rdpy-rssplayer.
 
 ```
-$ rdpy-rdpmitm.py -o output_dir [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] target_host[:target_port]
+$ rdpy-rdpmitm.py -o output_dir [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] [-r (for XP or server 2003 client)] target_host[:target_port]
 ```
 
 Output directory is use to save rss file with following format (YYYYMMDDHHMMSS_ip_index.rss)
