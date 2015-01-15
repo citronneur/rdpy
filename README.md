@@ -24,6 +24,7 @@ Depends are only needed for pyqt4 binaries :
 * rdpy-rdpscreenshot
 * rdpy-vncclient
 * rdpy-vncscreenshot
+* rdpy-rssplayer
 
 #### Linux
 
@@ -118,6 +119,13 @@ $ rdpy-rdphoneypot.py [-l listen_port] [-k private_key_file_path] [-c certificat
 
 The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
 
+### rdpy-rssplayer
+
+rdpy-rssplayer is use to replay Record Session Scenario (rss) files generates by either rdpy-rdpmitm or rdpy-rdpclient binaries.
+
+```
+$ rdpy-rssplayer.py rss_file_path
+```
 
 ## RDPY Qt Widget
 
