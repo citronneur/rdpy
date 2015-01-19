@@ -1,10 +1,10 @@
 # RDPY [![Build Status](https://travis-ci.org/citronneur/rdpy.svg?branch=dev)](https://travis-ci.org/citronneur/rdpy)
 
-Remote Desktop Protocol in twisted PYthon.
+Remote Desktop Protocol in twisted python.
 
-RDPY is a pure Python implementation of the Microsoft RDP (Remote Desktop Protocol) protocol (Client and Server Side). RDPY is built over the event driven network engine Twisted.
+RDPY is a pure Python implementation of the Microsoft RDP (Remote Desktop Protocol) protocol (client and server side). RDPY is built over the event driven network engine Twisted.
 
-RDPY provide RDP and VNC binaries :
+RDPY provides the following RDP and VNC binaries :
 * RDP Man In The Middle proxy which record session
 * RDP Honeypot
 * RDP screen shooter
@@ -17,9 +17,9 @@ RDPY provide RDP and VNC binaries :
 
 RDPY is fully implemented in python, except the bitmap decompression algorithm which is implemented in C for performance purposes.
 
-### Depends
+### Dependencies
 
-Depends are only needed for pyqt4 binaries :
+Dependencies are only needed for pyqt4 binaries :
 * rdpy-rdpclient
 * rdpy-rdpscreenshot
 * rdpy-vncclient
@@ -28,7 +28,7 @@ Depends are only needed for pyqt4 binaries :
 
 #### Linux
 
-Exemple from Debian based system :
+Example for Debian based systems :
 ```
 sudo apt-get install python-qt4
 ```
@@ -53,7 +53,7 @@ Or use PIP:
 $ pip install rdpy
 ```
 
-For virtualenv, you need to link qt4 library to it:
+For virtualenv, you will need to link the qt4 library to it:
 ```
 $ ln -s /usr/lib/python2.7/dist-packages/PyQt4/ $VIRTUAL_ENV/lib/python2.7/site-packages/
 $ ln -s /usr/lib/python2.7/dist-packages/sip.so $VIRTUAL_ENV/lib/python2.7/site-packages/
@@ -65,13 +65,13 @@ RDPY comes with some very useful binaries. These binaries are linux and windows 
 
 ### rdpy-rdpclient
 
-rdpy-rdpclient is a simple RDP Qt4 client .
+rdpy-rdpclient is a simple RDP Qt4 client.
 
 ```
 $ rdpy-rdpclient.py [-u username] [-p password] [-d domain] [-r rss_ouput_file] [...] XXX.XXX.XXX.XXX[:3389]
 ```
 
-You can use rdpy-rdpclient as Recorder Session Scenario, used in rdpy-rdphoneypot.
+You can use rdpy-rdpclient in a Recorder Session Scenario, used in rdpy-rdphoneypot.
 
 ### rdpy-vncclient
 
@@ -83,7 +83,7 @@ $ rdpy-vncclient.py [-p password] XXX.XXX.XXX.XXX[:5900]
 
 ### rdpy-rdpscreenshot
 
-rdpy-rdpscreenshot save login screen in file.
+rdpy-rdpscreenshot saves login screen in file.
 
 ```
 $ rdpy-rdpscreenshot.py [-w width] [-l height] [-o output_file_path] XXX.XXX.XXX.XXX[:3389]
@@ -91,7 +91,7 @@ $ rdpy-rdpscreenshot.py [-w width] [-l height] [-o output_file_path] XXX.XXX.XXX
 
 ### rdpy-vncscreenshot
 
-rdpy-vncscreenshot save first screen update in file.
+rdpy-vncscreenshot saves the first screen update in file.
 
 ```
 $ rdpy-vncscreenshot.py [-p password] [-o output_file_path] XXX.XXX.XXX.XXX[:5900]
@@ -100,18 +100,18 @@ $ rdpy-vncscreenshot.py [-p password] [-o output_file_path] XXX.XXX.XXX.XXX[:590
 ### rdpy-rdpmitm
 
 rdpy-rdpmitm is a RDP proxy allows you to do a Man In The Middle attack on RDP protocol.
-Record Session Scenario into rss file which can be replay by rdpy-rssplayer.
+Record Session Scenario into rss file which can be replayed by rdpy-rssplayer.
 
 ```
 $ rdpy-rdpmitm.py -o output_dir [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] [-r (for XP or server 2003 client)] target_host[:target_port]
 ```
 
-Output directory is use to save rss file with following format (YYYYMMDDHHMMSS_ip_index.rss)
+Output directory is used to save the rss file with following format (YYYYMMDDHHMMSS_ip_index.rss)
 The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
 
 ### rdpy-rdphoneypot
 
-rdpy-rdphoneypot is a RDP honey Pot. Use Recorded Session Scenario to replay scenario through RDP Protocol.
+rdpy-rdphoneypot is an RDP honey Pot. Use Recorded Session Scenario to replay scenario through RDP Protocol.
 
 ```
 $ rdpy-rdphoneypot.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] rss_file_path
@@ -133,7 +133,7 @@ RDPY can also be used as Qt widget through rdpy.ui.qt4.QRemoteDesktop class. It 
 
 ## RDPY library
 
-In a nutshell the RDPY can be used as a protocol library with a twisted engine.
+In a nutshell RDPY can be used as a protocol library with a twisted engine.
 
 ### Simple RDP Client
 
@@ -144,14 +144,14 @@ class MyRDPFactory(rdp.ClientFactory):
 
 	def clientConnectionLost(self, connector, reason):
         reactor.stop()
-        
+
     def clientConnectionFailed(self, connector, reason):
         reactor.stop()
-        
+
     def buildObserver(self, controller, addr):
-    
+
         class MyObserver(rdp.RDPClientObserver)
-        
+
         	def onReady(self):
 		        """
 		        @summary: Call when stack is ready
@@ -160,7 +160,7 @@ class MyRDPFactory(rdp.ClientFactory):
 				self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
 				#mouse move and click at pixel 200x200
 				self._controller.sendPointerEvent(200, 200, 1, true)
-				
+
 			def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
 		        """
 		        @summary: Notify bitmap update
@@ -174,7 +174,7 @@ class MyRDPFactory(rdp.ClientFactory):
 		        @param isCompress: use RLE compression
 		        @param data: bitmap data
 		        """
-				
+
 			def onClose(self):
 		        """
 		        @summary: Call when stack is close
@@ -194,15 +194,15 @@ from rdpy.protocol.rdp import rdp
 class MyRDPFactory(rdp.ServerFactory):
 
     def buildObserver(self, controller, addr):
-    
+
         class MyObserver(rdp.RDPServerObserver)
-        
+
         	def onReady(self):
         		"""
-        		@summary: Call when server is ready 
+        		@summary: Call when server is ready
         		to send and receive messages
         		"""
-        		
+
         	def onKeyEventScancode(self, code, isPressed):
         		"""
 		        @summary: Event call when a keyboard event is catch in scan code format
@@ -210,7 +210,7 @@ class MyRDPFactory(rdp.ServerFactory):
 		        @param isPressed: True if key is down
 		        @see: rdp.RDPServerObserver.onKeyEventScancode
 		        """
-	        
+
 	        def onKeyEventUnicode(self, code, isPressed):
 		        """
 		        @summary: Event call when a keyboard event is catch in unicode format
@@ -218,7 +218,7 @@ class MyRDPFactory(rdp.ServerFactory):
 		        @param isPressed: True if key is down
 		        @see: rdp.RDPServerObserver.onKeyEventUnicode
 		        """
-		    
+
 		    def onPointerEvent(self, x, y, button, isPressed):
 		        """
 		        @summary: Event call on mouse event
@@ -228,7 +228,7 @@ class MyRDPFactory(rdp.ServerFactory):
 		        @param isPressed: True if mouse button is pressed
 		        @see: rdp.RDPServerObserver.onPointerEvent
 		        """
-		        
+
 		    def onClose(self):
 		        """
 		        @summary: Call when human client close connection
@@ -244,19 +244,19 @@ reactor.run()
 
 ### Simple VNC Client
 ```python
-from rdpy.protocol.rfb import rdp
+from rdpy.protocol.rfb import rfb
 
 class MyRFBFactory(rfb.ClientFactory):
 
 	def clientConnectionLost(self, connector, reason):
         reactor.stop()
-        
+
     def clientConnectionFailed(self, connector, reason):
         reactor.stop()
-        
+
     def buildObserver(self, controller, addr):
         class MyObserver(rfb.RFBClientObserver)
-        		
+
 			def onReady(self):
 		        """
 		        @summary: Event when network stack is ready to receive or send event
@@ -273,18 +273,18 @@ class MyRFBFactory(rfb.ClientFactory):
 		        @param encoding: encoding type rfb.message.Encoding
 		        @param data: image data in accordance with pixel format and encoding
 		        """
-		        
+
 		    def onCutText(self, text):
 		        """
 		        @summary: event when server send cut text event
 		        @param text: text received
 		        """
-		        
+
 		    def onBell(self):
 		        """
 		        @summary: event when server send biiip
 		        """
-				
+
 			def onClose(self):
 		        """
 		        @summary: Call when stack is close
