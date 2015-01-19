@@ -15,7 +15,7 @@ RDPY provide RDP and VNC binaries :
 
 ## Build
 
-RDPY is fully implemented in python, except the bitmap decompression algorithm which is implemented in C for performance purposes.
+RDPY is fully implemented in python, except the bitmap uncompression algorithm which is implemented in C for performance purposes.
 
 ### Depends
 
@@ -129,7 +129,7 @@ $ rdpy-rssplayer.py rss_file_path
 
 ## RDPY Qt Widget
 
-RDPY can also be used as Qt widget through rdpy.ui.qt4.QRemoteDesktop class. It can be embedded in your own Qt application. qt4reactor must be used in your app for Twisted and Qt to work together. For more details, see sources of rdpy-rdpclient.
+RDPY can also be used as Qt widget throw rdpy.ui.qt4.QRemoteDesktop class. It can be embedded in your own Qt application. qt4reactor must be used in your app for Twisted and Qt to work together. For more details, see sources of rdpy-rdpclient.
 
 ## RDPY library
 
