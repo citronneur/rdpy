@@ -121,7 +121,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
                 """
                 @summary: callback use when bitmap is received 
                 """
-                image = RDPBitmapToQtImage(destLeft, width, height, bitsPerPixel, isCompress, data);
+                image = RDPBitmapToQtImage(width, height, bitsPerPixel, isCompress, data);
                 with QtGui.QPainter(self._buffer) as qp:
                 #draw image
                     qp.drawImage(destLeft, destTop, image, 0, 0, destRight - destLeft + 1, destBottom - destTop + 1)

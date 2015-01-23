@@ -7,10 +7,10 @@ RDPY is a pure Python implementation of the Microsoft RDP (Remote Desktop Protoc
 RDPY provides the following RDP and VNC binaries :
 * RDP Man In The Middle proxy which record session
 * RDP Honeypot
-* RDP screen shooter
+* RDP screenshoter
 * RDP client
 * VNC client
-* VNC screen shooter
+* VNC screenshoter
 * RSS Player
 
 ## Build

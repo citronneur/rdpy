@@ -463,7 +463,7 @@ class ChannelDef(CompositeType):
         
 class ClientNetworkData(CompositeType):
     """
-    GCC client network block
+    @summary: GCC client network block
     All channels asked by client are listed here
     @see: http://msdn.microsoft.com/en-us/library/cc240512.aspx
     """
@@ -476,7 +476,7 @@ class ClientNetworkData(CompositeType):
         
 class ServerNetworkData(CompositeType):
     """
-    GCC server network block
+    @summary: GCC server network block
     All channels asked by client are listed here
     @see: All channels asked by client are listed here
     """
@@ -491,7 +491,7 @@ class ServerNetworkData(CompositeType):
         
 class Settings(CompositeType):
     """
-    Class which group all clients settings supported by RDPY
+    @summary: Class which group all clients settings supported by RDPY
     """
     def __init__(self, init = [], readLen = None):
         CompositeType.__init__(self, readLen = readLen)
@@ -518,21 +518,21 @@ class Settings(CompositeType):
         
 def clientSettings():
     """
-    Build settings for client
+    @summary: Build settings for client
     @return: Settings
     """
     return Settings([ClientCoreData(), ClientNetworkData(), ClientSecurityData()])
 
 def serverSettings():
     """
-    Build settings for server
+    @summary: Build settings for server
     @return Settings
     """
     return Settings([ServerCoreData(), ServerSecurityData(), ServerNetworkData()])
         
 def readConferenceCreateRequest(s):
     """
-    Read a response from client
+    @summary: Read a response from client
     GCC create request
     @param s: Stream
     @param client settings (Settings)
@@ -559,7 +559,7 @@ def readConferenceCreateRequest(s):
     
 def readConferenceCreateResponse(s):
     """
-    Read response from server
+    @summary: Read response from server
     and return server settings read from this response
     @param s: Stream
     @return: ServerSettings 
@@ -583,7 +583,7 @@ def readConferenceCreateResponse(s):
 
 def writeConferenceCreateRequest(userData):
     """
-    Write conference create request structure
+    @summary: Write conference create request structure
     @param userData: Settings for client
     @return: GCC packet
     """
@@ -598,7 +598,7 @@ def writeConferenceCreateRequest(userData):
     
 def writeConferenceCreateResponse(serverData):
     """
-    Write a conference create response packet
+    @summary: Write a conference create response packet
     @param serverData: Settings for server
     @return: gcc packet
     """
