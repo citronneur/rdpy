@@ -114,10 +114,11 @@ The private key file and the certificate file are classic cryptographic files fo
 rdpy-rdphoneypot is an RDP honey Pot. Use Recorded Session Scenario to replay scenario through RDP Protocol.
 
 ```
-$ rdpy-rdphoneypot.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] rss_file_path
+$ rdpy-rdphoneypot.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] rss_file_path_1 ... rss_file_path_N
 ```
 
 The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
+You can specify more than one files to match more common screen size.
 
 ### rdpy-rssplayer
 

@@ -31,13 +31,15 @@ from twisted.internet import reactor
 log._LOG_LEVEL = log.Level.INFO
 
 class HoneyPotServer(rdp.RDPServerObserver):
-    def __init__(self, controller, rssFile):
+    def __init__(self, controller, rssFileSizeList):
         """
         @param controller: {RDPServerController}
+        @param rssFileSizeList: {Tuple} Tuple(Tuple(width, height), rssFilePath)
         """
         rdp.RDPServerObserver.__init__(self, controller)
-        self._rssFile = rssFile
+        self._rssFileSizeList = rssFileSizeList
         self._dx, self._dy = 0, 0
+        self._rssFile = None
         
     def onReady(self):
         """
@@ -47,6 +49,14 @@ class HoneyPotServer(rdp.RDPServerObserver):
                     restart a connection sequence
         @see: rdp.RDPServerObserver.onReady
         """
+        if self._rssFile is None:
+            #compute which RSS file to keep
+            width, height = self._controller.getScreen()
+            size = width * height
+            rssFilePath = sorted(self._rssFileSizeList, key = lambda x: abs(x[0][0] * x[0][1] - size))[0][1]
+            log.info("select file (%s, %s) -> %s"%(width, height, rssFilePath))
+            self._rssFile = rss.createReader(rssFilePath)
+        
         domain, username, password = self._controller.getCredentials()
         hostname = self._controller.getHostname()
         log.info("""Credentials:
@@ -89,7 +99,7 @@ class HoneyPotServer(rdp.RDPServerObserver):
             clientSize = nextEvent.event.width.value, nextEvent.event.height.value
             serverSize = self._controller.getScreen()
             
-            self._dx, self._dy = (serverSize[0] - clientSize[0]) / 2, (serverSize[1] - clientSize[1]) / 2
+            self._dx, self._dy = (max(0, serverSize[0] - clientSize[0]) / 2), max(0, (serverSize[1] - clientSize[1]) / 2)
             #restart connection sequence
             return
         
@@ -100,14 +110,14 @@ class HoneyPotServerFactory(rdp.ServerFactory):
     """
     @summary: Factory on listening events
     """
-    def __init__(self, rssFilePath, privateKeyFilePath, certificateFilePath):
+    def __init__(self, rssFileSizeList, privateKeyFilePath, certificateFilePath):
         """
-        @param rssFilePath: Recorded Session Scenario File path
+        @param rssFileSizeList: {Tuple} Tuple(Tuple(width, height), rssFilePath)
         @param privateKeyFilePath: {str} file contain server private key (if none -> back to standard RDP security)
         @param certificateFilePath: {str} file contain server certificate (if none -> back to standard RDP security)
         """
         rdp.ServerFactory.__init__(self, 16, privateKeyFilePath, certificateFilePath)
-        self._rssFilePath = rssFilePath
+        self._rssFileSizeList = rssFileSizeList
         
     def buildObserver(self, controller, addr):
         """
@@ -116,14 +126,27 @@ class HoneyPotServerFactory(rdp.ServerFactory):
         @see: rdp.ServerFactory.buildObserver
         """
         log.info("Connection from %s:%s"%(addr.host, addr.port))
-        return HoneyPotServer(controller, rss.createReader(self._rssFilePath))
+        return HoneyPotServer(controller, self._rssFileSizeList)
+    
+def readSize(filePath):
+    """
+    @summary: read size event in rss file
+    @param filePath: path of rss file
+    """
+    r = rss.createReader(filePath)
+    while True:
+        e = r.nextEvent()
+        if e is None:
+            return None
+        elif e.type.value == rss.EventType.SCREEN:
+            return e.event.width.value, e.event.height.value
     
 def help():
     """
     @summary: Print help in console
     """
     print """
-    Usage:  rdpy-rdphoneypot.py rss_filepath
+    Usage:  rdpy-rdphoneypot.py rss_filepath(1..n)
             [-l listen_port default 3389] 
             [-k private_key_file_path (mandatory for SSL)] 
             [-c certificate_file_path (mandatory for SSL)] 
@@ -133,6 +156,7 @@ if __name__ == '__main__':
     listen = "3389"
     privateKeyFilePath = None
     certificateFilePath = None
+    rssFileSizeList = []
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:")
@@ -149,5 +173,12 @@ if __name__ == '__main__':
         elif opt == "-c":
             certificateFilePath = arg
     
-    reactor.listenTCP(int(listen), HoneyPotServerFactory(args[0], privateKeyFilePath, certificateFilePath))
+    #build size map
+    log.info("Build size map")
+    for arg in args:
+        size = readSize(arg)
+        rssFileSizeList.append((size, arg))
+        log.info("(%s, %s) -> %s"%(size[0], size[1], arg))
+    
+    reactor.listenTCP(int(listen), HoneyPotServerFactory(rssFileSizeList, privateKeyFilePath, certificateFilePath))
     reactor.run()

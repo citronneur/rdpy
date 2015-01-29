@@ -252,4 +252,5 @@ def createReader(path):
     @param path: {str} path of input file
     @return: {FileReader}
     """
-    return FileReader(open(path, "rb"))
+    with open(path, "rb") as f:
+        return FileReader(f)
