@@ -278,7 +278,8 @@ class ServerCoreData(CompositeType):
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.rdpVersion = UInt32Le(Version.RDP_VERSION_5_PLUS)
-        self.clientRequestedProtocol = UInt32Le()
+        self.clientRequestedProtocol = UInt32Le(optional = True)
+        self.earlyCapabilityFlags = UInt32Le(optional = True)
         
 class ClientSecurityData(CompositeType):
     """
