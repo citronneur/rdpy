@@ -498,6 +498,9 @@ class CompositeType(Type):
         @summary: Call sizeof on each sub type
         @return: sum of sizeof of each Type attributes
         """
+        if not self._readLen is None:
+            return self._readLen.value
+        
         size = 0
         for name in self._typeName:
             size += sizeof(self.__dict__[name])
