@@ -257,7 +257,7 @@ class SimpleType(Type, CallableValue):
         @raise InvalidSize: if there is not enough data in stream
         """
         if s.dataLen() < self._typeSize:
-            raise InvalidSize("Stream is too small to read expected Simple")
+            raise InvalidSize("Stream is too small to read expected SimpleType")
         self.value = struct.unpack(self._structFormat, s.read(self._typeSize))[0]
       
     def mask(self):
@@ -498,7 +498,7 @@ class CompositeType(Type):
         @summary: Call sizeof on each sub type
         @return: sum of sizeof of each Type attributes
         """
-        if not self._readLen is None:
+        if self._is_readed and not self._readLen is None:
             return self._readLen.value
         
         size = 0

@@ -97,8 +97,8 @@ class LicenseBinaryBlob(CompositeType):
     @summary: Blob use by license manager to exchange security data
     @see: http://msdn.microsoft.com/en-us/library/cc240481.aspx
     """
-    def __init__(self, blobType = BinaryBlobType.BB_ANY_BLOB):
-        CompositeType.__init__(self)
+    def __init__(self, blobType = BinaryBlobType.BB_ANY_BLOB, optional = False):
+        CompositeType.__init__(self, optional = optional)
         self.wBlobType = UInt16Le(blobType, constant = True if blobType != BinaryBlobType.BB_ANY_BLOB else False)
         self.wBlobLen = UInt16Le(lambda:sizeof(self.blobData))
         self.blobData = String(readLen = self.wBlobLen)
@@ -110,11 +110,11 @@ class LicensingErrorMessage(CompositeType):
     """
     _MESSAGE_TYPE_ = MessageType.ERROR_ALERT
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.dwErrorCode = UInt32Le()
         self.dwStateTransition = UInt32Le()
-        self.blob = LicenseBinaryBlob(BinaryBlobType.BB_ERROR_BLOB)
+        self.blob = LicenseBinaryBlob(BinaryBlobType.BB_ANY_BLOB)
         
 class ProductInformation(CompositeType):
     """
@@ -159,8 +159,8 @@ class ServerLicenseRequest(CompositeType):
     """
     _MESSAGE_TYPE_ = MessageType.LICENSE_REQUEST
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.serverRandom = String("\x00" * 32, readLen = UInt8(32))
         self.productInfo = ProductInformation()
         self.keyExchangeList = LicenseBinaryBlob(BinaryBlobType.BB_KEY_EXCHG_ALG_BLOB)
@@ -175,8 +175,8 @@ class ClientNewLicenseRequest(CompositeType):
     """
     _MESSAGE_TYPE_ = MessageType.NEW_LICENSE_REQUEST
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         #RSA and must be only RSA
         self.preferredKeyExchangeAlg = UInt32Le(0x00000001, constant = True)
         #pure microsoft client ;-)
@@ -194,8 +194,8 @@ class ServerPlatformChallenge(CompositeType):
     """
     _MESSAGE_TYPE_ = MessageType.PLATFORM_CHALLENGE
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.connectFlags = UInt32Le()
         self.encryptedPlatformChallenge = LicenseBinaryBlob(BinaryBlobType.BB_ANY_BLOB)
         self.MACData = String(readLen = UInt8(16))
@@ -207,8 +207,8 @@ class ClientPLatformChallengeResponse(CompositeType):
     """
     _MESSAGE_TYPE_ = MessageType.PLATFORM_CHALLENGE_RESPONSE
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.encryptedPlatformChallengeResponse = LicenseBinaryBlob(BinaryBlobType.BB_DATA_BLOB)
         self.encryptedHWID = LicenseBinaryBlob(BinaryBlobType.BB_DATA_BLOB)
         self.MACData = String(readLen = UInt8(16))
@@ -231,7 +231,7 @@ class LicPacket(CompositeType):
             """
             for c in [LicensingErrorMessage, ServerLicenseRequest, ClientNewLicenseRequest, ServerPlatformChallenge, ClientPLatformChallengeResponse]:
                 if self.bMsgtype.value == c._MESSAGE_TYPE_:
-                    return c()
+                    return c(readLen = self.wMsgSize - 4)
             log.debug("unknown license message : %s"%self.bMsgtype.value)
             return String()
         

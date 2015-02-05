@@ -429,7 +429,8 @@ class ShareControlHeader(CompositeType):
         #share control header
         self.totalLength = UInt16Le(totalLength)
         self.pduType = UInt16Le(pduType)
-        self.PDUSource = UInt16Le(userId)
+        #for xp sp3 and deactiveallpdu PDUSource may not be present
+        self.PDUSource = UInt16Le(userId, optional = True)
         
 class ShareDataHeader(CompositeType):
     """
@@ -519,7 +520,9 @@ class DeactiveAllPDU(CompositeType):
     _PDUTYPE_ = PDUType.PDUTYPE_DEACTIVATEALLPDU
     
     def __init__(self):
-        CompositeType.__init__(self)
+        #in old version this packet is empty i don't know
+        #and not specified
+        CompositeType.__init__(self, optional = True)
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
