@@ -515,15 +515,16 @@ class Server(MCSLayer):
         self.readDomainParams(data)
         self.readDomainParams(data)
         self._clientSettings = gcc.readConferenceCreateRequest(Stream(ber.readOctetString(data)))
-         
-        i = 1
-        for channelDef in self._clientSettings.getBlock(gcc.MessageType.CS_NET).channelDefArray._array:
-            self._serverSettings.getBlock(gcc.MessageType.SC_NET).channelIdArray._array.append(UInt16Le(i + Channel.MCS_GLOBAL_CHANNEL))
-            #if channel can be handle by serve add it
-            for serverChannelDef, layer in self._virtualChannels:
-                if channelDef.name == serverChannelDef.name:
-                    self._channels[i + Channel.MCS_GLOBAL_CHANNEL] = layer
-            i += 1
+        
+        if not self._clientSettings.CS_NET is None:
+            i = 1
+            for channelDef in self._clientSettings.CS_NET.channelDefArray._array:
+                self._serverSettings.SC_NET.channelIdArray._array.append(UInt16Le(i + Channel.MCS_GLOBAL_CHANNEL))
+                #if channel can be handle by serve add it
+                for serverChannelDef, layer in self._virtualChannels:
+                    if channelDef.name == serverChannelDef.name:
+                        self._channels[i + Channel.MCS_GLOBAL_CHANNEL] = layer
+                i += 1
         
         self.sendConnectResponse()
         self.setNextState(self.recvErectDomainRequest)
