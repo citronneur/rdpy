@@ -811,7 +811,7 @@ class String(Type, CallableValue):
                 self.value = s.getvalue()[s.pos:]
             else:
                 self.value = ""
-                while self.value[-len(self._until):] != self._until or s.dataLen() == 0:
+                while self.value[-len(self._until):] != self._until and s.dataLen() != 0:
                     self.value += s.read(1)
         else:
             self.value = s.read(self._readLen.value)
