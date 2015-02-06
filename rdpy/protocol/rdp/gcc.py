@@ -608,6 +608,6 @@ def writeConferenceCreateResponse(serverData):
     
     return (per.writeChoice(0), per.writeObjectIdentifier(t124_02_98_oid),
             per.writeLength(len(serverDataStream.getvalue()) + 14), per.writeChoice(0x14),
-            per.writeInteger16(0x79F3, 1001), per.writeInteger(1), per.writeEnumerates(16),
+            per.writeInteger16(0x79F3, 1001), per.writeInteger(1), per.writeEnumerates(0),
             per.writeNumberOfSet(1), per.writeChoice(0xc0),
             per.writeOctetStream(h221_sc_key, 4), per.writeOctetStream(serverDataStream.getvalue()))
