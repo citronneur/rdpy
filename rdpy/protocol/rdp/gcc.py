@@ -354,8 +354,8 @@ class ProprietaryServerCertificate(CompositeType):
         self.wPublicKeyBlobLen = UInt16Le(lambda:sizeof(self.PublicKeyBlob))
         self.PublicKeyBlob = RSAPublicKey(readLen = self.wPublicKeyBlobLen)
         self.wSignatureBlobType = UInt16Le(0x0008, constant = True)
-        self.wSignatureBlobLen = UInt16Le(lambda:(sizeof(self.SignatureBlob) - 8))
-        self.SignatureBlob = String(readLen = self.wSignatureBlobLen)
+        self.wSignatureBlobLen = UInt16Le(lambda:(sizeof(self.SignatureBlob) + sizeof(self.padding)))
+        self.SignatureBlob = String(readLen = UInt16Le(lambda:(self.wSignatureBlobLen.value - sizeof(self.padding))))
         self.padding = String(b"\x00" * 8, readLen = UInt8(8))
         
     def getPublicKey(self):
@@ -381,7 +381,7 @@ class ProprietaryServerCertificate(CompositeType):
         md5Digest = md5.new()
         md5Digest.update(s.getvalue())
         
-        return md5Digest.digest() + "\x00" + "\xff" * 46 + "\x01"
+        return md5Digest.digest() + "\x00" + "\xff" * 45 + "\x01"
         
     def sign(self):
         """
