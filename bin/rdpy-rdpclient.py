@@ -30,7 +30,7 @@ from rdpy.core.error import RDPSecurityNegoFail
 from rdpy.core import rss
 
 import rdpy.core.log as log
-log._LOG_LEVEL = log.Level.INFO
+log._LOG_LEVEL = log.Level.DEBUG
 
 
 class RDPClientQtRecorder(RDPClientQt):

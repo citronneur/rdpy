@@ -204,7 +204,21 @@ class TPKT(RawLayer, IFastPathSender):
         
     def sendFastPath(self, secFlag, fastPathS):
         """
-        @param fastPathS: type transform to stream and send as fastpath
+        @param fastPathS: {Type | Tuple} type transform to stream and send as fastpath
         @param secFlag: {integer} Security flag for fastpath packet
         """
         RawLayer.send(self, (UInt8(Action.FASTPATH_ACTION_FASTPATH | ((secFlag & 0x3) << 6)), UInt16Be((sizeof(fastPathS) + 3) | 0x8000), fastPathS))
+    
+    def startTLS(self, sslContext):
+        """
+        @summary: start TLS protocol
+        @param sslContext: {ssl.ClientContextFactory | ssl.DefaultOpenSSLContextFactory} context use for TLS protocol
+        """
+        self.transport.startTLS(sslContext)
+       
+    def startNLA(self, sslContext):
+        """
+        @summary: use to start NLA (NTLM over SSL) protocol
+        @param sslContext: {ssl.ClientContextFactory | ssl.DefaultOpenSSLContextFactory} context use for NLA protocol
+        """
+        self.transport.startTLS(sslContext)

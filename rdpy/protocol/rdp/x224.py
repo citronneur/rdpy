@@ -210,7 +210,7 @@ class Client(X224Layer):
         if self._selectedProtocol == Protocols.PROTOCOL_SSL:
             log.debug("*" * 10 + " select SSL layer " + "*" * 10)
             #_transport is TPKT and transport is TCP layer of twisted
-            self._transport.transport.startTLS(ClientTLSContext())
+            self._transport.startTLS(ClientTLSContext())
         
         #now i'm ready to receive data
         self.setNextState(self.recvData)
@@ -289,7 +289,7 @@ class Server(X224Layer):
         if self._selectedProtocol == Protocols.PROTOCOL_SSL:
             log.debug("*" * 10 + " select SSL layer " + "*" * 10)
             #_transport is TPKT and transport is TCP layer of twisted
-            self._transport.transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
+            self._transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
             
         #connection is done send to presentation
         self.setNextState(self.recvData)
