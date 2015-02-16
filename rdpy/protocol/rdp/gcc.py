@@ -256,17 +256,17 @@ class ClientCoreData(CompositeType):
         self.keyboardType = UInt32Le(KeyboardType.IBM_101_102_KEYS)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
-        self.imeFileName = String("\x00"*64, readLen = UInt8(64))
-        self.postBeta2ColorDepth = UInt16Le(ColorDepth.RNS_UD_COLOR_8BPP)
-        self.clientProductId = UInt16Le(1)
-        self.serialNumber = UInt32Le(0)
-        self.highColorDepth = UInt16Le(HighColor.HIGH_COLOR_24BPP)
-        self.supportedColorDepths = UInt16Le(Support.RNS_UD_15BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT | Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_32BPP_SUPPORT)
-        self.earlyCapabilityFlags = UInt16Le(CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU)
-        self.clientDigProductId = String("\x00"*64, readLen = UInt8(64))
-        self.connectionType = UInt8()
-        self.pad1octet = UInt8()
-        self.serverSelectedProtocol = UInt32Le()
+        self.imeFileName = String("\x00"*64, readLen = UInt8(64), optional = True)
+        self.postBeta2ColorDepth = UInt16Le(ColorDepth.RNS_UD_COLOR_8BPP, optional = True)
+        self.clientProductId = UInt16Le(1, optional = True)
+        self.serialNumber = UInt32Le(0, optional = True)
+        self.highColorDepth = UInt16Le(HighColor.HIGH_COLOR_24BPP, optional = True)
+        self.supportedColorDepths = UInt16Le(Support.RNS_UD_15BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT | Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_32BPP_SUPPORT, optional = True)
+        self.earlyCapabilityFlags = UInt16Le(CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU, optional = True)
+        self.clientDigProductId = String("\x00"*64, readLen = UInt8(64), optional = True)
+        self.connectionType = UInt8(optional = True)
+        self.pad1octet = UInt8(optional = True)
+        self.serverSelectedProtocol = UInt32Le(optional = True)
     
 class ServerCoreData(CompositeType):
     """
@@ -278,7 +278,8 @@ class ServerCoreData(CompositeType):
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.rdpVersion = UInt32Le(Version.RDP_VERSION_5_PLUS)
-        self.clientRequestedProtocol = UInt32Le()
+        self.clientRequestedProtocol = UInt32Le(optional = True)
+        self.earlyCapabilityFlags = UInt32Le(optional = True)
         
 class ClientSecurityData(CompositeType):
     """
@@ -353,8 +354,8 @@ class ProprietaryServerCertificate(CompositeType):
         self.wPublicKeyBlobLen = UInt16Le(lambda:sizeof(self.PublicKeyBlob))
         self.PublicKeyBlob = RSAPublicKey(readLen = self.wPublicKeyBlobLen)
         self.wSignatureBlobType = UInt16Le(0x0008, constant = True)
-        self.wSignatureBlobLen = UInt16Le(lambda:(sizeof(self.SignatureBlob) - 8))
-        self.SignatureBlob = String(readLen = self.wSignatureBlobLen)
+        self.wSignatureBlobLen = UInt16Le(lambda:(sizeof(self.SignatureBlob) + sizeof(self.padding)))
+        self.SignatureBlob = String(readLen = UInt16Le(lambda:(self.wSignatureBlobLen.value - sizeof(self.padding))))
         self.padding = String(b"\x00" * 8, readLen = UInt8(8))
         
     def getPublicKey(self):
@@ -380,7 +381,7 @@ class ProprietaryServerCertificate(CompositeType):
         md5Digest = md5.new()
         md5Digest.update(s.getvalue())
         
-        return md5Digest.digest() + "\x00" + "\xff" * 46 + "\x01"
+        return md5Digest.digest() + "\x00" + "\xff" * 45 + "\x01"
         
     def sign(self):
         """
@@ -607,6 +608,6 @@ def writeConferenceCreateResponse(serverData):
     
     return (per.writeChoice(0), per.writeObjectIdentifier(t124_02_98_oid),
             per.writeLength(len(serverDataStream.getvalue()) + 14), per.writeChoice(0x14),
-            per.writeInteger16(0x79F3, 1001), per.writeInteger(1), per.writeEnumerates(16),
+            per.writeInteger16(0x79F3, 1001), per.writeInteger(1), per.writeEnumerates(0),
             per.writeNumberOfSet(1), per.writeChoice(0xc0),
             per.writeOctetStream(h221_sc_key, 4), per.writeOctetStream(serverDataStream.getvalue()))

@@ -164,13 +164,45 @@ def macData(macSaltKey, data):
     md5Digest = md5.new()
     
     #encode length
-    s = Stream()
-    s.writeType(UInt32Le(len(data)))
+    dataLength = Stream()
+    dataLength.writeType(UInt32Le(len(data)))
     
     sha1Digest.update(macSaltKey)
     sha1Digest.update("\x36" * 40)
-    sha1Digest.update(s.getvalue())
+    sha1Digest.update(dataLength.getvalue())
     sha1Digest.update(data)
+    
+    sha1Sig = sha1Digest.digest()
+    
+    md5Digest.update(macSaltKey)
+    md5Digest.update("\x5c" * 48)
+    md5Digest.update(sha1Sig)
+    
+    return md5Digest.digest()
+
+def macSaltedData(macSaltKey, data, encryptionCount):
+    """
+    @see: https://msdn.microsoft.com/en-us/library/cc240789.aspx
+    @param macSaltKey: {str} mac key
+    @param data: {str} data to sign
+    @param encryptionCount: nb encrypted packet
+    @return: {str} signature
+    """
+    sha1Digest = sha.new()
+    md5Digest = md5.new()
+    
+    #encode length
+    dataLengthS = Stream()
+    dataLengthS.writeType(UInt32Le(len(data)))
+    
+    encryptionCountS = Stream()
+    encryptionCountS.writeType(UInt32Le(encryptionCount))
+    
+    sha1Digest.update(macSaltKey)
+    sha1Digest.update("\x36" * 40)
+    sha1Digest.update(dataLengthS.getvalue())
+    sha1Digest.update(data)
+    sha1Digest.update(encryptionCountS.getvalue())
     
     sha1Sig = sha1Digest.digest()
     
@@ -342,6 +374,9 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         #True if classic encryption is enable
         self._enableEncryption = False
         
+        #Enable Secure Mac generation
+        self._enableSecureCheckSum = False
+        
         #initialise decrypt and encrypt keys
         self._macKey = None
         self._initialDecrytKey = None
@@ -358,10 +393,11 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         self._encryptRc4 = None
         
     
-    def readEncryptedPayload(self, s):
+    def readEncryptedPayload(self, s, saltedMacGeneration):
         """
         @summary: decrypt basic RDP security payload
         @param s: {Stream} encrypted stream
+        @param saltedMacGeneration: {bool} use salted mac generation
         @return: {Stream} decrypted
         """
         #if update is needed
@@ -378,18 +414,22 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         decrypted = rc4.crypt(self._decryptRc4, encryptedPayload.value)
 
         #ckeck signature
-        if macData(self._macKey, decrypted)[:8] != signature.value:
-            raise InvalidExpectedDataException("Bad packet signature")
+        if not saltedMacGeneration and macData(self._macKey, decrypted)[:8] != signature.value:
+            raise InvalidExpectedDataException("bad signature")
+        
+        if saltedMacGeneration and macSaltedData(self._macKey, decrypted, self._nbDecryptedPacket)[:8] != signature.value:
+            raise InvalidExpectedDataException("bad signature")
         
         #count
         self._nbDecryptedPacket += 1
 
         return Stream(decrypted)
     
-    def writeEncryptedPayload(self, data):
+    def writeEncryptedPayload(self, data, saltedMacGeneration):
         """
         @summary: sign and crypt data
-        @param s: {Stream} raw stream
+        @param data: {Type} raw stream
+        @param saltedMacGeneration: {bool} use salted mac generation
         @return: {Tuple} (signature, encryptedData)
         """
         if self._nbEncryptedPacket == 4096:
@@ -400,9 +440,14 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
             self._nbEncryptedPacket = 0
             
         self._nbEncryptedPacket += 1
+        
         s = Stream()
         s.writeType(data)
-        return (String(macData(self._macKey, s.getvalue())[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
+        
+        if saltedMacGeneration:
+            return (String(macSaltedData(self._macKey, s.getvalue(), self._nbEncryptedPacket - 1)[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
+        else:
+            return (String(macData(self._macKey, s.getvalue())[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
     
     def recv(self, data):
         """
@@ -419,7 +464,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         data.readType((securityFlag, securityFlagHi))
         
         if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
-            data = self.readEncryptedPayload(data)
+            data = self.readEncryptedPayload(data, securityFlag.value & SecurityFlag.SEC_SECURE_CHECKSUM)
             
         self._presentation.recv(data)
         
@@ -433,7 +478,12 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
             self._transport.send(data)
             return
         
-        self.sendFlagged(SecurityFlag.SEC_ENCRYPT, data)
+        flag = SecurityFlag.SEC_ENCRYPT
+        
+        if self._enableSecureCheckSum:
+            flag |= SecurityFlag.SEC_SECURE_CHECKSUM
+        
+        self.sendFlagged(flag, data)
     
     def sendFlagged(self, flag, data):
         """
@@ -444,7 +494,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         @param data: {Type | Tuple}
         """
         if flag & SecurityFlag.SEC_ENCRYPT:
-            data = self.writeEncryptedPayload(data)
+            data = self.writeEncryptedPayload(data, flag & SecurityFlag.SEC_SECURE_CHECKSUM)
         self._transport.send((UInt16Le(flag), UInt16Le(), data))
         
     def recvFastPath(self, secFlag, fastPathS):
@@ -454,7 +504,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         @param fastPathS: {Stream}
         """
         if self._enableEncryption and secFlag & tpkt.SecFlags.FASTPATH_OUTPUT_ENCRYPTED:
-            fastPathS = self.readEncryptedPayload(fastPathS)
+            fastPathS = self.readEncryptedPayload(fastPathS, secFlag & tpkt.SecFlags.FASTPATH_OUTPUT_SECURE_CHECKSUM)
         
         self._fastPathPresentation.recvFastPath(secFlag, fastPathS)
         
@@ -472,7 +522,11 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         """
         if self._enableEncryption:
             secFlag |= tpkt.SecFlags.FASTPATH_OUTPUT_ENCRYPTED
-            fastPathS = self.writeEncryptedPayload(fastPathS)
+            
+            if self._enableSecureCheckSum:
+                secFlag |= tpkt.SecFlags.FASTPATH_OUTPUT_SECURE_CHECKSUM
+                
+            fastPathS = self.writeEncryptedPayload(fastPathS, self._enableSecureCheckSum)
         
         self._fastPathTransport.sendFastPath(secFlag, fastPathS)
         
@@ -661,7 +715,7 @@ class Server(SecLayer):
             raise InvalidExpectedDataException("Waiting info packet")
         
         if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
-            s = self.readEncryptedPayload(s)
+            s = self.readEncryptedPayload(s, securityFlag.value & SecurityFlag.SEC_SECURE_CHECKSUM)
         
         s.readType(self._info)
         #next state send error license

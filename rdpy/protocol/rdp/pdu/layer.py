@@ -179,6 +179,9 @@ class Client(PDULayer):
         
         for cap in pdu.pduMessage.capabilitySets._array:
             self._serverCapabilities[cap.capabilitySetType] = cap
+            
+        #secure checksum cap here maybe protocol (another) design error
+        self._transport._enableSecureCheckSum = bool(self._serverCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags & caps.GeneralExtraFlag.ENC_SALTED_CHECKSUM)
         
         self.sendConfirmActivePDU()
         #send synchronize
@@ -312,7 +315,7 @@ class Client(PDULayer):
         generalCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
         generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
         generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR
+        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.ENC_SALTED_CHECKSUM
         if not self._fastPathSender is None:
             generalCapability.extraFlags.value |= caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
         
@@ -412,6 +415,9 @@ class Server(PDULayer):
             
         #find use full flag
         self._clientFastPathSupported = bool(self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags.value & caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED)
+        
+        #secure checksum cap here maybe protocol (another) design error
+        self._transport._enableSecureCheckSum = bool(self._clientCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability.extraFlags & caps.GeneralExtraFlag.ENC_SALTED_CHECKSUM)
         
         self.setNextState(self.recvClientSynchronizePDU)
         
@@ -525,7 +531,7 @@ class Server(PDULayer):
         generalCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_GENERAL].capability
         generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
         generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
-        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
+        generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED | caps.GeneralExtraFlag.ENC_SALTED_CHECKSUM
         
         inputCapability = self._serverCapabilities[caps.CapsType.CAPSTYPE_INPUT].capability
         inputCapability.inputFlags.value = caps.InputFlags.INPUT_FLAG_SCANCODES | caps.InputFlags.INPUT_FLAG_MOUSEX
