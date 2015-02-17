@@ -151,7 +151,7 @@ class MyRDPFactory(rdp.ClientFactory):
 
     def buildObserver(self, controller, addr):
 
-        class MyObserver(rdp.RDPClientObserver)
+        class MyObserver(rdp.RDPClientObserver):
 
         	def onReady(self):
 		        """
@@ -184,7 +184,7 @@ class MyRDPFactory(rdp.ClientFactory):
 		return MyObserver(controller)
 
 from twisted.internet import reactor
-reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRDPFactory())
+reactor.connectTCP("XXX.XXX.XXX.XXX", 3389, MyRDPFactory())
 reactor.run()
 ```
 
@@ -196,7 +196,7 @@ class MyRDPFactory(rdp.ServerFactory):
 
     def buildObserver(self, controller, addr):
 
-        class MyObserver(rdp.RDPServerObserver)
+        class MyObserver(rdp.RDPServerObserver):
 
         	def onReady(self):
         		"""
@@ -256,7 +256,7 @@ class MyRFBFactory(rfb.ClientFactory):
         reactor.stop()
 
     def buildObserver(self, controller, addr):
-        class MyObserver(rfb.RFBClientObserver)
+        class MyObserver(rfb.RFBClientObserver):
 
 			def onReady(self):
 		        """
@@ -294,6 +294,6 @@ class MyRFBFactory(rfb.ClientFactory):
 		return MyObserver(controller)
 
 from twisted.internet import reactor
-reactor.connectTCP("XXX.XXX.XXX.XXX", 3389), MyRFBFactory())
+reactor.connectTCP("XXX.XXX.XXX.XXX", 3389, MyRFBFactory())
 reactor.run()
 ```
