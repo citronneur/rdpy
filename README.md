@@ -143,7 +143,7 @@ from rdpy.protocol.rdp import rdp
 
 class MyRDPFactory(rdp.ClientFactory):
 
-	def clientConnectionLost(self, connector, reason):
+    def clientConnectionLost(self, connector, reason):
         reactor.stop()
 
     def clientConnectionFailed(self, connector, reason):
@@ -153,35 +153,35 @@ class MyRDPFactory(rdp.ClientFactory):
 
         class MyObserver(rdp.RDPClientObserver):
 
-        	def onReady(self):
-		        """
-		        @summary: Call when stack is ready
-		        """
-				#send 'r' key
-				self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
-				#mouse move and click at pixel 200x200
-				self._controller.sendPointerEvent(200, 200, 1, true)
+            def onReady(self):
+                """
+                @summary: Call when stack is ready
+                """
+                #send 'r' key
+                self._controller.sendKeyEventUnicode(ord(unicode("r".toUtf8(), encoding="UTF-8")), True)
+                #mouse move and click at pixel 200x200
+                self._controller.sendPointerEvent(200, 200, 1, true)
 
-			def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
-		        """
-		        @summary: Notify bitmap update
-		        @param destLeft: xmin position
-		        @param destTop: ymin position
-		        @param destRight: xmax position because RDP can send bitmap with padding
-		        @param destBottom: ymax position because RDP can send bitmap with padding
-		        @param width: width of bitmap
-		        @param height: height of bitmap
-		        @param bitsPerPixel: number of bit per pixel
-		        @param isCompress: use RLE compression
-		        @param data: bitmap data
-		        """
+            def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
+                """
+                @summary: Notify bitmap update
+                @param destLeft: xmin position
+                @param destTop: ymin position
+                @param destRight: xmax position because RDP can send bitmap with padding
+                @param destBottom: ymax position because RDP can send bitmap with padding
+                @param width: width of bitmap
+                @param height: height of bitmap
+                @param bitsPerPixel: number of bit per pixel
+                @param isCompress: use RLE compression
+                @param data: bitmap data
+                """
 
-			def onClose(self):
-		        """
-		        @summary: Call when stack is close
-		        """
+            def onClose(self):
+                """
+                @summary: Call when stack is close
+                """
 
-		return MyObserver(controller)
+        return MyObserver(controller)
 
 from twisted.internet import reactor
 reactor.connectTCP("XXX.XXX.XXX.XXX", 3389, MyRDPFactory())
@@ -198,45 +198,45 @@ class MyRDPFactory(rdp.ServerFactory):
 
         class MyObserver(rdp.RDPServerObserver):
 
-        	def onReady(self):
-        		"""
-        		@summary: Call when server is ready
-        		to send and receive messages
-        		"""
+            def onReady(self):
+                """
+                @summary: Call when server is ready
+                to send and receive messages
+                """
 
-        	def onKeyEventScancode(self, code, isPressed):
-        		"""
-		        @summary: Event call when a keyboard event is catch in scan code format
-		        @param code: scan code of key
-		        @param isPressed: True if key is down
-		        @see: rdp.RDPServerObserver.onKeyEventScancode
-		        """
+            def onKeyEventScancode(self, code, isPressed):
+                """
+                @summary: Event call when a keyboard event is catch in scan code format
+                @param code: scan code of key
+                @param isPressed: True if key is down
+                @see: rdp.RDPServerObserver.onKeyEventScancode
+                """
 
-	        def onKeyEventUnicode(self, code, isPressed):
-		        """
-		        @summary: Event call when a keyboard event is catch in unicode format
-		        @param code: unicode of key
-		        @param isPressed: True if key is down
-		        @see: rdp.RDPServerObserver.onKeyEventUnicode
-		        """
+            def onKeyEventUnicode(self, code, isPressed):
+                """
+                @summary: Event call when a keyboard event is catch in unicode format
+                @param code: unicode of key
+                @param isPressed: True if key is down
+                @see: rdp.RDPServerObserver.onKeyEventUnicode
+                """
 
-		    def onPointerEvent(self, x, y, button, isPressed):
-		        """
-		        @summary: Event call on mouse event
-		        @param x: x position
-		        @param y: y position
-		        @param button: 1, 2 or 3 button
-		        @param isPressed: True if mouse button is pressed
-		        @see: rdp.RDPServerObserver.onPointerEvent
-		        """
+            def onPointerEvent(self, x, y, button, isPressed):
+                """
+                @summary: Event call on mouse event
+                @param x: x position
+                @param y: y position
+                @param button: 1, 2 or 3 button
+                @param isPressed: True if mouse button is pressed
+                @see: rdp.RDPServerObserver.onPointerEvent
+                """
 
-		    def onClose(self):
-		        """
-		        @summary: Call when human client close connection
-		        @see: rdp.RDPServerObserver.onClose
-		        """
+            def onClose(self):
+                """
+                @summary: Call when human client close connection
+                @see: rdp.RDPServerObserver.onClose
+                """
 
-		return MyObserver(controller)
+        return MyObserver(controller)
 
 from twisted.internet import reactor
 reactor.listenTCP(3389, MyRDPFactory())
@@ -249,7 +249,7 @@ from rdpy.protocol.rfb import rfb
 
 class MyRFBFactory(rfb.ClientFactory):
 
-	def clientConnectionLost(self, connector, reason):
+    def clientConnectionLost(self, connector, reason):
         reactor.stop()
 
     def clientConnectionFailed(self, connector, reason):
@@ -258,40 +258,40 @@ class MyRFBFactory(rfb.ClientFactory):
     def buildObserver(self, controller, addr):
         class MyObserver(rfb.RFBClientObserver):
 
-			def onReady(self):
-		        """
-		        @summary: Event when network stack is ready to receive or send event
-		        """
+            def onReady(self):
+                """
+                @summary: Event when network stack is ready to receive or send event
+                """
 
-			def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
-		        """
-		        @summary: Implement RFBClientObserver interface
-		        @param width: width of new image
-		        @param height: height of new image
-		        @param x: x position of new image
-		        @param y: y position of new image
-		        @param pixelFormat: pixefFormat structure in rfb.message.PixelFormat
-		        @param encoding: encoding type rfb.message.Encoding
-		        @param data: image data in accordance with pixel format and encoding
-		        """
+            def onUpdate(self, width, height, x, y, pixelFormat, encoding, data):
+                """
+                @summary: Implement RFBClientObserver interface
+                @param width: width of new image
+                @param height: height of new image
+                @param x: x position of new image
+                @param y: y position of new image
+                @param pixelFormat: pixefFormat structure in rfb.message.PixelFormat
+                @param encoding: encoding type rfb.message.Encoding
+                @param data: image data in accordance with pixel format and encoding
+                """
 
-		    def onCutText(self, text):
-		        """
-		        @summary: event when server send cut text event
-		        @param text: text received
-		        """
+            def onCutText(self, text):
+                """
+                @summary: event when server send cut text event
+                @param text: text received
+                """
 
-		    def onBell(self):
-		        """
-		        @summary: event when server send biiip
-		        """
+            def onBell(self):
+                """
+                @summary: event when server send biiip
+                """
 
-			def onClose(self):
-		        """
-		        @summary: Call when stack is close
-		        """
+            def onClose(self):
+                """
+                @summary: Call when stack is close
+                """
 
-		return MyObserver(controller)
+        return MyObserver(controller)
 
 from twisted.internet import reactor
 reactor.connectTCP("XXX.XXX.XXX.XXX", 3389, MyRFBFactory())
