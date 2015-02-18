@@ -141,12 +141,10 @@ class X224Test(unittest.TestCase):
         tls_begin = False
         presentation_connect = False
         class Transport(object):
-            def __init__(self):
-                class TLSTransport(object):
-                    def startTLS(self, context):
-                        global tls_begin
-                        tls_begin = True
-                self.transport = TLSTransport()
+
+            def startTLS(self, context):
+                global tls_begin
+                tls_begin = True
                 
         class Presentation(object):
             def connect(self):
@@ -214,12 +212,9 @@ class X224Test(unittest.TestCase):
         x224.ServerTLSContext = ServerTLSContext
         
         class Transport(object):
-            def __init__(self):
-                class TLS(object):
-                    def startTLS(self, context):
-                        global tls
-                        tls = True
-                self.transport = TLS()
+            def startTLS(self, context):
+                global tls
+                tls = True
                         
             def send(self, data):
                 if not isinstance(data, x224.ServerConnectionConfirm):
