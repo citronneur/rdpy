@@ -44,7 +44,7 @@ x86 | x86_64
 
 ```
 $ git clone https://github.com/citronneur/rdpy.git rdpy
-$ pip install twisted pyopenssl qt4reactor service_identity rsa
+$ pip install twisted pyopenssl qt4reactor service_identity rsa pyasn1
 $ python rdpy/setup.py install
 ```
 
