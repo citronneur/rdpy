@@ -23,7 +23,8 @@
 """
 
 from pyasn1.type import namedtype, univ
-from pyasn1.codec.ber import decoder
+from pyasn1.codec.ber import encoder
+from rdpy.core.type import Stream
 
 class NegoData(univ.SequenceOf):
     """
@@ -90,3 +91,25 @@ class TSSmartCardCreds(univ.Sequence):
         namedtype.OptionalNamedType('userHint', univ.OctetString()),
         namedtype.OptionalNamedType('domainHint', univ.OctetString())
         )
+
+def createBERRequest(negoTokens):
+    """
+    @summary: create TSRequest from list of Type
+    @param negoTokens: {list(Type)}
+    @return: {str}
+    """
+    negoData = NegoData()
+    
+    #fill nego data tokens
+    i = 0
+    for negoToken in negoTokens:
+        s = Stream()
+        s.writeType(negoToken)
+        negoData.setComponentByPosition(i, s.getvalue())
+        i += 1
+        
+    request = TSRequest()
+    request.setComponentByName("version", univ.Integer(2))
+    request.setComponentByName("negoTokens", negoData)
+    return encoder.encode(request)
+        

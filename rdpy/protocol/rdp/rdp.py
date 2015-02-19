@@ -137,12 +137,14 @@ class RDPClientController(pdu.layer.PDUClientListener):
     def setSecurityLevel(self, level):
         """
         @summary: Request basic security
-        @param level: {str} (ssl | rdp)
+        @param level: {str} (ssl | rdp | nla)
         """
         if level == "rdp":
             self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_RDP
         elif level == "ssl":
             self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_SSL
+        elif level == "nla":
+            self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_SSL | x224.Protocols.PROTOCOL_HYBRID
         
     def addClientObserver(self, observer):
         """

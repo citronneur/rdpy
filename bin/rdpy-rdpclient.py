@@ -115,7 +115,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
         self._nego = security == "nego"
         self._recodedPath = recodedPath
         if self._nego:
-            self._security = "ssl"
+            self._security = "nla"
         else:
             self._security = security
         self._w = None

@@ -50,6 +50,7 @@ class NegociationType(object):
 class Protocols(object):
     """
     @summary: Protocols available for x224 layer
+    @see: https://msdn.microsoft.com/en-us/library/cc240500.aspx
     """
     PROTOCOL_RDP = 0x00000000
     PROTOCOL_SSL = 0x00000001
@@ -132,7 +133,7 @@ class X224Layer(LayerAutomata, IStreamSender):
         """
         LayerAutomata.__init__(self, presentation)
         #client requested selectedProtocol
-        self._requestedProtocol = Protocols.PROTOCOL_SSL
+        self._requestedProtocol = Protocols.PROTOCOL_SSL | Protocols.PROTOCOL_HYBRID
         #server selected selectedProtocol
         self._selectedProtocol = Protocols.PROTOCOL_SSL
     
@@ -204,19 +205,22 @@ class Client(X224Layer):
             self._selectedProtocol = Protocols.PROTOCOL_RDP
         
         #NLA protocol doesn't support in actual version of RDPY
-        if self._selectedProtocol in [ Protocols.PROTOCOL_HYBRID, Protocols.PROTOCOL_HYBRID_EX ]:
-            raise InvalidExpectedDataException("RDPY doesn't support NLA security Layer")
+        if self._selectedProtocol in [ Protocols.PROTOCOL_HYBRID_EX ]:
+            raise InvalidExpectedDataException("RDPY doesn't support PROTOCOL_HYBRID_EX security Layer")
         
-        if self._selectedProtocol == Protocols.PROTOCOL_SSL:
+        if self._selectedProtocol in [ Protocols.PROTOCOL_SSL, Protocols.PROTOCOL_HYBRID ]:
             log.debug("*" * 10 + " select SSL layer " + "*" * 10)
-            #_transport is TPKT and transport is TCP layer of twisted
             self._transport.startTLS(ClientTLSContext())
         
-        #now i'm ready to receive data
-        self.setNextState(self.recvData)
-        
-        #connection is done send to presentation
-        self._presentation.connect()
+        if self._selectedProtocol == Protocols.PROTOCOL_HYBRID:
+            log.debug("*" * 10 + " select NLA layer " + "*" * 10)
+            self._transport.startNLA()
+        else:
+            #now i'm ready to receive data
+            self.setNextState(self.recvData)
+            
+            #connection is done send to presentation
+            self._presentation.connect()
 
 class Server(X224Layer):
     """
