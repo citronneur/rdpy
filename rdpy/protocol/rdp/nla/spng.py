@@ -24,14 +24,20 @@
 
 from pyasn1.type import namedtype, univ
 
+class MechTypeList(univ.SequenceOf):
+    """
+    @see: http://www.rfc-editor.org/rfc/rfc4178.txt section 4.1
+    """
+    componentType = univ.ObjectIdentifier()
+
 class NegTokenInit2(univ.Sequence):
     """
     @summary: main structure
     @see: https://msdn.microsoft.com/en-us/library/cc247039.aspx
     """
     componentType = namedtype.NamedTypes(
-        namedtype.OptionalNamedType('mechTypes', univ.Integer()),
-        namedtype.OptionalNamedType('reqFlags', NegoData()),
+        namedtype.OptionalNamedType('mechTypes', MechTypeList()),
+        namedtype.OptionalNamedType('reqFlags', univ.BitString()),
         namedtype.OptionalNamedType('mechToken', univ.OctetString()),
         namedtype.OptionalNamedType('negHints', univ.OctetString()),
         namedtype.OptionalNamedType('mechListMIC', univ.Integer())

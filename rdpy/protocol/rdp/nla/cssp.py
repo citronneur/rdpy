@@ -22,8 +22,8 @@
 @see: https://msdn.microsoft.com/en-us/library/cc226764.aspx
 """
 
-from pyasn1.type import namedtype, univ
-from pyasn1.codec.ber import encoder
+from pyasn1.type import namedtype, univ, tag
+from pyasn1.codec.der import encoder
 from rdpy.core.type import Stream
 
 class NegoData(univ.SequenceOf):
@@ -31,7 +31,7 @@ class NegoData(univ.SequenceOf):
     @summary: contain spnego ntlm of kerberos data
     @see: https://msdn.microsoft.com/en-us/library/cc226781.aspx
     """
-    componentType = univ.OctetString()
+    componentType = univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))
 
 class TSRequest(univ.Sequence):
     """
@@ -39,11 +39,11 @@ class TSRequest(univ.Sequence):
     @see: https://msdn.microsoft.com/en-us/library/cc226780.aspx
     """
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('version', univ.Integer()),
-        namedtype.OptionalNamedType('negoTokens', NegoData()),
-        namedtype.OptionalNamedType('authInfo', univ.OctetString()),
-        namedtype.OptionalNamedType('pubKeyAuth', univ.OctetString()),
-        namedtype.OptionalNamedType('errorCode', univ.Integer())
+        namedtype.NamedType('version', univ.Integer().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+        namedtype.OptionalNamedType('negoTokens', NegoData().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
+        namedtype.OptionalNamedType('authInfo', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2))),
+        namedtype.OptionalNamedType('pubKeyAuth', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3))),
+        namedtype.OptionalNamedType('errorCode', univ.Integer().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 4)))
         )
 
 class TSCredentials(univ.Sequence):
@@ -52,8 +52,8 @@ class TSCredentials(univ.Sequence):
     @see: https://msdn.microsoft.com/en-us/library/cc226782.aspx
     """
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('credType', univ.Integer()),
-        namedtype.NamedType('credentials', univ.OctetString())
+        namedtype.NamedType('credType', univ.Integer().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+        namedtype.NamedType('credentials', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1)))
         )
     
 class TSPasswordCreds(univ.Sequence):
@@ -62,9 +62,9 @@ class TSPasswordCreds(univ.Sequence):
     @see: https://msdn.microsoft.com/en-us/library/cc226783.aspx
     """
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('domainName', univ.OctetString()),
-        namedtype.NamedType('userName', univ.OctetString()),
-        namedtype.NamedType('password', univ.OctetString())
+        namedtype.NamedType('domainName', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+        namedtype.NamedType('userName', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
+        namedtype.NamedType('password', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2)))
         )
 
 class TSCspDataDetail(univ.Sequence):
@@ -73,11 +73,11 @@ class TSCspDataDetail(univ.Sequence):
     @see: https://msdn.microsoft.com/en-us/library/cc226785.aspx
     """
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('keySpec', univ.Integer()),
-        namedtype.OptionalNamedType('cardName', univ.OctetString()),
-        namedtype.OptionalNamedType('readerName', univ.OctetString()),
-        namedtype.OptionalNamedType('containerName', univ.OctetString()),
-        namedtype.OptionalNamedType('cspName', univ.OctetString())
+        namedtype.NamedType('keySpec', univ.Integer().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+        namedtype.OptionalNamedType('cardName', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
+        namedtype.OptionalNamedType('readerName', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2))),
+        namedtype.OptionalNamedType('containerName', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3))),
+        namedtype.OptionalNamedType('cspName', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 4)))
         )
 
 class TSSmartCardCreds(univ.Sequence):
@@ -86,10 +86,10 @@ class TSSmartCardCreds(univ.Sequence):
     @see: https://msdn.microsoft.com/en-us/library/cc226784.aspx
     """
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('pin', univ.OctetString()),
-        namedtype.NamedType('cspData', TSCspDataDetail()),
-        namedtype.OptionalNamedType('userHint', univ.OctetString()),
-        namedtype.OptionalNamedType('domainHint', univ.OctetString())
+        namedtype.NamedType('pin', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+        namedtype.NamedType('cspData', TSCspDataDetail().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
+        namedtype.OptionalNamedType('userHint', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2))),
+        namedtype.OptionalNamedType('domainHint', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3)))
         )
 
 def createBERRequest(negoTokens):
