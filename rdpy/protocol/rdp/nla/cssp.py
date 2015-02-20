@@ -26,12 +26,17 @@ from pyasn1.type import namedtype, univ, tag
 from pyasn1.codec.der import encoder
 from rdpy.core.type import Stream
 
+class NegoToken(univ.Sequence):
+    componentType = namedtype.NamedTypes(
+        namedtype.NamedType('negoToken', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
+    )
+
 class NegoData(univ.SequenceOf):
     """
     @summary: contain spnego ntlm of kerberos data
     @see: https://msdn.microsoft.com/en-us/library/cc226781.aspx
     """
-    componentType = univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))
+    componentType = NegoToken()
 
 class TSRequest(univ.Sequence):
     """
@@ -92,24 +97,26 @@ class TSSmartCardCreds(univ.Sequence):
         namedtype.OptionalNamedType('domainHint', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3)))
         )
 
-def createBERRequest(negoTokens):
+def createBERRequest(negoTypes):
     """
     @summary: create TSRequest from list of Type
-    @param negoTokens: {list(Type)}
+    @param negoTypes: {list(Type)}
     @return: {str}
     """
-    negoData = NegoData()
+    negoData = NegoData().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))
     
     #fill nego data tokens
     i = 0
-    for negoToken in negoTokens:
+    for negoType in negoTypes:
         s = Stream()
-        s.writeType(negoToken)
-        negoData.setComponentByPosition(i, s.getvalue())
+        s.writeType(negoType)
+        negoToken = NegoToken()
+        negoToken.setComponentByPosition(0, s.getvalue())
+        negoData.setComponentByPosition(i, negoToken)
         i += 1
         
     request = TSRequest()
-    request.setComponentByName("version", univ.Integer(2))
+    request.setComponentByName("version", univ.Integer(2).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0)))
     request.setComponentByName("negoTokens", negoData)
     return encoder.encode(request)
         
