@@ -27,7 +27,8 @@ import pdu.layer
 import pdu.data
 import pdu.caps
 import rdpy.core.log as log
-import tpkt, x224, mcs, gcc, sec
+import tpkt, x224, sec
+from t125 import mcs, gcc
 
 class RDPClientController(pdu.layer.PDUClientListener):
     """

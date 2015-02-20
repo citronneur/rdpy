@@ -23,7 +23,7 @@ http://msdn.microsoft.com/en-us/library/cc240508.aspx
 """
 
 import md5
-from rdpy.core.type import UInt8, UInt16Le, UInt32Le, CompositeType, String, Stream, sizeof, FactoryType, ArrayType
+from rdpy.core.type import UInt8, UInt16Le, UInt32Le, CompositeType, CallableValue, String, Stream, sizeof, FactoryType, ArrayType
 import per, mcs
 from rdpy.core.error import InvalidExpectedDataException
 from rdpy.core import log
@@ -252,18 +252,18 @@ class ClientCoreData(CompositeType):
         self.sasSequence = UInt16Le(Sequence.RNS_UD_SAS_DEL)
         self.kbdLayout = UInt32Le(KeyboardLayout.US)
         self.clientBuild = UInt32Le(3790)
-        self.clientName = String("rdpy" + "\x00"*11, readLen = UInt8(32), unicode = True)
+        self.clientName = String("rdpy" + "\x00"*11, readLen = CallableValue(32), unicode = True)
         self.keyboardType = UInt32Le(KeyboardType.IBM_101_102_KEYS)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
-        self.imeFileName = String("\x00"*64, readLen = UInt8(64), optional = True)
+        self.imeFileName = String("\x00"*64, readLen = CallableValue(64), optional = True)
         self.postBeta2ColorDepth = UInt16Le(ColorDepth.RNS_UD_COLOR_8BPP, optional = True)
         self.clientProductId = UInt16Le(1, optional = True)
         self.serialNumber = UInt32Le(0, optional = True)
         self.highColorDepth = UInt16Le(HighColor.HIGH_COLOR_24BPP, optional = True)
         self.supportedColorDepths = UInt16Le(Support.RNS_UD_15BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT | Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_32BPP_SUPPORT, optional = True)
         self.earlyCapabilityFlags = UInt16Le(CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU, optional = True)
-        self.clientDigProductId = String("\x00"*64, readLen = UInt8(64), optional = True)
+        self.clientDigProductId = String("\x00"*64, readLen = CallableValue(64), optional = True)
         self.connectionType = UInt8(optional = True)
         self.pad1octet = UInt8(optional = True)
         self.serverSelectedProtocol = UInt32Le(optional = True)
@@ -355,8 +355,8 @@ class ProprietaryServerCertificate(CompositeType):
         self.PublicKeyBlob = RSAPublicKey(readLen = self.wPublicKeyBlobLen)
         self.wSignatureBlobType = UInt16Le(0x0008, constant = True)
         self.wSignatureBlobLen = UInt16Le(lambda:(sizeof(self.SignatureBlob) + sizeof(self.padding)))
-        self.SignatureBlob = String(readLen = UInt16Le(lambda:(self.wSignatureBlobLen.value - sizeof(self.padding))))
-        self.padding = String(b"\x00" * 8, readLen = UInt8(8))
+        self.SignatureBlob = String(readLen = CallableValue(lambda:(self.wSignatureBlobLen.value - sizeof(self.padding))))
+        self.padding = String(b"\x00" * 8, readLen = CallableValue(8))
         
     def getPublicKey(self):
         """
@@ -418,7 +418,7 @@ class X509CertificateChain(CompositeType):
         CompositeType.__init__(self)
         self.NumCertBlobs = UInt32Le()
         self.CertBlobArray = ArrayType(CertBlob, readLen = self.NumCertBlobs)
-        self.padding = String(readLen = UInt8(lambda:(8 + 4 * self.NumCertBlobs.value)))
+        self.padding = String(readLen = CallableValue(lambda:(8 + 4 * self.NumCertBlobs.value)))
         
     def getPublicKey(self):
         """
@@ -447,8 +447,8 @@ class RSAPublicKey(CompositeType):
         self.bitlen = UInt32Le(lambda:((self.keylen.value - 8) * 8))
         self.datalen = UInt32Le(lambda:((self.bitlen.value / 8) - 1))
         self.pubExp = UInt32Le()
-        self.modulus = String(readLen = UInt16Le(lambda:(self.keylen.value - 8)))
-        self.padding = String("\x00" * 8, readLen = UInt8(8))
+        self.modulus = String(readLen = CallableValue(lambda:(self.keylen.value - 8)))
+        self.padding = String("\x00" * 8, readLen = CallableValue(8))
 
 class ChannelDef(CompositeType):
     """
@@ -458,7 +458,7 @@ class ChannelDef(CompositeType):
     def __init__(self, name = "", options = 0):
         CompositeType.__init__(self)
         #name of channel
-        self.name = String(name[0:8] + "\x00" * (8 - len(name)), readLen = UInt8(8))
+        self.name = String(name[0:8] + "\x00" * (8 - len(name)), readLen = CallableValue(8))
         #unknown
         self.options = UInt32Le()
         
@@ -554,7 +554,7 @@ def readConferenceCreateRequest(s):
     
     per.readOctetStream(s, h221_cs_key, 4)
     length = per.readLength(s)
-    clientSettings = Settings(readLen = UInt32Le(length))
+    clientSettings = Settings(readLen = CallableValue(length))
     s.readType(clientSettings)
     return clientSettings
     
@@ -578,7 +578,7 @@ def readConferenceCreateResponse(s):
         raise InvalidExpectedDataException("cannot read h221_sc_key")
     
     length = per.readLength(s)
-    serverSettings = Settings(readLen = UInt32Le(length))
+    serverSettings = Settings(readLen = CallableValue(length))
     s.readType(serverSettings)
     return serverSettings
 

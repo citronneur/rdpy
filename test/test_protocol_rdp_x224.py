@@ -106,19 +106,6 @@ class X224Test(unittest.TestCase):
         layer.connect()
         
         self.assertRaises(X224Test.X224_PASS, layer.recv, type.String('\x01\x02'))  
-        
-    def test_x224_client_recvConnectionConfirm_negotiation_bad_protocol(self):
-        """
-        @summary:  unit test for X224Client.recvConnectionConfirm and sendConnectionRequest function
-                    Server ask another protocol than SSL or RDP
-        """
-        message = x224.ServerConnectionConfirm()
-        message.protocolNeg.selectedProtocol.value = x224.Protocols.PROTOCOL_HYBRID
-        s = type.Stream()
-        s.writeType(message)
-        s.pos = 0
-        layer = x224.Client(None)
-        self.assertRaises(error.InvalidExpectedDataException, layer.recvConnectionConfirm, s)
 
     def test_x224_client_recvConnectionConfirm_negotiation_failure(self):
         """

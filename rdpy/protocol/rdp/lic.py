@@ -22,10 +22,11 @@
 @see: http://msdn.microsoft.com/en-us/library/cc241880.aspx
 """
 
-from rdpy.core.type import CompositeType, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
+from rdpy.core.type import CompositeType, CallableValue, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
 from rdpy.core.error import InvalidExpectedDataException
 import rdpy.core.log as log
-import sec, gcc
+import sec
+from t125 import gcc
 from rdpy.security import rc4
 from rdpy.security import rsa_wrapper as rsa
 
@@ -161,7 +162,7 @@ class ServerLicenseRequest(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.serverRandom = String("\x00" * 32, readLen = UInt8(32))
+        self.serverRandom = String("\x00" * 32, readLen = CallableValue(32))
         self.productInfo = ProductInformation()
         self.keyExchangeList = LicenseBinaryBlob(BinaryBlobType.BB_KEY_EXCHG_ALG_BLOB)
         self.serverCertificate = LicenseBinaryBlob(BinaryBlobType.BB_CERTIFICATE_BLOB)
@@ -182,7 +183,7 @@ class ClientNewLicenseRequest(CompositeType):
         #pure microsoft client ;-)
         #http://msdn.microsoft.com/en-us/library/1040af38-c733-4fb3-acd1-8db8cc979eda#id10
         self.platformId = UInt32Le(0x04000000 | 0x00010000)
-        self.clientRandom = String("\x00" * 32, readLen = UInt8(32))
+        self.clientRandom = String("\x00" * 32, readLen = CallableValue(32))
         self.encryptedPreMasterSecret = LicenseBinaryBlob(BinaryBlobType.BB_RANDOM_BLOB)
         self.ClientUserName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_USER_NAME_BLOB)
         self.ClientMachineName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_MACHINE_NAME_BLOB)
@@ -198,7 +199,7 @@ class ServerPlatformChallenge(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.connectFlags = UInt32Le()
         self.encryptedPlatformChallenge = LicenseBinaryBlob(BinaryBlobType.BB_ANY_BLOB)
-        self.MACData = String(readLen = UInt8(16))
+        self.MACData = String(readLen = CallableValue(16))
 
 class ClientPLatformChallengeResponse(CompositeType):
     """
@@ -211,7 +212,7 @@ class ClientPLatformChallengeResponse(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.encryptedPlatformChallengeResponse = LicenseBinaryBlob(BinaryBlobType.BB_DATA_BLOB)
         self.encryptedHWID = LicenseBinaryBlob(BinaryBlobType.BB_DATA_BLOB)
-        self.MACData = String(readLen = UInt8(16))
+        self.MACData = String(readLen = CallableValue(16))
 
 class LicPacket(CompositeType):
     """

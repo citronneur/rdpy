@@ -26,7 +26,7 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import unittest
-import rdpy.protocol.rdp.per as per
+import rdpy.protocol.rdp.t125.per as per
 import rdpy.core.type as type
 import rdpy.core.error as error
 

@@ -24,7 +24,7 @@ Definition of structure use for capabilities nego
 Use in PDU layer
 """
 
-from rdpy.core.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+from rdpy.core.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
     
 class CapsType(object):
     """
@@ -308,7 +308,7 @@ class OrderCapability(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.terminalDescriptor = String("\x00" * 16, readLen = UInt8(16))
+        self.terminalDescriptor = String("\x00" * 16, readLen = CallableValue(16))
         self.pad4octetsA = UInt32Le(0)
         self.desktopSaveXGranularity = UInt16Le(1)
         self.desktopSaveYGranularity = UInt16Le(20)
@@ -316,7 +316,7 @@ class OrderCapability(CompositeType):
         self.maximumOrderLevel = UInt16Le(1)
         self.numberFonts = UInt16Le()
         self.orderFlags = UInt16Le(OrderFlag.NEGOTIATEORDERSUPPORT)
-        self.orderSupport = ArrayType(UInt8, init = [UInt8(0) for _ in range (0, 32)],  readLen = UInt8(32))
+        self.orderSupport = ArrayType(UInt8, init = [UInt8(0) for _ in range (0, 32)],  readLen = CallableValue(32))
         self.textFlags = UInt16Le()
         self.orderSupportExFlags = UInt16Le()
         self.pad4octetsB = UInt32Le()
@@ -388,7 +388,7 @@ class InputCapability(CompositeType):
         #same value as gcc.ClientCoreSettings.keyboardFnKeys
         self.keyboardFunctionKey = UInt32Le()
         #same value as gcc.ClientCoreSettingrrs.imeFileName
-        self.imeFileName = String("\x00" * 64, readLen = UInt8(64))
+        self.imeFileName = String("\x00" * 64, readLen = CallableValue(64))
         
 class BrushCapability(CompositeType):
     """
@@ -412,7 +412,7 @@ class GlyphCapability(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.glyphCache = ArrayType(CacheEntry, init = [CacheEntry() for _ in range(0,10)], readLen = UInt8(10))
+        self.glyphCache = ArrayType(CacheEntry, init = [CacheEntry() for _ in range(0,10)], readLen = CallableValue(10))
         self.fragCache = UInt32Le()
         #all fonts are sent with bitmap format (very expensive)
         self.glyphSupportLevel = UInt16Le(GlyphSupport.GLYPH_SUPPORT_NONE)

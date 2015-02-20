@@ -22,7 +22,7 @@ Implement the main graphic layer
 
 In this layer are managed all mains bitmap update orders end user inputs
 """
-from rdpy.core.type import CompositeType, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+from rdpy.core.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
 from rdpy.core.error import InvalidExpectedDataException
 import rdpy.core.log as log
 import caps, order
@@ -670,7 +670,7 @@ class PersistentListPDU(CompositeType):
         self.bitMask = UInt8()
         self.pad2 = UInt8()
         self.pad3 = UInt16Le()
-        self.entries = ArrayType(PersistentListEntry, readLen = UInt16Le(lambda:(self.numEntriesCache0 + self.numEntriesCache1 + self.numEntriesCache2 + self.numEntriesCache3 + self.numEntriesCache4)))
+        self.entries = ArrayType(PersistentListEntry, readLen = CallableValue(lambda:(self.numEntriesCache0 + self.numEntriesCache1 + self.numEntriesCache2 + self.numEntriesCache3 + self.numEntriesCache4)))
 
 class ClientInputEventPDU(CompositeType):
     """
@@ -873,7 +873,7 @@ class BitmapData(CompositeType):
         self.flags = UInt16Le()
         self.bitmapLength = UInt16Le(lambda:(sizeof(self.bitmapComprHdr) + sizeof(self.bitmapDataStream)))
         self.bitmapComprHdr = BitmapCompressedDataHeader(bodySize = lambda:sizeof(self.bitmapDataStream), scanWidth = lambda:self.width.value, uncompressedSize = lambda:(self.width.value * self.height.value * self.bitsPerPixel.value), conditional = lambda:((self.flags.value & BitmapFlag.BITMAP_COMPRESSION) and not (self.flags.value & BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
-        self.bitmapDataStream = String(bitmapDataStream, readLen = UInt16Le(lambda:(self.bitmapLength.value if (not self.flags.value & BitmapFlag.BITMAP_COMPRESSION or self.flags.value & BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
+        self.bitmapDataStream = String(bitmapDataStream, readLen = CallableValue(lambda:(self.bitmapLength.value if (not self.flags.value & BitmapFlag.BITMAP_COMPRESSION or self.flags.value & BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
 
 class FastPathBitmapUpdateDataPDU(CompositeType):
     """

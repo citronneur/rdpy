@@ -22,7 +22,7 @@
 @see: https://msdn.microsoft.com/en-us/library/cc236621.aspx
 """
 
-from rdpy.core.type import CompositeType, String, UInt8, UInt16Le, UInt24Le, UInt32Le
+from rdpy.core.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt24Le, UInt32Le
 
 class MajorVersion(object):
     """
@@ -89,13 +89,14 @@ class Version(CompositeType):
 
 class NegotiateMessage(CompositeType):
     """
-    @summary: Negotiate capability of NTLM Authentication
+    @summary: Message send from client to server to negotiate capability of NTLM Authentication
     @see: https://msdn.microsoft.com/en-us/library/cc236641.aspx
     """
     def __init__(self):
         CompositeType.__init__(self)
         self.Signature = String("NTLMSSP\x00", constant = True)
-        self.MessageType = UInt32Le(0x00000001)
+        self.MessageType = UInt32Le(0x00000001, constant = True)
+        
         self.NegotiateFlags = UInt32Le(Negotiate.NTLMSSP_NEGOTIATE_KEY_EXCH |
                               Negotiate.NTLMSSP_NEGOTIATE_128 |
                               Negotiate.NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY |
@@ -105,12 +106,41 @@ class NegotiateMessage(CompositeType):
                               Negotiate.NTLMSSP_NEGOTIATE_SEAL |
                               Negotiate.NTLMSSP_REQUEST_TARGET |
                               Negotiate.NTLMSSP_NEGOTIATE_UNICODE)
+        
         self.DomainNameLen = UInt16Le()
         self.DomainNameMaxLen = UInt16Le(lambda:self.DomainNameLen.value)
         self.DomainNameBufferOffset = UInt32Le()
+        
         self.WorkstationLen = UInt16Le()
         self.WorkstationMaxLen = UInt16Le(lambda:self.WorkstationLen.value)
         self.WorkstationBufferOffset = UInt32Le()
+        
+        self.Version = Version(conditional = lambda:(self.NegotiateFlags & Negotiate.NTLMSSP_NEGOTIATE_VERSION))
+        
+        self.Payload = String()
+
+class ChallengeMessage(CompositeType):
+    """
+    @summary: Message send from server to client contains server challenge
+    @see: https://msdn.microsoft.com/en-us/library/cc236642.aspx
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.Signature = String("NTLMSSP\x00", constant = True)
+        self.MessageType = UInt32Le(0x00000002, constant = True)
+        
+        self.TargetNameLen = UInt16Le()
+        self.TargetNameMaxLen = UInt16Le(lambda:self.TargetNameLen.value)
+        self.TargetNameBufferOffset = UInt32Le()
+        
+        self.NegotiateFlags = UInt32Le()
+        
+        self.ServerChallenge = String(readLen = CallableValue(8))
+        self.Reserved = String("\x00" * 8, readLen = CallableValue(8))
+        
+        self.TargetInfoLen = UInt16Le()
+        self.TargetInfoMaxLen = UInt16Le(lambda:self.TargetInfoLen.value)
+        self.TargetInfoBufferOffset = UInt32Le()
+        
         self.Version = Version(conditional = lambda:(self.NegotiateFlags & Negotiate.NTLMSSP_NEGOTIATE_VERSION))
         self.Payload = String()
-        

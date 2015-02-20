@@ -225,3 +225,11 @@ class TPKT(RawLayer, IFastPathSender):
         """
         #send first NTLM packet
         self.transport.write(cssp.createBERRequest( [ ntlm.NegotiateMessage() ] ))
+        
+        
+        
+    def readNTLMChallenge(self, data):
+        """
+        @summary: server NTLM challenge
+        """
+        

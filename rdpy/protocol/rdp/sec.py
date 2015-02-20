@@ -22,8 +22,9 @@ RDP Standard security layer
 """
 
 import sha, md5
-import gcc, lic, tpkt, mcs
-from rdpy.core.type import CompositeType, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
+import lic, tpkt
+from t125 import gcc, mcs
+from rdpy.core.type import CompositeType, CallableValue, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.error import InvalidExpectedDataException
 from rdpy.core import log
@@ -308,8 +309,8 @@ class ClientSecurityExchangePDU(CompositeType):
     def __init__(self):
         CompositeType.__init__(self)
         self.length = UInt32Le(lambda:(sizeof(self) - 4))
-        self.encryptedClientRandom = String(readLen = UInt8(lambda:(self.length.value - 8)))
-        self.padding = String("\x00" * 8, readLen = UInt8(8))
+        self.encryptedClientRandom = String(readLen = CallableValue(lambda:(self.length.value - 8)))
+        self.padding = String("\x00" * 8, readLen = CallableValue(8))
         
 class RDPInfo(CompositeType):
     """
@@ -329,13 +330,13 @@ class RDPInfo(CompositeType):
         self.cbAlternateShell = UInt16Le(lambda:sizeof(self.alternateShell) - 2)
         self.cbWorkingDir = UInt16Le(lambda:sizeof(self.workingDir) - 2)
         #microsoft domain
-        self.domain = String(readLen = UInt16Le(lambda:self.cbDomain.value + 2), unicode = True)
-        self.userName = String(readLen = UInt16Le(lambda:self.cbUserName.value + 2), unicode = True)
-        self.password = String(readLen = UInt16Le(lambda:self.cbPassword.value + 2), unicode = True)
+        self.domain = String(readLen = CallableValue(lambda:self.cbDomain.value + 2), unicode = True)
+        self.userName = String(readLen = CallableValue(lambda:self.cbUserName.value + 2), unicode = True)
+        self.password = String(readLen = CallableValue(lambda:self.cbPassword.value + 2), unicode = True)
         #shell execute at start of session
-        self.alternateShell = String(readLen = UInt16Le(lambda:self.cbAlternateShell.value + 2), unicode = True)
+        self.alternateShell = String(readLen = CallableValue(lambda:self.cbAlternateShell.value + 2), unicode = True)
         #working directory for session
-        self.workingDir = String(readLen = UInt16Le(lambda:self.cbWorkingDir.value + 2), unicode = True)
+        self.workingDir = String(readLen = CallableValue(lambda:self.cbWorkingDir.value + 2), unicode = True)
         self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
         
 class RDPExtendedInfo(CompositeType):
@@ -408,7 +409,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
             self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
             self._nbDecryptedPacket = 0
         
-        signature = String(readLen = UInt8(8))
+        signature = String(readLen = CallableValue(8))
         encryptedPayload = String()
         s.readType((signature, encryptedPayload))
         decrypted = rc4.crypt(self._decryptRc4, encryptedPayload.value)
