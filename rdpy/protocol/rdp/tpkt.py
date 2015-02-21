@@ -223,9 +223,8 @@ class TPKT(RawLayer, IFastPathSender):
         @summary: use to start NLA (NTLM over SSL) protocol
                     must be called after startTLS function
         """
-        #send first NTLM packet
-        self.transport.write(cssp.createBERRequest( [ ntlm.NegotiateMessage() ] ))
-        
+        #send NTLM negotiate message packet
+        self.transport.write(cssp.createDERRequest( [ ntlm.NegotiateMessage() ] ))
         
         
     def readNTLMChallenge(self, data):

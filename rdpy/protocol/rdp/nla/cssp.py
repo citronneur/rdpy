@@ -97,7 +97,7 @@ class TSSmartCardCreds(univ.Sequence):
         namedtype.OptionalNamedType('domainHint', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3)))
         )
 
-def createBERRequest(negoTypes):
+def createDERRequest(negoTypes):
     """
     @summary: create TSRequest from list of Type
     @param negoTypes: {list(Type)}
