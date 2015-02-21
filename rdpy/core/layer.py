@@ -200,7 +200,7 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         #add in buffer
         self._buffer += data
         #while buffer have expected size call local callback
-        while len(self._buffer) >= self._expectedLen:
+        while self._expectedLen > 0 and len(self._buffer) >= self._expectedLen:
             #expected data is first expected bytes
             expectedData = Stream(self._buffer[0:self._expectedLen])
             #rest is for next event of automata
@@ -238,8 +238,26 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         @param expectedLen: in bytes length use to call next state
         @param callback: callback call when expected length bytes is received
         """
+        self.dataReceived = lambda data:self.__class__.dataReceived(self, data)
         self._expectedLen = expectedLen
         #default callback is recv from LayerAutomata
+        self.setNextState(callback)
+    
+    def byPassDataReceived(self, data):
+        """
+        @summary: by pass automata received
+        @warning: ignore rest in buffer
+        @param data: {str} received from twisted
+        """
+        self.recv(Stream(data))
+        
+    def expectImmediately(self, callback = None):
+        """
+        @summary: call immediately when available data is received
+        @param callback: {func} callback called
+        """
+        self.dataReceived = lambda data:self.__class__.byPassDataReceived(self, data)
+        self._expectedLen = 0
         self.setNextState(callback)
         
     def send(self, message):
