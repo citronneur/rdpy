@@ -185,17 +185,17 @@ class TPKT(RawLayer, IFastPathSender):
         @summary: Fast path data
         @param data: {Stream} from twisted layer
         """
-        self.expect(2, self.readHeader)
         self._fastPathListener.recvFastPath(self._secFlag, data)
+        self.expect(2, self.readHeader)
     
     def readData(self, data):
         """
         @summary: Read classic TPKT packet, last state in tpkt automata
         @param data: {Stream} with correct size
         """
-        self.expect(2, self.readHeader)
         #next state is pass to 
         self._presentation.recv(data)
+        self.expect(2, self.readHeader)
         
     def send(self, message):
         """
@@ -224,7 +224,7 @@ class TPKT(RawLayer, IFastPathSender):
                     must be called after startTLS function
         """
         #send NTLM negotiate message packet
-        self.transport.write(cssp.encodeDERTRequest( [ ntlm.NegotiateMessage() ] ))
+        RawLayer.send(self, cssp.encodeDERTRequest( [ ntlm.NegotiateMessage() ] ))
         self.expectImmediately(self.readNTLMChallenge)
         
     def readNTLMChallenge(self, data):

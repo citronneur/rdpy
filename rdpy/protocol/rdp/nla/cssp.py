@@ -23,8 +23,8 @@
 """
 
 from pyasn1.type import namedtype, univ, tag
-from pyasn1.codec.der import encoder
-from rdpy.core.type import Stream
+from pyasn1.codec.der import encoder, decoder
+from rdpy.core.type import Stream, String
 
 class NegoToken(univ.Sequence):
     componentType = namedtype.NamedTypes(
@@ -101,7 +101,7 @@ def encodeDERTRequest(negoTypes):
     """
     @summary: create TSRequest from list of Type
     @param negoTypes: {list(Type)}
-    @return: {str}
+    @return: {String}
     """
     negoData = NegoData().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))
     
@@ -118,7 +118,12 @@ def encodeDERTRequest(negoTypes):
     request = TSRequest()
     request.setComponentByName("version", univ.Integer(2).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0)))
     request.setComponentByName("negoTokens", negoData)
-    return encoder.encode(request)
+    return String(encoder.encode(request))
 
-def decodeDERTRequest():
-    pass
+def decodeDERTRequest(s):
+    """
+    @summary: Decode the stream as 
+    @param s: {Stream}
+    """
+    tRequest = decoder.decode(s.getvalue(), asn1Spec=TSRequest())
+    print tRequest
