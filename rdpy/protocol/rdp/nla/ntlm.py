@@ -94,7 +94,7 @@ class NegotiateMessage(CompositeType):
     """
     def __init__(self):
         CompositeType.__init__(self)
-        self.Signature = String("NTLMSSP\x00", constant = True)
+        self.Signature = String("NTLMSSP\x00", readLen = CallableValue(8), constant = True)
         self.MessageType = UInt32Le(0x00000001, constant = True)
         
         self.NegotiateFlags = UInt32Le(Negotiate.NTLMSSP_NEGOTIATE_KEY_EXCH |
@@ -105,6 +105,7 @@ class NegotiateMessage(CompositeType):
                               Negotiate.NTLMSSP_NEGOTIATE_SIGN |
                               Negotiate.NTLMSSP_NEGOTIATE_SEAL |
                               Negotiate.NTLMSSP_REQUEST_TARGET |
+                              Negotiate.NTLMSSP_NEGOTIATE_VERSION |
                               Negotiate.NTLMSSP_NEGOTIATE_UNICODE)
         
         self.DomainNameLen = UInt16Le()
@@ -126,7 +127,7 @@ class ChallengeMessage(CompositeType):
     """
     def __init__(self):
         CompositeType.__init__(self)
-        self.Signature = String("NTLMSSP\x00", constant = True)
+        self.Signature = String("NTLMSSP\x00", readLen = CallableValue(8), constant = True)
         self.MessageType = UInt32Le(0x00000002, constant = True)
         
         self.TargetNameLen = UInt16Le()

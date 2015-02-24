@@ -137,7 +137,7 @@ class RawLayerClientFactory(protocol.ClientFactory):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "connectionLost", "RawLayerClientFactory"))
     
-class RawLayerServerFactory(protocol.ClientFactory):
+class RawLayerServerFactory(protocol.ServerFactory):
     """
     @summary: Abstract class for Raw layer server factory
     """

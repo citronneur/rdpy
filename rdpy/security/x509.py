@@ -148,11 +148,8 @@ def extractRSAKey(certificate):
     """
     #http://www.alvestrand.no/objectid/1.2.840.113549.1.1.1.html
     
-    #extract binary data
-    l = 0L
-    for b in certificate.getComponentByName('tbsCertificate').getComponentByName('subjectPublicKeyInfo').getComponentByName('subjectPublicKey'):
-        l = (l << 1) | b
-        
+    binaryTuple = certificate.getComponentByName('tbsCertificate').getComponentByName('subjectPublicKeyInfo').getComponentByName('subjectPublicKey')        
+    l = int("".join([str(i) for i in binaryTuple]), 2)
     rsaKey = decoder.decode(hex(l)[2:-1].decode('hex'), asn1Spec=RSAPublicKey())[0]
     return rsaKey.getComponentByName('modulus')._value , rsaKey.getComponentByName('publicExponent')._value
     

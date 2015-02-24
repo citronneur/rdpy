@@ -230,5 +230,9 @@ class TPKT(RawLayer, IFastPathSender):
     def readNTLMChallenge(self, data):
         """
         @summary: server NTLM challenge
+        @param data: {Stream}
         """
-        print "toto"
+        s = cssp.decodeDERTRequest(data)
+        challenge = ntlm.ChallengeMessage()
+        s[0].readType(challenge)
+        print challenge.ServerChallenge.value

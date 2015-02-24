@@ -125,5 +125,9 @@ def decodeDERTRequest(s):
     @summary: Decode the stream as 
     @param s: {Stream}
     """
-    tRequest = decoder.decode(s.getvalue(), asn1Spec=TSRequest())
-    print tRequest
+    tRequest = decoder.decode(s.getvalue(), asn1Spec=TSRequest())[0]
+    negoData = tRequest.getComponentByName("negoTokens")
+    
+    result = [Stream(negoData.getComponentByPosition(i).getComponentByPosition(0).asOctets()) for i in range(len(negoData))]
+    
+    return result
