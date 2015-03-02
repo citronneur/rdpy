@@ -235,4 +235,5 @@ class TPKT(RawLayer, IFastPathSender):
         s = cssp.decodeDERTRequest(data)
         challenge = ntlm.ChallengeMessage()
         s[0].readType(challenge)
-        print challenge.ServerChallenge.value
+        RawLayer.send(self, cssp.encodeDERTRequest( [ ntlm.createAuthenticationMessage(ntlm.NTLMv2Authenticate, challenge, "toto", "toto", "toto") ] ))
+        self.restartAutomata()
