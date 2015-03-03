@@ -123,11 +123,13 @@ def encodeDERTRequest(negoTypes):
 def decodeDERTRequest(s):
     """
     @summary: Decode the stream as 
-    @param s: {Stream}
+    @param s: ([{Stream}], {str} pubKeyAuth)
     """
-    tRequest = decoder.decode(s.getvalue(), asn1Spec=TSRequest())[0]
+    return decoder.decode(s.getvalue(), asn1Spec=TSRequest())[0]
+
+def getNegoTokens(tRequest):
     negoData = tRequest.getComponentByName("negoTokens")
+    return [Stream(negoData.getComponentByPosition(i).getComponentByPosition(0).asOctets()) for i in range(len(negoData))]
     
-    result = [Stream(negoData.getComponentByPosition(i).getComponentByPosition(0).asOctets()) for i in range(len(negoData))]
-    
-    return result
+def getPubKeyAuth(tRequest):
+    return tRequest.getComponentByName("pubKeyAuth").asOctets()
