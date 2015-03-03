@@ -298,6 +298,13 @@ def KXKEY(SessionBaseKey, LmChallengeResponse, ServerChallenge):
     @see: https://msdn.microsoft.com/en-us/library/cc236710.aspx
     """
     return HMAC_MD5(SessionBaseKey, ServerChallenge + LmChallengeResponse[:8])
+
+def SEALKEY(ExportedSessionKey):
+    return MD5(ExportedSessionKey + "session key to client-to-server sealing key magic constant")
+
+def SIGNKEY(ExportedSessionKey):
+    return MD5(ExportedSessionKey + "session key to client-to-server signing key magic constant")
+
    
 def NTOWFv1(Passwd, User, UserDom):
     """
@@ -383,7 +390,6 @@ def createAuthenticationMessage(method, challengeResponse, domain, user, passwor
     offset = sizeof(message)
     
     message.NegotiateFlags.value = challengeResponse.NegotiateFlags.value
-    message.NegotiateFlags.value &= ~Negotiate.NTLMSSP_NEGOTIATE_VERSION
     
     message.LmChallengeResponseLen.value = len(LmChallengeResponse)
     message.LmChallengeResponseBufferOffset.value = offset
@@ -559,41 +565,49 @@ if __name__ == "__main__":
     ServerName2 = temp[28:-4]
     
     LmChallengeResponse = authenticate.getLmChallengeResponse()
-    SessionBaseKey = authenticate.getEncryptedRandomSession()
+    EncryptedRandom = authenticate.getEncryptedRandomSession()
     encryptedPubKey = cssp.getPubKeyAuth(authenticate_data_request)
     
     NtChallengeResponse2, LmChallengeResponse2, SessionBaseKey2 = NTLMv2Authenticate(None, "coco", "toto", "lolo", ServerChallenge, ServerName, Time, ClientChallenge)
     
-    KeyExchangeKey = HMAC_MD5(SessionBaseKey2, ServerChallenge + LmChallengeResponse[:7])
-    ExportedSessionKey = RC4K(KeyExchangeKey, SessionBaseKey)
-    sealingKey = MD5(ExportedSessionKey + "session key to client-to-server sealing key magic constant")
-    #sealingKey = MD5(sealingKey + "\x00" + "\x00" * 3)
+    KeyExchangeKey = KXKEY(SessionBaseKey2, LmChallengeResponse2, ServerChallenge)
+    #decrypt 
+    ExportedSessionKey = RC4K(KeyExchangeKey, EncryptedRandom)
     
-    encryptedPubKey2 = RC4K(sealingKey, pubKey)
+    sealingKey = SEALKEY(ExportedSessionKey)
+    signingKey = SIGNKEY(ExportedSessionKey)
+    
+    key = rc4.RC4Key(sealingKey)
+    
+    encryptedPubKey2 = rc4.crypt(key, pubKey)
+    signature = rc4.crypt(key, HMAC_MD5(signingKey, "\x00\x00\x00\x00" + pubKey)[:8])
+    
     
     hexdump.hexdump(encryptedPubKey)
     print "\n"
+    hexdump.hexdump(signature)
+    print "\n"
     hexdump.hexdump(encryptedPubKey2)
-    print "-"*40
-    print "NtChallengeResponse"
-    print "\n"
-    hexdump.hexdump(NtChallengeResponse)
-    print "\n"
-    hexdump.hexdump(NtChallengeResponse2)
-    print "-"*40
-     
-    print "-"*40
-    print "LmChallengeResponse"
-    print "\n"
-    hexdump.hexdump(LmChallengeResponse)
-    print "\n"
-    hexdump.hexdump(LmChallengeResponse2)
-    print "-"*40
-     
-    print "-"*40
-    print "SessionBaseKey"
-    print "\n"
-    hexdump.hexdump(SessionBaseKey)
-    print "\n"
-    hexdump.hexdump(SessionBaseKey2)
-    print "-"*40
+#     print "-"*40
+#     print "NtChallengeResponse"
+#     print "\n"
+#     hexdump.hexdump(NtChallengeResponse)
+#     print "\n"
+#     hexdump.hexdump(NtChallengeResponse2)
+#     print "-"*40
+#      
+#     print "-"*40
+#     print "LmChallengeResponse"
+#     print "\n"
+#     hexdump.hexdump(LmChallengeResponse)
+#     print "\n"
+#     hexdump.hexdump(LmChallengeResponse2)
+#     print "-"*40
+#      
+#     print "-"*40
+#     print "SessionBaseKey"
+#     print "\n"
+#     hexdump.hexdump(SessionBaseKey)
+#     print "\n"
+#     hexdump.hexdump(SessionBaseKey2)
+#     print "-"*40
