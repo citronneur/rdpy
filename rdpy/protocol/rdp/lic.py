@@ -303,9 +303,12 @@ class LicenseManager(object):
         """
         #get server information
         serverRandom = licenseRequest.serverRandom.value
-        s = Stream(licenseRequest.serverCertificate.blobData.value)
-        serverCertificate = gcc.ServerCertificate()
-        s.readType(serverCertificate)
+        if self._transport.getGCCServerSettings().SC_SECURITY.serverCertificate._is_readed:
+            serverCertificate = self._transport.getGCCServerSettings().SC_SECURITY.serverCertificate
+        else:
+            s = Stream(licenseRequest.serverCertificate.blobData.value)
+            serverCertificate = gcc.ServerCertificate()
+            s.readType(serverCertificate)
         
         #generate crypto values
         clientRandom = rsa.random(256)

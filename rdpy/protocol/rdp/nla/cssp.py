@@ -24,7 +24,10 @@
 
 from pyasn1.type import namedtype, univ, tag
 from pyasn1.codec.der import encoder, decoder
-from rdpy.core.type import Stream, String
+from rdpy.core.type import Stream
+from rdpy.security import x509
+from twisted.internet import protocol
+from OpenSSL import crypto
 
 class NegoToken(univ.Sequence):
     componentType = namedtype.NamedTypes(
@@ -101,7 +104,7 @@ def encodeDERTRequest(negoTypes = [], pubKeyAuth = None):
     """
     @summary: create TSRequest from list of Type
     @param negoTypes: {list(Type)}
-    @return: {String}
+    @return: {str}
     """
     negoData = NegoData().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))
     
@@ -121,14 +124,14 @@ def encodeDERTRequest(negoTypes = [], pubKeyAuth = None):
     if not pubKeyAuth is None:
         request.setComponentByName("pubKeyAuth", univ.OctetString(pubKeyAuth).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3)))
         
-    return String(encoder.encode(request))
+    return encoder.encode(request)
 
 def decodeDERTRequest(s):
     """
     @summary: Decode the stream as 
-    @param s: ([{Stream}], {str} pubKeyAuth)
+    @param s: {str}
     """
-    return decoder.decode(s.getvalue(), asn1Spec=TSRequest())[0]
+    return decoder.decode(s, asn1Spec=TSRequest())[0]
 
 def getNegoTokens(tRequest):
     negoData = tRequest.getComponentByName("negoTokens")
@@ -136,3 +139,79 @@ def getNegoTokens(tRequest):
     
 def getPubKeyAuth(tRequest):
     return tRequest.getComponentByName("pubKeyAuth").asOctets()
+
+class CSSP(protocol.Protocol):
+    """
+    @summary: Handle CSSP connection
+    Proxy class for authentication
+    """
+    def __init__(self, layer, authenticationProtocol):
+        """
+        @param layer: {type.Layer.RawLayer}
+        @param authenticationProtocol: {sspi.IAuthenticationProtocol}
+        """
+        self._layer = layer
+        self._authenticationProtocol = authenticationProtocol
+        
+    def setFactory(self, factory):
+        """
+        @summary: Call by RawLayer Factory
+        @param param: RawLayerClientFactory or RawLayerFactory
+        """
+        self._layer.setFactory(factory)
+        
+    def dataReceived(self, data):
+        """
+        @summary:  Inherit from twisted.protocol class
+                    main event of received data
+        @param data: string data receive from twisted
+        """
+        self._layer.dataReceived(data)
+            
+    def connectionMade(self):
+        """
+        @summary: install proxy
+        """
+        self._layer.transport = self
+        self._layer.connectionMade()
+    
+    def write(self, data):
+        """
+        @summary: write data on transport layer
+        @param data: {str}
+        """
+        self.transport.write(data)
+    
+    def startTLS(self, sslContext):
+        """
+        @summary: start TLS protocol
+        @param sslContext: {ssl.ClientContextFactory | ssl.DefaultOpenSSLContextFactory} context use for TLS protocol
+        """
+        self.transport.startTLS(sslContext)
+        
+    def startNLA(self):
+        """
+        @summary: start NLA authentication
+        """
+        #send negotiate message
+        self.transport.write(encodeDERTRequest( negoTypes = [ self._authenticationProtocol.getNegotiateMessage() ] ))
+        #next state is receive a challenge
+        self.dataReceived = self.recvChallenge
+        
+    def recvChallenge(self, data):
+        """
+        @summary: second state in cssp automata
+        @param {str}: all data available on buffer
+        """
+        #get back public key
+        toto = self.transport.protocol._tlsConnection.get_peer_certificate().get_pubkey()
+        lolo = crypto.dump_privatekey(crypto.FILETYPE_ASN1, toto)
+        modulus, exponent = x509.extractRSAKey2(lolo)
+        import hexdump
+        print lolo
+        hexdump.hexdump(lolo)
+        request = decodeDERTRequest(data)
+        message, interface = self._authenticationProtocol.getAuthenticateMessage(getNegoTokens(request)[0])
+        #send authenticate message with public key encoded
+        import ntlm
+        self.transport.write(encodeDERTRequest( negoTypes = [ message ], pubKeyAuth = interface.GSS_WrapEx("".join([chr(i) for i in ntlm.pubKeyHex]))))

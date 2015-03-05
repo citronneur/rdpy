@@ -183,7 +183,6 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         #len of next packet pass to next state function
         self._expectedLen = 0
         self._factory = None
-        self._immediateCallback = None
         
     def setFactory(self, factory):
         """
@@ -242,28 +241,6 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         self._expectedLen = expectedLen
         #default callback is recv from LayerAutomata
         self.setNextState(callback)
-    
-    def dataReceivedAll(self, data):
-        """
-        @summary: by pass automata received
-        @warning: ignore rest in buffer
-        @param data: {str} received from twisted
-        """
-        self._immediateCallback(Stream(data))
-        
-    def expectImmediately(self, callback):
-        """
-        @summary: call immediately when available data is received
-        @param callback: {func} callback called
-        """
-        self.dataReceived = lambda data:self.__class__.dataReceivedAll(self, data)
-        self._immediateCallback = callback
-        
-    def restartAutomata(self):
-        """
-        @summary: restart automata
-        """
-        self.dataReceived = lambda data:self.__class__.dataReceived(self, data)
         
     def send(self, message):
         """

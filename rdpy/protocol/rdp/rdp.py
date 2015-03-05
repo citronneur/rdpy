@@ -29,6 +29,7 @@ import pdu.caps
 import rdpy.core.log as log
 import tpkt, x224, sec
 from t125 import mcs, gcc
+from nla import cssp, ntlm
 
 class RDPClientController(pdu.layer.PDUClientListener):
     """
@@ -526,7 +527,8 @@ class ClientFactory(layer.RawLayerClientFactory):
         """
         controller = RDPClientController()
         self.buildObserver(controller, addr)
-        return controller.getProtocol()
+        #Add cssp proxy in case of nla protocol
+        return cssp.CSSP(controller.getProtocol(), ntlm.NTLMv2("toto", "coco", "lolo"))
     
     def buildObserver(self, controller, addr):
         """
