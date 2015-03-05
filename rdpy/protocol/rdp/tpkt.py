@@ -114,6 +114,7 @@ class TPKT(RawLayer, IFastPathSender):
         self._fastPathListener = None
         #last secure flag
         self._secFlag = 0
+        self._ntlm = ntlm.NTLMv2("dodo", "uouo", "popo")
             
     def setFastPathListener(self, fastPathListener):
         """
@@ -223,8 +224,10 @@ class TPKT(RawLayer, IFastPathSender):
         @summary: use to start NLA (NTLM over SSL) protocol
                     must be called after startTLS function
         """
+        #import hexdump
+        #hexdump.hexdump(self.transport.protocol._tlsConnection.getpeercert())
         #send NTLM negotiate message packet
-        RawLayer.send(self, cssp.encodeDERTRequest( [ ntlm.NegotiateMessage() ] ))
+        RawLayer.send(self, cssp.encodeDERTRequest( negoTypes = [ self._ntlm.getNegotiateMessage() ] ))
         self.expectImmediately(self.readNTLMChallenge)
         
     def readNTLMChallenge(self, data):
@@ -232,8 +235,7 @@ class TPKT(RawLayer, IFastPathSender):
         @summary: server NTLM challenge
         @param data: {Stream}
         """
-        s = cssp.decodeDERTRequest(data)
-        challenge = ntlm.ChallengeMessage()
-        s[0].readType(challenge)
-        RawLayer.send(self, cssp.encodeDERTRequest( [ ntlm.createAuthenticationMessage(ntlm.NTLMv2Authenticate, challenge, "toto", "toto", "toto") ] ))
+        request = cssp.decodeDERTRequest(data)
+        message, interface = self._ntlm.getAuthenticateMessage(cssp.getNegoTokens(request)[0])
+        RawLayer.send(self, cssp.encodeDERTRequest( negoTypes = [ message ], pubKeyAuth = interface.GSS_WrapEx("".join([chr(i) for i in ntlm.pubKeyHex]))))
         self.restartAutomata()

@@ -97,7 +97,7 @@ class TSSmartCardCreds(univ.Sequence):
         namedtype.OptionalNamedType('domainHint', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3)))
         )
 
-def encodeDERTRequest(negoTypes):
+def encodeDERTRequest(negoTypes = [], pubKeyAuth = None):
     """
     @summary: create TSRequest from list of Type
     @param negoTypes: {list(Type)}
@@ -118,6 +118,9 @@ def encodeDERTRequest(negoTypes):
     request = TSRequest()
     request.setComponentByName("version", univ.Integer(2).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0)))
     request.setComponentByName("negoTokens", negoData)
+    if not pubKeyAuth is None:
+        request.setComponentByName("pubKeyAuth", univ.OctetString(pubKeyAuth).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3)))
+        
     return String(encoder.encode(request))
 
 def decodeDERTRequest(s):
