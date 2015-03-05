@@ -683,9 +683,9 @@ if __name__ == "__main__":
     ClientChallenge = temp[16:24]
     EncryptedRandomSessionKey = authenticate.getEncryptedRandomSession()
     
-    domain = "siradel"
-    user = "speyrefitte"
-    password = "spe+99@12"
+    domain = ""
+    user = ""
+    password = ""
     ResponseKeyNT = NTOWFv2(password, user, domain)
     ResponseKeyLM = LMOWFv2(password, user, domain)
         
