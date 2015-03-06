@@ -28,7 +28,7 @@ import rdpy.security.pyDes as pyDes
 import rdpy.security.rc4 as rc4
 from rdpy.security.rsa_wrapper import random
 from rdpy.core.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt24Le, UInt32Le, sizeof, Stream
-from rdpy.core import filetimes
+from rdpy.core import filetimes, error
 
 class MajorVersion(object):
     """
@@ -80,6 +80,22 @@ class Negotiate(object):
     NTLM_NEGOTIATE_OEM = 0x00000002
     NTLMSSP_NEGOTIATE_UNICODE = 0x00000001
     
+class AvId(object):
+    """
+    @see: https://msdn.microsoft.com/en-us/library/cc236646.aspx
+    """
+    MsvAvEOL = 0x0000
+    MsvAvNbComputerName = 0x0001
+    MsvAvNbDomainName = 0x0002
+    MsvAvDnsComputerName = 0x0003
+    MsvAvDnsDomainName = 0x0004
+    MsvAvDnsTreeName = 0x0005
+    MsvAvFlags = 0x0006
+    MsvAvTimestamp = 0x0007
+    MsvAvSingleHost = 0x0008
+    MsvAvTargetName = 0x0009
+    MsvChannelBindings = 0x000A
+    
 def getPayLoadField(message, length, bufferOffset):
         if length == 0:
             return None
@@ -101,6 +117,16 @@ class Version(CompositeType):
         self.Reserved = UInt24Le()
         self.NTLMRevisionCurrent = UInt8(NTLMRevision.NTLMSSP_REVISION_W2K3)
         
+class AvPair(CompositeType):
+    """
+    @see: https://msdn.microsoft.com/en-us/library/cc236646.aspx
+    """
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.AvId = UInt16Le()
+        self.AvLen = UInt16Le(lambda:sizeof(self.Value))
+        self.Value = String(readLen = self.AvLen)
+        
 class MessageSignatureEx(CompositeType):
     """
     @summary: Signature for message
@@ -109,7 +135,7 @@ class MessageSignatureEx(CompositeType):
     def __init__(self):
         CompositeType.__init__(self)
         self.Version = UInt32Le(0x00000001, constant = True)
-        self.Checksum = String(readLen = CallableValue(16))
+        self.Checksum = String(readLen = CallableValue(8))
         self.SeqNum = UInt32Le()
 
 class NegotiateMessage(CompositeType):
@@ -166,7 +192,22 @@ class ChallengeMessage(CompositeType):
         return getPayLoadField(self, self.TargetNameLen.value, self.TargetNameBufferOffset.value)
     
     def getTargetInfo(self):
-        return getPayLoadField(self, self.TargetInfoLen.value - 4, self.TargetInfoBufferOffset.value)
+        return getPayLoadField(self, self.TargetInfoLen.value, self.TargetInfoBufferOffset.value)
+    
+    def getTargetInfoAsAvPairArray(self):
+        """
+        @summary: Parse Target info field to retrieve array of AvPair
+        @return: {map(AvId, str)}
+        """
+        result = {}
+        s = Stream(self.getTargetInfo())
+        while(True):
+            avPair = AvPair()
+            s.readType(avPair)
+            if avPair.AvId.value == AvId.MsvAvEOL:
+                return result
+            result[avPair.AvId.value] = avPair.Value.value
+            
         
 class AuthenticateMessage(CompositeType):
     """
@@ -205,7 +246,7 @@ class AuthenticateMessage(CompositeType):
         self.NegotiateFlags = UInt32Le()
         self.Version = Version(conditional = lambda:(self.NegotiateFlags.value & Negotiate.NTLMSSP_NEGOTIATE_VERSION))
         
-        #self.MIC = String("\x00" * 16, readLen = CallableValue(16))
+        self.MIC = String("\x00" * 16, readLen = CallableValue(16))
         self.Payload = String()
         
     def getUserName(self):
@@ -223,7 +264,7 @@ class AuthenticateMessage(CompositeType):
     def getEncryptedRandomSession(self):
         return getPayLoadField(self, self.EncryptedRandomSessionLen.value, self.EncryptedRandomSessionBufferOffset.value)
 
-def createAuthenticationMessage(domain, user, NtChallengeResponse, LmChallengeResponse, EncryptedRandomSessionKey):
+def createAuthenticationMessage(NegFlag, domain, user, NtChallengeResponse, LmChallengeResponse, EncryptedRandomSessionKey, Workstation):
     """
     @summary: Create an Authenticate Message
     @param domain: {str} domain microsoft
@@ -233,6 +274,7 @@ def createAuthenticationMessage(domain, user, NtChallengeResponse, LmChallengeRe
     @param EncryptedRandomSessionKey: {str} EncryptedRandomSessionKey
     """
     message = AuthenticateMessage()
+    message.NegotiateFlags.value = NegFlag
     #fill message
     offset = sizeof(message)
     
@@ -245,6 +287,11 @@ def createAuthenticationMessage(domain, user, NtChallengeResponse, LmChallengeRe
     message.UserNameBufferOffset.value = offset
     message.Payload.value += user
     offset += len(user)
+    
+    message.WorkstationLen.value = len(Workstation)
+    message.WorkstationBufferOffset.value = offset
+    message.Payload.value += Workstation
+    offset += len(Workstation)
     
     message.LmChallengeResponseLen.value = len(LmChallengeResponse)
     message.LmChallengeResponseBufferOffset.value = offset
@@ -399,7 +446,7 @@ def ComputeResponsev2(ResponseKeyNT, ResponseKeyLM, ServerChallenge, ClientChall
     Responserversion = "\x01"
     HiResponserversion = "\x01"
 
-    temp = Responserversion + HiResponserversion + Z(6) + Time + ClientChallenge + Z(4) + ServerName + Z(4)
+    temp = Responserversion + HiResponserversion + Z(6) + Time + ClientChallenge + Z(4) + ServerName
     NTProofStr = HMAC_MD5(ResponseKeyNT, ServerChallenge + temp)
     NtChallengeResponse = NTProofStr + temp
     LmChallengeResponse = HMAC_MD5(ResponseKeyLM, ServerChallenge + ClientChallenge) + ClientChallenge
@@ -427,6 +474,19 @@ def MAC(handle, SigningKey, SeqNum, Message):
     signature.Checksum.value = rc4.crypt(handle, HMAC_MD5(SigningKey, s.getvalue() + Message)[:8])
     
     return signature
+
+def MIC(ExportedSessionKey, negotiateMessage, challengeMessage, authenticateMessage):
+    """
+    @summary: Compute MIC signature
+    @param negotiateMessage: {NegotiateMessage}
+    @param challengeMessage: {ChallengeMessage}
+    @param authenticateMessage: {AuthenticateMessage}
+    @return: {str} signature
+    @see: https://msdn.microsoft.com/en-us/library/cc236676.aspx 
+    """
+    s = Stream()
+    s.writeType((negotiateMessage, challengeMessage, authenticateMessage))
+    return HMAC_MD5(ExportedSessionKey, s.getvalue())
     
 class NTLMv2(sspi.IAuthenticationProtocol):
     """
@@ -435,16 +495,23 @@ class NTLMv2(sspi.IAuthenticationProtocol):
     def __init__(self, domain, user, password):
         self._domain = domain
         self._user = user
+        self._password = password
+        self._enableUnicode = False
         #https://msdn.microsoft.com/en-us/library/cc236700.aspx
         self._ResponseKeyNT = NTOWFv2(password, user, domain)
         self._ResponseKeyLM = LMOWFv2(password, user, domain)
+        
+        #For MIC computation
+        self._negotiateMessage = None
+        self._challengeMessage = None
+        self._authenticateMessage = None
     
     def getNegotiateMessage(self):
         """
         @summary: generate first handshake messgae
         """
-        message = NegotiateMessage()
-        message.NegotiateFlags.value = (Negotiate.NTLMSSP_NEGOTIATE_KEY_EXCH |
+        self._negotiateMessage = NegotiateMessage()
+        self._negotiateMessage.NegotiateFlags.value = (Negotiate.NTLMSSP_NEGOTIATE_KEY_EXCH |
                                         Negotiate.NTLMSSP_NEGOTIATE_128 |
                                         Negotiate.NTLMSSP_NEGOTIATE_EXTENDED_SESSIONSECURITY |
                                         Negotiate.NTLMSSP_NEGOTIATE_ALWAYS_SIGN |
@@ -453,7 +520,7 @@ class NTLMv2(sspi.IAuthenticationProtocol):
                                         Negotiate.NTLMSSP_NEGOTIATE_SIGN |
                                         Negotiate.NTLMSSP_REQUEST_TARGET |
                                         Negotiate.NTLMSSP_NEGOTIATE_UNICODE)
-        return message
+        return self._negotiateMessage
     
     def getAuthenticateMessage(self, s):
         """
@@ -462,13 +529,21 @@ class NTLMv2(sspi.IAuthenticationProtocol):
         @return: {(AuthenticateMessage, NTLMv2SecurityInterface)} Last handshake message and security interface use to encrypt
         @see: https://msdn.microsoft.com/en-us/library/cc236676.aspx
         """
-        challenge = ChallengeMessage()
-        s.readType(challenge)
+        self._challengeMessage = ChallengeMessage()
+        s.readType(self._challengeMessage)
         
-        ServerChallenge = challenge.ServerChallenge.value
+        ServerChallenge = self._challengeMessage.ServerChallenge.value
         ClientChallenge = random(64)
-        Timestamp = CurrentFileTimes()
-        ServerName = challenge.getTargetInfo()
+        
+        computeMIC = False
+        ServerName = self._challengeMessage.getTargetInfo()
+        infos = self._challengeMessage.getTargetInfoAsAvPairArray()
+        if infos.has_key(AvId.MsvAvTimestamp):
+            Timestamp = infos[AvId.MsvAvTimestamp]
+            computeMIC = True
+        else:
+            Timestamp = CurrentFileTimes()
+    
         
         NtChallengeResponse, LmChallengeResponse, SessionBaseKey = ComputeResponsev2(self._ResponseKeyNT, self._ResponseKeyLM, ServerChallenge, ClientChallenge, Timestamp, ServerName)
         KeyExchangeKey = KXKEYv2(SessionBaseKey, LmChallengeResponse, ServerChallenge)
@@ -476,9 +551,15 @@ class NTLMv2(sspi.IAuthenticationProtocol):
         EncryptedRandomSessionKey = RC4K(KeyExchangeKey, ExportedSessionKey)
         
         domain, user = self._domain, self._user
-        if challenge.NegotiateFlags.value & Negotiate.NTLMSSP_NEGOTIATE_UNICODE:
+        if self._challengeMessage.NegotiateFlags.value & Negotiate.NTLMSSP_NEGOTIATE_UNICODE:
+            self._enableUnicode = True
             domain, user = UNICODE(domain), UNICODE(user)
-        message = createAuthenticationMessage(domain, user, NtChallengeResponse, LmChallengeResponse, EncryptedRandomSessionKey)
+        self._authenticateMessage = createAuthenticationMessage(self._challengeMessage.NegotiateFlags.value, domain, user, NtChallengeResponse, LmChallengeResponse, EncryptedRandomSessionKey, "")
+        
+        if computeMIC:
+            self._authenticateMessage.MIC.value = MIC(ExportedSessionKey, self._negotiateMessage, self._challengeMessage, self._authenticateMessage)
+        else:
+            self._authenticateMessage.MIC._conditional = lambda:False
         
         ClientSigningKey = SIGNKEY(ExportedSessionKey, True)
         ServerSigningKey = SIGNKEY(ExportedSessionKey, False)
@@ -487,7 +568,17 @@ class NTLMv2(sspi.IAuthenticationProtocol):
         
         interface = NTLMv2SecurityInterface(rc4.RC4Key(ClientSealingKey), rc4.RC4Key(ServerSealingKey), ClientSigningKey, ServerSigningKey)
         
-        return message, interface
+        return self._authenticateMessage, interface
+    
+    def getEncodedCredentials(self):
+        """
+        @summary: return encoded credentials accorded with authentication protocol nego
+        @return: (domain, username, password)
+        """
+        if self._enableUnicode:
+            return UNICODE(self._domain), UNICODE(self._user), UNICODE(self._password)
+        else:
+            return self._domain, self._user, self._password
         
 
 class NTLMv2SecurityInterface(sspi.IGenericSecurityService):
@@ -519,196 +610,26 @@ class NTLMv2SecurityInterface(sspi.IGenericSecurityService):
         s = Stream()
         s.writeType(signature)
         return s.getvalue() + encryptedData
-
-pubKeyHex = [
-0x30, 0x81, 0x89, 0x02, 0x81, 0x81, 0x00, 0x9E, 
-0x95, 0xB5, 0x41, 0x03, 0xC5, 0x33, 0xEA, 0x29, 
-0x65, 0x2B, 0x65, 0xEF, 0x30, 0x71, 0xDD, 0x73, 
-0xBB, 0x30, 0x3B, 0xEC, 0xCA, 0x72, 0xCF, 0xBD, 
-0xE0, 0xF8, 0x21, 0xFF, 0xA6, 0x97, 0x76, 0xA1, 
-0x08, 0xB5, 0xD2, 0xC6, 0x95, 0x81, 0xD2, 0xBA, 
-0x71, 0x10, 0x4A, 0xAC, 0x25, 0x34, 0x37, 0xA0, 
-0xC3, 0x57, 0xF0, 0xEA, 0x1F, 0x8C, 0x84, 0xEB, 
-0x7B, 0xE6, 0x6C, 0x50, 0x26, 0x1F, 0xB7, 0x41, 
-0x0A, 0x58, 0xD3, 0x80, 0x87, 0x3D, 0x0B, 0x41, 
-0xD9, 0xBC, 0x54, 0x3A, 0x0F, 0x77, 0x14, 0x79, 
-0xF5, 0xB9, 0xA4, 0x38, 0xEB, 0x13, 0x08, 0x35, 
-0xAE, 0xBF, 0xB3, 0x17, 0x5A, 0xE2, 0x58, 0x89, 
-0x39, 0xC4, 0x22, 0x7F, 0x16, 0x57, 0x90, 0x08, 
-0xAF, 0x91, 0x3B, 0x95, 0xC8, 0x53, 0xD0, 0xC0, 
-0x8E, 0x19, 0x8A, 0xF3, 0x10, 0xBC, 0xC8, 0xC7, 
-0x42, 0xFB, 0x12, 0xDE, 0x2D, 0x5E, 0x83, 0x02, 
-0x03, 0x01, 0x00, 0x01 ]
-
-peer0_0 = [
-0x30, 0x2f, 0xa0, 0x03, 0x02, 0x01, 0x02, 0xa1, 
-0x28, 0x30, 0x26, 0x30, 0x24, 0xa0, 0x22, 0x04, 
-0x20, 0x4e, 0x54, 0x4c, 0x4d, 0x53, 0x53, 0x50, 
-0x00, 0x01, 0x00, 0x00, 0x00, 0x35, 0x82, 0x08, 
-0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00 ]
-peer1_0 = [
-0x30, 0x82, 0x01, 0x09, 0xa0, 0x03, 0x02, 0x01, 
-0x02, 0xa1, 0x82, 0x01, 0x00, 0x30, 0x81, 0xfd, 
-0x30, 0x81, 0xfa, 0xa0, 0x81, 0xf7, 0x04, 0x81, 
-0xf4, 0x4e, 0x54, 0x4c, 0x4d, 0x53, 0x53, 0x50, 
-0x00, 0x02, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x0e, 
-0x00, 0x38, 0x00, 0x00, 0x00, 0x35, 0x82, 0x89, 
-0x62, 0x0a, 0xee, 0xd7, 0xc3, 0xeb, 0x8e, 0x34, 
-0x6a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0xae, 0x00, 0xae, 0x00, 0x46, 0x00, 0x00, 
-0x00, 0x06, 0x01, 0xb1, 0x1d, 0x00, 0x00, 0x00, 
-0x0f, 0x53, 0x00, 0x49, 0x00, 0x52, 0x00, 0x41, 
-0x00, 0x44, 0x00, 0x45, 0x00, 0x4c, 0x00, 0x02, 
-0x00, 0x0e, 0x00, 0x53, 0x00, 0x49, 0x00, 0x52, 
-0x00, 0x41, 0x00, 0x44, 0x00, 0x45, 0x00, 0x4c, 
-0x00, 0x01, 0x00, 0x16, 0x00, 0x57, 0x00, 0x41, 
-0x00, 0x56, 0x00, 0x2d, 0x00, 0x47, 0x00, 0x4c, 
-0x00, 0x57, 0x00, 0x2d, 0x00, 0x30, 0x00, 0x30, 
-0x00, 0x39, 0x00, 0x04, 0x00, 0x1a, 0x00, 0x53, 
-0x00, 0x69, 0x00, 0x72, 0x00, 0x61, 0x00, 0x64, 
-0x00, 0x65, 0x00, 0x6c, 0x00, 0x2e, 0x00, 0x6c, 
-0x00, 0x6f, 0x00, 0x63, 0x00, 0x61, 0x00, 0x6c, 
-0x00, 0x03, 0x00, 0x32, 0x00, 0x77, 0x00, 0x61, 
-0x00, 0x76, 0x00, 0x2d, 0x00, 0x67, 0x00, 0x6c, 
-0x00, 0x77, 0x00, 0x2d, 0x00, 0x30, 0x00, 0x30, 
-0x00, 0x39, 0x00, 0x2e, 0x00, 0x53, 0x00, 0x69, 
-0x00, 0x72, 0x00, 0x61, 0x00, 0x64, 0x00, 0x65, 
-0x00, 0x6c, 0x00, 0x2e, 0x00, 0x6c, 0x00, 0x6f, 
-0x00, 0x63, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x05, 
-0x00, 0x1a, 0x00, 0x53, 0x00, 0x69, 0x00, 0x72, 
-0x00, 0x61, 0x00, 0x64, 0x00, 0x65, 0x00, 0x6c, 
-0x00, 0x2e, 0x00, 0x6c, 0x00, 0x6f, 0x00, 0x63, 
-0x00, 0x61, 0x00, 0x6c, 0x00, 0x07, 0x00, 0x08, 
-0x00, 0xe5, 0x40, 0x3c, 0xa6, 0x68, 0x57, 0xd0, 
-0x01, 0x00, 0x00, 0x00, 0x00 ]
-peer0_1 = [
-0x30, 0x82, 0x02, 0x21, 0xa0, 0x03, 0x02, 0x01, 
-0x02, 0xa1, 0x82, 0x01, 0x76, 0x30, 0x82, 0x01, 
-0x72, 0x30, 0x82, 0x01, 0x6e, 0xa0, 0x82, 0x01, 
-0x6a, 0x04, 0x82, 0x01, 0x66, 0x4e, 0x54, 0x4c, 
-0x4d, 0x53, 0x53, 0x50, 0x00, 0x03, 0x00, 0x00, 
-0x00, 0x18, 0x00, 0x18, 0x00, 0x64, 0x00, 0x00, 
-0x00, 0xda, 0x00, 0xda, 0x00, 0x7c, 0x00, 0x00, 
-0x00, 0x0e, 0x00, 0x0e, 0x00, 0x40, 0x00, 0x00, 
-0x00, 0x16, 0x00, 0x16, 0x00, 0x4e, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x10, 0x00, 0x10, 0x00, 0x56, 0x01, 0x00, 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x73, 0x00, 0x69, 
-0x00, 0x72, 0x00, 0x61, 0x00, 0x64, 0x00, 0x65, 
-0x00, 0x6c, 0x00, 0x73, 0x00, 0x70, 0x00, 0x65, 
-0x00, 0x79, 0x00, 0x72, 0x00, 0x65, 0x00, 0x66, 
-0x00, 0x69, 0x00, 0x74, 0x00, 0x74, 0x00, 0x65, 
-0x00, 0x8a, 0x01, 0x34, 0xd8, 0x57, 0x6e, 0x14, 
-0x2b, 0xda, 0xc6, 0x91, 0x02, 0x49, 0xbb, 0xc4, 
-0x00, 0x19, 0x6c, 0x60, 0x26, 0x16, 0xdb, 0x37, 
-0x8f, 0x98, 0xe1, 0x04, 0xf8, 0x36, 0x6a, 0x96, 
-0xa2, 0xa1, 0x9a, 0xf9, 0x5f, 0x1f, 0x04, 0x63, 
-0x69, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 
-0x00, 0x38, 0x8d, 0x10, 0x08, 0x71, 0x57, 0xd0, 
-0x01, 0x19, 0x6c, 0x60, 0x26, 0x16, 0xdb, 0x37, 
-0x8f, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x0e, 
-0x00, 0x53, 0x00, 0x49, 0x00, 0x52, 0x00, 0x41, 
-0x00, 0x44, 0x00, 0x45, 0x00, 0x4c, 0x00, 0x01, 
-0x00, 0x16, 0x00, 0x57, 0x00, 0x41, 0x00, 0x56, 
-0x00, 0x2d, 0x00, 0x47, 0x00, 0x4c, 0x00, 0x57, 
-0x00, 0x2d, 0x00, 0x30, 0x00, 0x30, 0x00, 0x39, 
-0x00, 0x04, 0x00, 0x1a, 0x00, 0x53, 0x00, 0x69, 
-0x00, 0x72, 0x00, 0x61, 0x00, 0x64, 0x00, 0x65, 
-0x00, 0x6c, 0x00, 0x2e, 0x00, 0x6c, 0x00, 0x6f, 
-0x00, 0x63, 0x00, 0x61, 0x00, 0x6c, 0x00, 0x03, 
-0x00, 0x32, 0x00, 0x77, 0x00, 0x61, 0x00, 0x76, 
-0x00, 0x2d, 0x00, 0x67, 0x00, 0x6c, 0x00, 0x77, 
-0x00, 0x2d, 0x00, 0x30, 0x00, 0x30, 0x00, 0x39, 
-0x00, 0x2e, 0x00, 0x53, 0x00, 0x69, 0x00, 0x72, 
-0x00, 0x61, 0x00, 0x64, 0x00, 0x65, 0x00, 0x6c, 
-0x00, 0x2e, 0x00, 0x6c, 0x00, 0x6f, 0x00, 0x63, 
-0x00, 0x61, 0x00, 0x6c, 0x00, 0x05, 0x00, 0x1a, 
-0x00, 0x53, 0x00, 0x69, 0x00, 0x72, 0x00, 0x61, 
-0x00, 0x64, 0x00, 0x65, 0x00, 0x6c, 0x00, 0x2e, 
-0x00, 0x6c, 0x00, 0x6f, 0x00, 0x63, 0x00, 0x61, 
-0x00, 0x6c, 0x00, 0x07, 0x00, 0x08, 0x00, 0xe5, 
-0x40, 0x3c, 0xa6, 0x68, 0x57, 0xd0, 0x01, 0x00, 
-0x00, 0x00, 0x00, 0x59, 0x49, 0x84, 0x63, 0xf2, 
-0x84, 0x53, 0x18, 0xea, 0xa4, 0xc3, 0xb6, 0x97, 
-0x0d, 0x3e, 0x38, 0xa3, 0x81, 0x9f, 0x04, 0x81, 
-0x9c, 0x01, 0x00, 0x00, 0x00, 0xc9, 0x56, 0x22, 
-0x84, 0x7d, 0xba, 0xa2, 0xe6, 0x00, 0x00, 0x00, 
-0x00, 0x1c, 0x6d, 0x39, 0xe1, 0x5a, 0x31, 0x5d, 
-0xf5, 0x01, 0xa6, 0xea, 0x4b, 0xaf, 0x83, 0x13, 
-0xdc, 0x8a, 0x45, 0xb3, 0x76, 0xc6, 0x3d, 0xbf, 
-0x73, 0x4c, 0x93, 0xe6, 0x75, 0x8b, 0x42, 0x21, 
-0xea, 0xe6, 0x0c, 0xfa, 0x3c, 0xd0, 0x7c, 0x8d, 
-0xd6, 0x2a, 0x97, 0x7a, 0x49, 0xb5, 0x7d, 0xeb, 
-0xc2, 0x94, 0xc0, 0x84, 0xb4, 0xef, 0x7f, 0x1e, 
-0xa3, 0xa3, 0x3f, 0x61, 0x7c, 0x1c, 0xd9, 0x82, 
-0xc6, 0x0b, 0x6c, 0x85, 0x15, 0xb0, 0x47, 0x25, 
-0xe9, 0x0a, 0x88, 0x58, 0x3c, 0x6d, 0x8e, 0x60, 
-0x2a, 0xbc, 0x04, 0x57, 0x7f, 0x5b, 0x03, 0x7c, 
-0x7a, 0x8f, 0x1b, 0x7b, 0xe3, 0x67, 0xb6, 0x02, 
-0xa4, 0xc0, 0xdd, 0x9e, 0x97, 0x4c, 0xd8, 0x86, 
-0x5c, 0x9a, 0x45, 0x0d, 0x85, 0x4b, 0x46, 0x87, 
-0xde, 0xcf, 0x31, 0x72, 0xe3, 0xd7, 0x5d, 0x0b, 
-0x67, 0x1b, 0xa1, 0xde, 0x24, 0x87, 0xdf, 0xd9, 
-0xb2, 0x18, 0xfd, 0x5a, 0x29, 0xbb, 0x35, 0xe0, 
-0x3d, 0x9f, 0x85, 0xf7, 0x36 ]
-
-if __name__ == "__main__":
-    import cssp, hexdump
-    negotiate_data_request = cssp.decodeDERTRequest(Stream("".join([chr(i) for i in peer0_0])))
-    challenge_data_request = cssp.decodeDERTRequest(Stream("".join([chr(i) for i in peer1_0])))
-    authenticate_data_request = cssp.decodeDERTRequest(Stream("".join([chr(i) for i in peer0_1])))
     
-    negotiate_data = cssp.getNegoTokens(negotiate_data_request)[0]
-    challenge_data = cssp.getNegoTokens(challenge_data_request)[0]
-    authenticate_data = cssp.getNegoTokens(authenticate_data_request)[0]
-    
-    negotiate = NegotiateMessage()
-    negotiate_data.readType(negotiate)
-    
-    challenge = ChallengeMessage()
-    challenge_data.readType(challenge)
-    
-    ServerChallenge = challenge.ServerChallenge.value
-    ServerName = challenge.getTargetInfo()
-    
-    authenticate = AuthenticateMessage()
-    authenticate_data.readType(authenticate)
-    
-    NtChallengeResponseTemp = authenticate.getNtChallengeResponse()
-    NTProofStr = NtChallengeResponseTemp[:16]
-    temp = NtChallengeResponseTemp[16:]
-    Timestamp = temp[8:16]
-    ClientChallenge = temp[16:24]
-    EncryptedRandomSessionKey = authenticate.getEncryptedRandomSession()
-    
-    domain = ""
-    user = ""
-    password = ""
-    ResponseKeyNT = NTOWFv2(password, user, domain)
-    ResponseKeyLM = LMOWFv2(password, user, domain)
+    def GSS_UnWrapEx(self, data):
+        """
+        @summary: decrypt data with key exchange in Authentication protocol
+        @param data: {str}
+        """
+        signature = MessageSignatureEx()
+        message = String()
+        s = Stream(data)
+        s.readType((signature, message))
         
-    NtChallengeResponse, LmChallengeResponse, SessionBaseKey = ComputeResponsev2(ResponseKeyNT, ResponseKeyLM, ServerChallenge, ClientChallenge, Timestamp, ServerName)
-    KeyExchangeKey = KXKEYv2(SessionBaseKey, LmChallengeResponse, ServerChallenge)
-    ExportedSessionKey = RC4K(KeyExchangeKey, EncryptedRandomSessionKey)
-    
-    domain, user = domain, user
-    if challenge.NegotiateFlags.value & Negotiate.NTLMSSP_NEGOTIATE_UNICODE:
-        domain, user = UNICODE(domain), UNICODE(user)
-    message = createAuthenticationMessage(domain, user, NtChallengeResponse, LmChallengeResponse, EncryptedRandomSessionKey)
-    
-    ClientSigningKey = SIGNKEY(ExportedSessionKey, True)
-    ServerSigningKey = SIGNKEY(ExportedSessionKey, False)
-    ClientSealingKey = SEALKEY(ExportedSessionKey, True)
-    ServerSealingKey = SEALKEY(ExportedSessionKey, False)
-    
-    interface = NTLMv2SecurityInterface(rc4.RC4Key(ClientSealingKey), rc4.RC4Key(ServerSealingKey), ClientSigningKey, ServerSigningKey)
-    
-    EncryptedPubKeySrc = cssp.getPubKeyAuth(authenticate_data_request)
-    EncryptedPubKeyDst = interface.GSS_WrapEx("".join([chr(i) for i in pubKeyHex]))
-    
-    print "EncryptedPubKeySrc"
-    hexdump.hexdump(EncryptedPubKeySrc)
-    print "EncryptedPubKeyDst"
-    hexdump.hexdump(EncryptedPubKeyDst)
+        #decrypt message
+        plaintextMessage = rc4.crypt(self._decryptHandle, message.value)
+        checksum = rc4.crypt(self._decryptHandle, signature.Checksum.value)
+        
+        #recompute checksum
+        t = Stream()
+        t.writeType(signature.SeqNum)
+        verify = HMAC_MD5(self._verifyKey, t.getvalue() + plaintextMessage)[:8]
+        if verify != checksum:
+            raise error.InvalidExpectedDataException("NTLMv2SecurityInterface : Invalid checksum")
+        
+        return plaintextMessage

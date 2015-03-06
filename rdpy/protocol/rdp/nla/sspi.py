@@ -42,6 +42,13 @@ class IAuthenticationProtocol(object):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getAuthenticateMessage", "IAuthenticationProtocol"))
     
+    def getEncodedCredentials(self):
+        """
+        @summary: return encoded credentials accorded with authentication protocol nego
+        @return: (domain, username, password)
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "getEncodedCredentials", "IAuthenticationProtocol"))
+    
 class IGenericSecurityService(object):
     """
     @summary: use by application from authentification protocol
@@ -49,7 +56,14 @@ class IGenericSecurityService(object):
     """
     def GSS_WrapEx(self, data):
         """
-        @summary: encrypt data with key exchage in Authentication protocol
+        @summary: encrypt data with key exchange in Authentication protocol
         @param data: {str}
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "GSS_WrapEx", "IGenericSecurityService"))
+    
+    def GSS_UnWrapEx(self, data):
+        """
+        @summary: decrypt data with key exchange in Authentication protocol
+        @param data: {str}
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "GSS_UnWrapEx", "IGenericSecurityService"))

@@ -222,13 +222,19 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         """
         self._factory.connectionLost(self, reason)
         
+    def getDescriptor(self):
+        """
+        @return: the twited file descriptor
+        """
+        return self.transport
+        
     def close(self):
         """
         @summary:  Close raw layer
                     Use File descriptor directly to not use TLS close
                     Because is bugged
         """
-        FileDescriptor.loseConnection(self.transport)
+        FileDescriptor.loseConnection(self.getDescriptor())
             
     def expect(self, expectedLen, callback = None):
         """

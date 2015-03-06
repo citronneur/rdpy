@@ -35,7 +35,7 @@ from rdpy.core import log, error, rss
 from rdpy.protocol.rdp import rdp
 from twisted.internet import reactor
 
-log._LOG_LEVEL = log.Level.INFO
+log._LOG_LEVEL = log.Level.DEBUG
 
 class ProxyServer(rdp.RDPServerObserver):
     """
@@ -265,7 +265,7 @@ if __name__ == '__main__':
     privateKeyFilePath = None
     certificateFilePath = None
     ouputDirectory = None
-    clientSecurity = "ssl"
+    clientSecurity = rdp.SecurityLevel.RDP_LEVEL_SSL
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:o:r")
@@ -284,7 +284,7 @@ if __name__ == '__main__':
         elif opt == "-o":
             ouputDirectory = arg
         elif opt == "-r":
-            clientSecurity = "rdp"
+            clientSecurity = rdp.SecurityLevel.RDP_LEVEL_RDP
             
     if ouputDirectory is None or not os.path.dirname(ouputDirectory):
         log.error("%s is an invalid output directory"%ouputDirectory)

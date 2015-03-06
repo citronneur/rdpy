@@ -26,8 +26,6 @@ from rdpy.core.layer import RawLayer
 from rdpy.core.type import UInt8, UInt16Be, sizeof
 from rdpy.core.error import CallPureVirtualFuntion
 
-from nla import cssp, ntlm
-
 class Action(object):
     """
     @see: http://msdn.microsoft.com/en-us/library/cc240621.aspx
@@ -218,9 +216,9 @@ class TPKT(RawLayer, IFastPathSender):
         """
         self.transport.startTLS(sslContext)
        
-    def startNLA(self):
+    def startNLA(self, sslContext, callback):
         """
         @summary: use to start NLA (NTLM over SSL) protocol
                     must be called after startTLS function
         """
-        self.transport.startNLA()
+        self.transport.startNLA(sslContext, callback)

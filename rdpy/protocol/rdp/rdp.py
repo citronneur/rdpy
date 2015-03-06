@@ -31,6 +31,14 @@ import tpkt, x224, sec
 from t125 import mcs, gcc
 from nla import cssp, ntlm
 
+class SecurityLevel(object):
+    """
+    @summary: RDP security level
+    """
+    RDP_LEVEL_RDP = 0
+    RDP_LEVEL_SSL = 1
+    RDP_LEVEL_NLA = 2
+
 class RDPClientController(pdu.layer.PDUClientListener):
     """
     Manage RDP stack as client
@@ -59,7 +67,8 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @return: return Protocol layer for twisted
         In case of RDP TPKT is the Raw layer
         """
-        return self._tpktLayer
+        #build a cssp wrapper in case of nla authentication
+        return cssp.CSSP(self._tpktLayer, ntlm.NTLMv2(self._secLayer._info.domain.value, self._secLayer._info.userName.value, self._secLayer._info.password.value))
     
     def getColorDepth(self):
         """
@@ -139,13 +148,13 @@ class RDPClientController(pdu.layer.PDUClientListener):
     def setSecurityLevel(self, level):
         """
         @summary: Request basic security
-        @param level: {str} (ssl | rdp | nla)
+        @param level: {SecurityLevel}
         """
-        if level == "rdp":
+        if level == SecurityLevel.RDP_LEVEL_RDP:
             self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_RDP
-        elif level == "ssl":
+        elif level == SecurityLevel.RDP_LEVEL_SSL:
             self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_SSL
-        elif level == "nla":
+        elif level == SecurityLevel.RDP_LEVEL_NLA:
             self._x224Layer._requestedProtocol = x224.Protocols.PROTOCOL_SSL | x224.Protocols.PROTOCOL_HYBRID
         
     def addClientObserver(self, observer):
@@ -351,6 +360,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
         self._x224Layer = x224.Server(self._mcsLayer, privateKeyFileName, certificateFileName, False)
         #transport packet (protocol layer)
         self._tpktLayer = tpkt.TPKT(self._x224Layer)
+        
         #fastpath stack
         self._pduLayer.initFastPath(self._secLayer)
         self._secLayer.initFastPath(self._tpktLayer)
@@ -527,8 +537,7 @@ class ClientFactory(layer.RawLayerClientFactory):
         """
         controller = RDPClientController()
         self.buildObserver(controller, addr)
-        #Add cssp proxy in case of nla protocol
-        return cssp.CSSP(controller.getProtocol(), ntlm.NTLMv2("toto", "coco", "lolo"))
+        return controller.getProtocol()
     
     def buildObserver(self, controller, addr):
         """

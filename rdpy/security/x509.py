@@ -155,9 +155,3 @@ def extractRSAKey(certificate):
 def extractRSAKeyFromASN1(subjectPublicKey):
     rsaKey = decoder.decode(subjectPublicKey, asn1Spec=RSAPublicKey())[0]
     return rsaKey.getComponentByName('modulus')._value , rsaKey.getComponentByName('publicExponent')._value
-
-def extractRSAKey2(key):
-    binaryTuple = decoder.decode(key, asn1Spec=univ.BitString())[0]
-    l = int("".join([str(i) for i in binaryTuple]), 2)
-    return extractRSAKeyFromASN1(hex(l)[2:-1].decode('hex'))
-    

@@ -115,7 +115,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
         self._nego = security == "nego"
         self._recodedPath = recodedPath
         if self._nego:
-            self._security = "nla"
+            self._security = rdp.SecurityLevel.RDP_LEVEL_NLA
         else:
             self._security = security
         self._w = None
@@ -163,7 +163,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
             #stop nego
             log.info("due to security nego error back to standard RDP security layer")
             self._nego = False
-            self._security = "rdp"
+            self._security = rdp.SecurityLevel.RDP_LEVEL_RDP
             self._client._widget.hide()
             connector.connect()
             return
