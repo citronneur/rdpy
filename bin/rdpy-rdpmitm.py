@@ -35,7 +35,7 @@ from rdpy.core import log, error, rss
 from rdpy.protocol.rdp import rdp
 from twisted.internet import reactor
 
-log._LOG_LEVEL = log.Level.DEBUG
+log._LOG_LEVEL = log.Level.INFO
 
 class ProxyServer(rdp.RDPServerObserver):
     """
@@ -251,7 +251,9 @@ def help():
             [-l listen_port default 3389] 
             [-k private_key_file_path (mandatory for SSL)] 
             [-c certificate_file_path (mandatory for SSL)] 
+            [-o output directory for recoded files] 
             [-r RDP standard security (XP or server 2003 client or older)] 
+            [-n For NLA Client authentication (need to provide credentials)] 
     """
 
 def parseIpPort(interface, defaultPort = "3389"):
@@ -265,6 +267,7 @@ if __name__ == '__main__':
     privateKeyFilePath = None
     certificateFilePath = None
     ouputDirectory = None
+    #for anonymous authentication
     clientSecurity = rdp.SecurityLevel.RDP_LEVEL_SSL
     
     try:
@@ -285,6 +288,8 @@ if __name__ == '__main__':
             ouputDirectory = arg
         elif opt == "-r":
             clientSecurity = rdp.SecurityLevel.RDP_LEVEL_RDP
+        elif opt == "-n":
+            clientSecurity = rdp.SecurityLevel.RDP_LEVEL_NLA
             
     if ouputDirectory is None or not os.path.dirname(ouputDirectory):
         log.error("%s is an invalid output directory"%ouputDirectory)

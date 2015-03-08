@@ -30,7 +30,6 @@ import pyasn1.codec.ber.encoder as ber_encoder
 from rdpy.core.type import Stream
 from twisted.internet import protocol
 from OpenSSL import crypto
-from Crypto.Util import asn1
 from rdpy.security import x509
 from rdpy.core import error
 
@@ -103,6 +102,17 @@ class TSSmartCardCreds(univ.Sequence):
         namedtype.NamedType('cspData', TSCspDataDetail().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
         namedtype.OptionalNamedType('userHint', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2))),
         namedtype.OptionalNamedType('domainHint', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3)))
+        )
+
+class OpenSSLRSAPublicKey(univ.Sequence):
+    """
+    @summary: asn1 public rsa key
+    @see: https://tools.ietf.org/html/rfc3447
+    """
+    componentType = namedtype.NamedTypes(
+        namedtype.NamedType('unknow', univ.Integer()),
+        namedtype.NamedType('modulus', univ.Integer()),
+        namedtype.NamedType('publicExponent', univ.Integer()),
         )
 
 def encodeDERTRequest(negoTypes = [], authInfo = None, pubKeyAuth = None):
@@ -242,12 +252,11 @@ class CSSP(protocol.Protocol):
         #get back public key
         #convert from der to ber...
         pubKeyDer = crypto.dump_privatekey(crypto.FILETYPE_ASN1, self.transport.protocol._tlsConnection.get_peer_certificate().get_pubkey())
-        pubKey = asn1.DerSequence()
-        pubKey.decode(pubKeyDer)
+        pubKey = der_decoder.decode(pubKeyDer, asn1Spec=OpenSSLRSAPublicKey())[0]
         
         rsa = x509.RSAPublicKey()
-        rsa.setComponentByName("modulus", univ.Integer(pubKey[1]))
-        rsa.setComponentByName("publicExponent", univ.Integer(pubKey[2]))
+        rsa.setComponentByName("modulus", univ.Integer(pubKey.getComponentByName('modulus')._value))
+        rsa.setComponentByName("publicExponent", univ.Integer(pubKey.getComponentByName('publicExponent')._value))
         self._pubKeyBer = ber_encoder.encode(rsa)
         
         #send authenticate message with public key encoded
@@ -263,7 +272,7 @@ class CSSP(protocol.Protocol):
         request = decodeDERTRequest(data)
         pubKeyInc = self._interface.GSS_UnWrapEx(getPubKeyAuth(request))
         #check pubKeyInc = self._pubKeyBer + 1
-        if not self._pubKeyBer[:-1] == pubKeyInc[:-1] and ord(self._pubKeyBer[-1]) + 1 == pubKeyInc[-1]:
+        if not (self._pubKeyBer[1:] == pubKeyInc[1:] and ord(self._pubKeyBer[0]) + 1 == ord(pubKeyInc[0])):
             raise error.InvalidExpectedDataException("CSSP : Invalid public key increment")
         
         domain, user, password = self._authenticationProtocol.getEncodedCredentials()

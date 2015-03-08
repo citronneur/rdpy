@@ -2,7 +2,7 @@
 
 Remote Desktop Protocol in twisted python.
 
-RDPY is a pure Python implementation of the Microsoft RDP (Remote Desktop Protocol) protocol (client and server side). RDPY is built over the event driven network engine Twisted.
+RDPY is a pure Python implementation of the Microsoft RDP (Remote Desktop Protocol) protocol (client and server side). RDPY is built over the event driven network engine Twisted. RDPY support standard RDP security layer, RDP over SSL and NLA authentication (through ntlmv2 authentication protocol).
 
 RDPY provides the following RDP and VNC binaries :
 * RDP Man In The Middle proxy which record session
@@ -107,7 +107,7 @@ $ rdpy-rdpmitm.py -o output_dir [-l listen_port] [-k private_key_file_path] [-c 
 ```
 
 Output directory is used to save the rss file with following format (YYYYMMDDHHMMSS_ip_index.rss)
-The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
+The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer If one of both parameters are omitted, the server use standard RDP as security layer.
 
 ### rdpy-rdphoneypot
 
@@ -117,7 +117,7 @@ rdpy-rdphoneypot is an RDP honey Pot. Use Recorded Session Scenario to replay sc
 $ rdpy-rdphoneypot.py [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] rss_file_path_1 ... rss_file_path_N
 ```
 
-The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. The CredSSP security layer is planned for an upcoming release. If one of both parameters are omitted, the server use standard RDP as security layer.
+The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer. If one of both parameters are omitted, the server use standard RDP as security layer.
 You can specify more than one files to match more common screen size.
 
 ### rdpy-rssplayer
