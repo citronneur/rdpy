@@ -109,6 +109,17 @@ class TestLic(unittest.TestCase):
                 s.pos = 0
                 s.readType(lic.LicPacket(lic.ClientNewLicenseRequest()))
                 self._state = True
+            def getGCCServerSettings(self):
+                class A:
+                    def __init__(self):
+                        self._is_readed = False
+                class B:
+                    def __init__(self):
+                        self.serverCertificate = A()
+                class C:
+                    def __init__(self):
+                        self.SC_SECURITY = B()
+                return C()
         
         t = Transport()
         l = lic.LicenseManager(t)
