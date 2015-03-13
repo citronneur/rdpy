@@ -33,6 +33,18 @@ Example for Debian based systems :
 sudo apt-get install python-qt4
 ```
 
+#### OS X
+
+```
+$ git clone https://github.com/citronneur/rdpy.git rdpy
+$ cd rdpy
+$ brew install qt sip pyqt
+$ pip install twisted pyopenssl qt4reactor service_identity rsa pyasn1
+$ python setup.py install
+
+```
+
+
 #### Windows
 
 x86 | x86_64
