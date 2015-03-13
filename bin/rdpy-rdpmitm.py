@@ -271,7 +271,7 @@ if __name__ == '__main__':
     clientSecurity = rdp.SecurityLevel.RDP_LEVEL_SSL
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:o:r")
+        opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:o:rn")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:

@@ -56,7 +56,8 @@ class RDPScreenShotFactory(rdp.ClientFactory):
         self._height = height
         self._path = path
         self._timeout = timeout
-        self._security = "ssl"
+        #NLA server can't be screenshooting
+        self._security = rdp.SecurityLevel.RDP_LEVEL_SSL
         
     def clientConnectionLost(self, connector, reason):
         """
@@ -66,7 +67,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
         """
         if reason.type == RDPSecurityNegoFail and self._security != "rdp":
             log.info("due to RDPSecurityNegoFail try standard security layer")
-            self._security = "rdp"
+            self._security = rdp.SecurityLevel.RDP_LEVEL_RDP
             connector.connect()
             return
         

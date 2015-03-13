@@ -67,7 +67,6 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @return: return Protocol layer for twisted
         In case of RDP TPKT is the Raw layer
         """
-        #build a cssp wrapper in case of nla authentication
         return cssp.CSSP(self._tpktLayer, ntlm.NTLMv2(self._secLayer._info.domain.value, self._secLayer._info.userName.value, self._secLayer._info.password.value))
     
     def getColorDepth(self):
@@ -521,8 +520,9 @@ class ClientFactory(layer.RawLayerClientFactory):
     @summary: Factory of Client RDP protocol
     @param reason: twisted reason
     """
-    def connectionLost(self, tpktLayer, reason):
+    def connectionLost(self, csspLayer, reason):
         #retrieve controller
+        tpktLayer = csspLayer._layer
         x224Layer = tpktLayer._presentation
         mcsLayer = x224Layer._presentation
         secLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]

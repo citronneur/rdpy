@@ -213,14 +213,14 @@ class Client(X224Layer):
         
         if self._selectedProtocol ==  Protocols.PROTOCOL_RDP:
             log.warning("*" * 43)
-            log.warning("*" * 10 + " RDP Security selected " + "*" * 10)
+            log.warning("*" + " " * 10  + "RDP Security selected" + " " * 10 + "*")
             log.warning("*" * 43)
             #connection is done send to presentation
             self._presentation.connect()
             
         elif self._selectedProtocol ==  Protocols.PROTOCOL_SSL:
             log.info("*" * 43)
-            log.info("*" * 10 + " SSL Security selected " + "*" * 10)
+            log.info("*" + " " * 10  + "SSL Security selected" + " " * 10 + "*")
             log.info("*" * 43)
             self._transport.startTLS(ClientTLSContext())
             #connection is done send to presentation
