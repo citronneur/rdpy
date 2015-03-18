@@ -33,6 +33,12 @@ Example for Debian based systems :
 sudo apt-get install python-qt4
 ```
 
+#### OS X
+Example for OS X to install PyQt with homebrew
+```
+$ brew install qt sip pyqt
+```
+
 #### Windows
 
 x86 | x86_64
