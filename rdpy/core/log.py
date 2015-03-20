@@ -39,7 +39,7 @@ def log(message):
     @summary: Main log function
     @param message: string to print
     """
-    print message
+    print "[*] %s"%message
 
 def error(message):
     """
@@ -48,7 +48,7 @@ def error(message):
     """
     if _LOG_LEVEL > Level.ERROR:
         return
-    log("ERROR : %s"%message)
+    log("ERROR:\t%s"%message)
     
 def warning(message):
     """
@@ -57,7 +57,7 @@ def warning(message):
     """
     if _LOG_LEVEL > Level.WARNING:
         return
-    log("WARNING : %s"%message)
+    log("WARNING:\t%s"%message)
 
 def info(message):
     """
@@ -66,7 +66,7 @@ def info(message):
     """
     if _LOG_LEVEL > Level.INFO:
         return
-    log("INFO : %s"%message)
+    log("INFO:\t%s"%message)
     
 def debug(message):
     """
@@ -75,4 +75,4 @@ def debug(message):
     """
     if _LOG_LEVEL > Level.DEBUG:
         return
-    log("DEBUG : %s"%message)
+    log("DEBUG:\t%s"%message)
