@@ -27,6 +27,7 @@ from PyQt4 import QtGui, QtCore
 
 from rdpy.core import log, rss
 from rdpy.ui.qt4 import QRemoteDesktop, RDPBitmapToQtImage
+from rdpy.core.scancode import scancodeToChar
 log._LOG_LEVEL = log.Level.INFO
 
 class RssPlayerWidget(QRemoteDesktop):
@@ -45,9 +46,28 @@ class RssPlayerWidget(QRemoteDesktop):
                 """ Not Handle """
         QRemoteDesktop.__init__(self, width, height, RssAdaptor())
         
-    def drawInfos(self, domain, username, password, hostname):
-        QtGui.QMessageBox.about(self, "Credentials Event", "domain : %s\nusername : %s\npassword : %s\nhostname : %s" % (
-            domain, username, password, hostname))
+class RssPlayerWindow(QtGui.QWidget):
+    """
+    @summary: main window of rss player
+    """
+    def __init__(self):
+        super(RssPlayerWindow, self).__init__()
+        
+        self._viewer = RssPlayerWidget(800, 600)
+        self._text = QtGui.QTextEdit()
+        self._text.setReadOnly(True)
+        self._text.setFixedHeight(150)
+
+        scrollViewer = QtGui.QScrollArea()
+        scrollViewer.setWidget(self._viewer)
+        
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(scrollViewer, 1)
+        layout.addWidget(self._text, 2)
+        
+        self.setLayout(layout)
+        
+        self.setGeometry(0, 0, 800, 600)
 
 def help():
     print "Usage: rdpy-rssplayer [-h] rss_filepath"
@@ -64,16 +84,20 @@ def loop(widget, rssFile, nextEvent):
    
     if nextEvent.type.value == rss.EventType.UPDATE:
         image = RDPBitmapToQtImage(nextEvent.event.width.value, nextEvent.event.height.value, nextEvent.event.bpp.value, nextEvent.event.format.value == rss.UpdateFormat.BMP, nextEvent.event.data.value);
-        widget.notifyImage(nextEvent.event.destLeft.value, nextEvent.event.destTop.value, image, nextEvent.event.destRight.value - nextEvent.event.destLeft.value + 1, nextEvent.event.destBottom.value - nextEvent.event.destTop.value + 1)
+        widget._viewer.notifyImage(nextEvent.event.destLeft.value, nextEvent.event.destTop.value, image, nextEvent.event.destRight.value - nextEvent.event.destLeft.value + 1, nextEvent.event.destBottom.value - nextEvent.event.destTop.value + 1)
         
     elif nextEvent.type.value == rss.EventType.SCREEN:
-        widget.resize(nextEvent.event.width.value, nextEvent.event.height.value)
+        widget._viewer.resize(nextEvent.event.width.value, nextEvent.event.height.value)
         
     elif nextEvent.type.value == rss.EventType.INFO:
-        widget.drawInfos(nextEvent.event.domain.value, nextEvent.event.username.value, nextEvent.event.password.value, nextEvent.event.hostname.value)
+        widget._text.append("Domain : %s\nUsername : %s\nPassword : %s\nHostname : %s\n" % (
+                            nextEvent.event.domain.value, nextEvent.event.username.value, nextEvent.event.password.value, nextEvent.event.hostname.value))
+    elif nextEvent.type.value == rss.EventType.KEY_SCANCODE:
+        if nextEvent.event.isPressed.value == 0:
+            widget._text.moveCursor(QtGui.QTextCursor.End)
+            widget._text.insertPlainText(scancodeToChar(nextEvent.event.code.value))
         
     elif nextEvent.type.value == rss.EventType.CLOSE:
-        widget.close()
         return
     
     e = rssFile.nextEvent()
@@ -92,8 +116,10 @@ if __name__ == '__main__':
     filepath = args[0]
     #create application
     app = QtGui.QApplication(sys.argv)
-    widget = RssPlayerWidget(800, 600)
-    widget.show()
+    
+    mainWindow = RssPlayerWindow()
+    mainWindow.show()
+    
     rssFile = rss.createReader(filepath)
-    start(widget, rssFile)
+    start(mainWindow, rssFile)
     sys.exit(app.exec_())

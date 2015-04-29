@@ -34,6 +34,8 @@ class EventType(object):
     SCREEN = 0x0002
     INFO = 0x0003
     CLOSE = 0x0004
+    KEY_UNICODE = 0x0005
+    KEY_SCANCODE = 0x0006
     
 class UpdateFormat(object):
     """
@@ -56,7 +58,7 @@ class Event(CompositeType):
             """
             @summary: Closure for event factory
             """
-            for c in [UpdateEvent, ScreenEvent, InfoEvent, CloseEvent]:
+            for c in [UpdateEvent, ScreenEvent, InfoEvent, CloseEvent, KeyEventScancode, KeyEventUnicode]:
                 if self.type.value == c._TYPE_:
                     return c(readLen = self.length)
             log.debug("unknown event type : %s"%hex(self.type.value))
@@ -122,6 +124,26 @@ class CloseEvent(CompositeType):
     _TYPE_ = EventType.CLOSE
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
+        
+class KeyEventUnicode(CompositeType):
+    """
+    @summary: keyboard event (keylogger) as unicode event
+    """
+    _TYPE_ = EventType.KEY_UNICODE
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.code = UInt32Le()
+        self.isPressed = UInt8()
+        
+class KeyEventScancode(CompositeType):
+    """
+    @summary: keyboard event (keylogger)
+    """
+    _TYPE_ = EventType.KEY_SCANCODE
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.code = UInt32Le()
+        self.isPressed = UInt8()
         
 def timeMs():
     """
@@ -211,6 +233,28 @@ class FileRecorder(object):
         infoEvent.domain.value = domain 
         infoEvent.hostname.value = hostname 
         self.rec(infoEvent)
+        
+    def keyUnicode(self, code, isPressed):
+        """
+        @summary: record key event as unicode
+        @param code: unicode code
+        @param isPressed: True if a key press event
+        """
+        keyEvent = KeyEventUnicode()
+        keyEvent.code.value = code
+        keyEvent.isPressed.value = 0 if isPressed else 1
+        self.rec(keyEvent)
+        
+    def keyScancode(self, code, isPressed):
+        """
+        @summary: record key event as scancode
+        @param code: scancode code
+        @param isPressed: True if a key press event
+        """
+        keyEvent = KeyEventScancode()
+        keyEvent.code.value = code
+        keyEvent.isPressed.value = 0 if isPressed else 1
+        self.rec(keyEvent)
     
     def close(self):
         """

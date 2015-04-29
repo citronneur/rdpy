@@ -102,6 +102,7 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             return
         self._client._controller.sendKeyEventScancode(code, isPressed)
+        self._rss.keyScancode(code, isPressed)
     
     def onKeyEventUnicode(self, code, isPressed):
         """
@@ -113,6 +114,7 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             return
         self._client._controller.sendKeyEventUnicode(code, isPressed)
+        self._rss.keyUnicode(code, isPressed)
         
     def onPointerEvent(self, x, y, button, isPressed):
         """

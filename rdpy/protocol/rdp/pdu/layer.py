@@ -287,11 +287,14 @@ class Client(PDULayer):
         @param dataPDU: DataPDU object
         """
         if dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SET_ERROR_INFO_PDU:
+            #ignore 0 error code because is not an error code
+            if dataPDU.pduData.errorInfo.value == 0:
+                return
             errorMessage = "Unknown code %s"%hex(dataPDU.pduData.errorInfo.value)
             if data.ErrorInfo._MESSAGES_.has_key(dataPDU.pduData.errorInfo):
-                errorMessage = data.ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo]
-                
+                errorMessage = data.ErrorInfo._MESSAGES_[dataPDU.pduData.errorInfo] 
             log.error("INFO PDU : %s"%errorMessage)
+            
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SHUTDOWN_DENIED:
             #may be an event to ask to user
             self._transport.close()
