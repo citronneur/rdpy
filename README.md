@@ -1,4 +1,4 @@
-# RDPY [![Build Status](https://travis-ci.org/citronneur/rdpy.svg?branch=dev)](https://travis-ci.org/citronneur/rdpy)
+# RDPY [![Build Status](https://travis-ci.org/citronneur/rdpy.svg?branch=dev)](https://travis-ci.org/citronneur/rdpy) [![PyPI version](https://badge.fury.io/py/rdpy.png)](http://badge.fury.io/py/rdpy)
 
 Remote Desktop Protocol in twisted python.
 
@@ -31,6 +31,12 @@ Dependencies are only needed for pyqt4 binaries :
 Example for Debian based systems :
 ```
 sudo apt-get install python-qt4
+```
+
+#### OS X
+Example for OS X to install PyQt with homebrew
+```
+$ brew install qt sip pyqt
 ```
 
 #### Windows
