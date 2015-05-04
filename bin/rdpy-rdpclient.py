@@ -115,7 +115,11 @@ class RDPClientQtFactory(rdp.ClientFactory):
         self._nego = security == "nego"
         self._recodedPath = recodedPath
         if self._nego:
-            self._security = rdp.SecurityLevel.RDP_LEVEL_NLA
+            #compute start nego nla need credentials
+            if username != "" and password != "":
+                self._security = rdp.SecurityLevel.RDP_LEVEL_NLA
+            else:
+                self._security = rdp.SecurityLevel.RDP_LEVEL_SSL
         else:
             self._security = security
         self._w = None
@@ -190,7 +194,7 @@ def autoDetectKeyboardLayout():
         if os.name == 'posix':    
             from subprocess import check_output
             result = check_output(["setxkbmap", "-print"])
-            if "azerty" in result:
+            if 'azerty' in result:
                 return "fr"
         elif os.name == 'nt':
             import win32api, win32con, win32process
