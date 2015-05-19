@@ -199,6 +199,15 @@ class RDPClientController(pdu.layer.PDUClientListener):
         for observer in self._clientObserver:
             observer.onReady()
             
+    def onSessionReady(self):
+        """
+        @summary: Call when Windows session is ready (connected)
+        """
+        self._isReady = True
+        #signal all listener
+        for observer in self._clientObserver:
+            observer.onSessionReady()
+            
     def onClose(self):
         """
         @summary: Event call when RDP stack is closed
@@ -615,6 +624,12 @@ class RDPClientObserver(object):
         @summary: Stack is ready and connected
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPClientObserver")) 
+    
+    def onSessionReady(self):
+        """
+        @summary: Windows session is ready
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onSessionReady", "RDPClientObserver")) 
     
     def onClose(self):
         """

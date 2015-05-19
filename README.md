@@ -181,6 +181,11 @@ class MyRDPFactory(rdp.ClientFactory):
                 @param isCompress: use RLE compression
                 @param data: bitmap data
                 """
+                
+            def onSessionReady(self):
+		        """
+		        @summary: Windows session is ready
+		        """
 
             def onClose(self):
                 """

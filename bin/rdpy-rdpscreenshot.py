@@ -136,6 +136,13 @@ class RDPScreenShotFactory(rdp.ClientFactory):
                 """
                 log.info("connected %s"%addr)
             
+            def onSessionReady(self):
+                """
+                @summary: Windows session is ready
+                @see: rdp.RDPClientObserver.onSessionReady
+                """
+                pass
+            
             def onClose(self):
                 """
                 @summary: callback use when RDP stack is closed

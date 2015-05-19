@@ -39,6 +39,13 @@ class PDUClientListener(object):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "PDUClientListener"))
     
+    def onSessionReady(self):
+        """
+        @summary: Event call when Windows session is ready
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onSessionReady", "PDUClientListener"))
+    
+    
     def onUpdate(self, rectangles):
         """
         @summary: call when a bitmap data is received from update PDU
@@ -298,6 +305,9 @@ class Client(PDULayer):
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SHUTDOWN_DENIED:
             #may be an event to ask to user
             self._transport.close()
+        elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SAVE_SESSION_INFO:
+            #handle session event
+            self._listener.onSessionReady()
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_UPDATE:
             self.readUpdateDataPDU(dataPDU.pduData)
     

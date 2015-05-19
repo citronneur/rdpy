@@ -542,7 +542,7 @@ class DataPDU(CompositeType):
             """
             @summary: Create object in accordance self.shareDataHeader.pduType2 value
             """
-            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SupressOutputDataPDU]:
+            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SupressOutputDataPDU, SaveSessionInfoPDU]:
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
                     return c()
             log.debug("unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value))
@@ -771,7 +771,19 @@ class UpdateDataPDU(CompositeType):
             raise InvalidExpectedDataException("Try to send an invalid data update PDU")
             
         self.updateData = updateData
-
+        
+class SaveSessionInfoPDU(CompositeType):
+    """
+    @see: https://msdn.microsoft.com/en-us/library/cc240636.aspx
+    """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_SAVE_SESSION_INFO
+    
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.infoType = UInt32Le()
+        #TODO parse info data
+        self.infoData = String()
+        
 class FastPathUpdatePDU(CompositeType):
     """
     @summary: Fast path update PDU packet

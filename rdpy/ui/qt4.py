@@ -311,12 +311,21 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
     def onReady(self):
         """
         @summary: Call when stack is ready
+        @see: rdp.RDPClientObserver.onReady
         """
         #do something maybe a loader
+        
+    def onSessionReady(self):
+        """
+        @summary: Windows session is ready
+        @see: rdp.RDPClientObserver.onSessionReady
+        """
+        pass
     
     def onClose(self):
         """
         @summary: Call when stack is close
+        @see: rdp.RDPClientObserver.onClose
         """
         #do something maybe a message
 
@@ -336,12 +345,6 @@ class QRemoteDesktop(QtGui.QWidget):
         self._adaptor = adaptor
         #set correct size
         self.resize(width, height)
-        #refresh stack of image
-        #because we can update image only in paint
-        #event function. When protocol receive image
-        #we will stock into refresh list
-        #and in paint event paint list of all refresh images
-        self._refresh = []
         #bind mouse event
         self.setMouseTracking(True)
         #buffer image
@@ -354,8 +357,9 @@ class QRemoteDesktop(QtGui.QWidget):
         @param y: y position of new image
         @param qimage: new QImage
         """
-        #save in refresh list (order is important)
-        self._refresh.append((x, y, qimage, width, height))
+        #fill buffer image
+        with QtGui.QPainter(self._buffer) as qp:
+            qp.drawImage(x, y, qimage, 0, 0, width, height)
         #force update
         self.update()
         
@@ -373,16 +377,9 @@ class QRemoteDesktop(QtGui.QWidget):
         @summary: Call when Qt renderer engine estimate that is needed
         @param e: QEvent
         """
-        #fill buffer image
-        with QtGui.QPainter(self._buffer) as qp:
-        #draw image
-            for (x, y, image, width, height) in self._refresh:
-                qp.drawImage(x, y, image, 0, 0, width, height)
         #draw in widget
         with QtGui.QPainter(self) as qp:
             qp.drawImage(0, 0, self._buffer)
-
-        self._refresh = []
         
     def mouseMoveEvent(self, event):
         """

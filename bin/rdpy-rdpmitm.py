@@ -179,6 +179,13 @@ class ProxyClient(rdp.RDPClientObserver):
         #maybe color depth change
         self._server._controller.setColorDepth(self._controller.getColorDepth())
         
+    def onSessionReady(self):
+        """
+        @summary: Windows session is ready
+        @see: rdp.RDPClientObserver.onSessionReady
+        """
+        pass
+        
     def onClose(self):
         """
         @summary: Event inform that stack is close
