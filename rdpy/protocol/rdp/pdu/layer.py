@@ -25,6 +25,7 @@ In this layer are managed all mains bitmap update orders end user inputs
 
 from rdpy.core.layer import LayerAutomata
 from rdpy.core.error import CallPureVirtualFuntion
+from rdpy.core.type import ArrayType
 import rdpy.core.log as log
 import rdpy.protocol.rdp.tpkt as tpkt
 import data, caps
@@ -266,15 +267,16 @@ class Client(PDULayer):
         @summary: Main receive function after connection sequence
         @param s: Stream from transport layer
         """
-        pdu = data.PDU()
-        s.readType(pdu)
-        if pdu.shareControlHeader.pduType.value == data.PDUType.PDUTYPE_DATAPDU:
-            self.readDataPDU(pdu.pduMessage)
-        elif pdu.shareControlHeader.pduType.value == data.PDUType.PDUTYPE_DEACTIVATEALLPDU:
-            #use in deactivation-reactivation sequence
-            #next state is either a capabilities re exchange or disconnection
-            #http://msdn.microsoft.com/en-us/library/cc240454.aspx
-            self.setNextState(self.recvDemandActivePDU)
+        pdus = ArrayType(data.PDU)
+        s.readType(pdus)
+        for pdu in pdus:
+            if pdu.shareControlHeader.pduType.value == data.PDUType.PDUTYPE_DATAPDU:
+                self.readDataPDU(pdu.pduMessage)
+            elif pdu.shareControlHeader.pduType.value == data.PDUType.PDUTYPE_DEACTIVATEALLPDU:
+                #use in deactivation-reactivation sequence
+                #next state is either a capabilities re exchange or disconnection
+                #http://msdn.microsoft.com/en-us/library/cc240454.aspx
+                self.setNextState(self.recvDemandActivePDU)
         
     def recvFastPath(self, secFlag, fastPathS):
         """
@@ -283,11 +285,12 @@ class Client(PDULayer):
         @param fastPathS: {Stream} that contain fast path data
         @param secFlag: {SecFlags}
         """
-        fastPathPDU = data.FastPathUpdatePDU()
-        fastPathS.readType(fastPathPDU)
-        if fastPathPDU.updateHeader.value == data.FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
-            self._listener.onUpdate(fastPathPDU.updateData.rectangles._array)
-            
+        updates = ArrayType(data.FastPathUpdatePDU)
+        fastPathS.readType(updates)
+        for update in updates:
+            if update.updateHeader.value == data.FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
+                self._listener.onUpdate(update.updateData.rectangles._array)
+        
     def readDataPDU(self, dataPDU):
         """
         @summary: read a data PDU object
@@ -329,8 +332,8 @@ class Client(PDULayer):
         generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
         generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
         generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.ENC_SALTED_CHECKSUM
-        if not self._fastPathSender is None:
-            generalCapability.extraFlags.value |= caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
+        #if not self._fastPathSender is None:
+        #    generalCapability.extraFlags.value |= caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
         
         #init bitmap capability
         bitmapCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability

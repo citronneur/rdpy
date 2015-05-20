@@ -241,6 +241,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         self._widget = QRemoteDesktop(width, height, self)
         #set widget screen to RDP stack
         controller.setScreen(width, height)
+        self._i = 0
         
     def getWidget(self):
         """
@@ -303,7 +304,9 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         @param isCompress: {bool} use RLE compression
         @param data: {str} bitmap data
         """
-        image = RDPBitmapToQtImage(width, height, bitsPerPixel, isCompress, data);
+        image = RDPBitmapToQtImage(width, height, bitsPerPixel, isCompress, data)
+        image.save("/tmp/%s.png"%self._i)
+        self._i += 1
         #if image need to be cut
         #For bit alignement server may send more than image pixel
         self._widget.notifyImage(destLeft, destTop, image, destRight - destLeft + 1, destBottom - destTop + 1)
