@@ -202,6 +202,16 @@ class Display(object):
     SUPPRESS_DISPLAY_UPDATES = 0x00
     ALLOW_DISPLAY_UPDATES = 0x01
     
+class ToogleFlag(object):
+    """
+    @summary: Use to known state of keyboard
+    @see: https://msdn.microsoft.com/en-us/library/cc240588.aspx
+    """
+    TS_SYNC_SCROLL_LOCK = 0x00000001
+    TS_SYNC_NUM_LOCK = 0x00000002
+    TS_SYNC_CAPS_LOCK = 0x00000004
+    TS_SYNC_KANA_LOCK = 0x00000008
+    
 class ErrorInfo(object):
     """
     @summary: Error code use in Error info PDU
@@ -542,9 +552,9 @@ class DataPDU(CompositeType):
             """
             for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SupressOutputDataPDU, SaveSessionInfoPDU]:
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
-                    return c(readLen = CallableValue(self.shareDataHeader.uncompressedLength.value - 18))
+                    return c(readLen = CallableValue(readLen.value - sizeof(self.shareDataHeader)))
             log.debug("unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value))
-            return String(readLen = CallableValue(self.shareDataHeader.uncompressedLength.value - 18))
+            return String(readLen = CallableValue(readLen.value - sizeof(self.shareDataHeader)))
             
         if pduData is None:
             pduData = FactoryType(PDUDataFactory)
@@ -759,15 +769,9 @@ class UpdateDataPDU(CompositeType):
             """
             for c in [BitmapUpdateDataPDU]:
                 if self.updateType.value == c._UPDATE_TYPE_:
-                    if not readLen is None:
-                        return c(readLen = CallableValue(readLen.value - 2))
-                    else:
-                        return c()
+                    return c(readLen = CallableValue(readLen.value - 2))
             log.debug("unknown PDU update data type : %s"%hex(self.updateType.value))
-            if not readLen is None:
-                return String(readLen = CallableValue(readLen.value - 2))
-            else:
-                return String()
+            return String(readLen = CallableValue(readLen.value - 2))
         
         if updateData is None:
             updateData = FactoryType(UpdateDataFactory, conditional = lambda:(self.updateType.value != UpdateType.UPDATETYPE_SYNCHRONIZE))
@@ -915,11 +919,10 @@ class SlowPathInputEvent(CompositeType):
         self.messageType = UInt16Le(lambda:self.slowPathInputData.__class__._INPUT_MESSAGE_TYPE_)
         
         def SlowPathInputDataFactory():
-            for c in [PointerEvent, ScancodeKeyEvent, UnicodeKeyEvent]:
+            for c in [PointerEvent, ScancodeKeyEvent, UnicodeKeyEvent, SynchronizeEvent]:
                 if self.messageType.value == c._INPUT_MESSAGE_TYPE_:
                     return c()
-            log.debug("unknown slow path input : %s"%hex(self.messageType.value))
-            return String()
+            raise InvalidExpectedDataException("unknown slow path input : %s"%hex(self.messageType.value))
         
         if messageData is None:
             messageData = FactoryType(SlowPathInputDataFactory)
@@ -927,7 +930,19 @@ class SlowPathInputEvent(CompositeType):
             raise InvalidExpectedDataException("try to send an invalid Slow Path Input Event")
             
         self.slowPathInputData = messageData
-            
+
+class SynchronizeEvent(CompositeType):
+    """
+    @summary: Synchronize keyboard
+    @see: https://msdn.microsoft.com/en-us/library/cc240588.aspx
+    """
+    _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_SYNC
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.pad2Octets = UInt16Le()
+        self.toggleFlags = UInt32Le()
+         
 class PointerEvent(CompositeType):
     """
     @summary: Event use to communicate mouse position

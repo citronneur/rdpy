@@ -332,8 +332,8 @@ class Client(PDULayer):
         generalCapability.osMajorType.value = caps.MajorType.OSMAJORTYPE_WINDOWS
         generalCapability.osMinorType.value = caps.MinorType.OSMINORTYPE_WINDOWS_NT
         generalCapability.extraFlags.value = caps.GeneralExtraFlag.LONG_CREDENTIALS_SUPPORTED | caps.GeneralExtraFlag.NO_BITMAP_COMPRESSION_HDR | caps.GeneralExtraFlag.ENC_SALTED_CHECKSUM
-        #if not self._fastPathSender is None:
-        #    generalCapability.extraFlags.value |= caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
+        if not self._fastPathSender is None:
+            generalCapability.extraFlags.value |= caps.GeneralExtraFlag.FASTPATH_OUTPUT_SUPPORTED
         
         #init bitmap capability
         bitmapCapability = self._clientCapabilities[caps.CapsType.CAPSTYPE_BITMAP].capability
