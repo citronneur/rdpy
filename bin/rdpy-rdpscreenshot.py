@@ -23,7 +23,9 @@ example of use rdpy
 take screenshot of login page
 """
 
-import sys, os, getopt
+import getopt
+import os
+import sys
 
 from PyQt4 import QtCore, QtGui
 from rdpy.protocol.rdp import rdp
@@ -32,8 +34,9 @@ import rdpy.core.log as log
 from rdpy.core.error import RDPSecurityNegoFail
 from twisted.internet import task
 
-#set log level
+# set log level
 log._LOG_LEVEL = log.Level.INFO
+
 
 class RDPScreenShotFactory(rdp.ClientFactory):
     """
@@ -41,6 +44,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
     """
     __INSTANCE__ = 0
     __STATE__ = []
+
     def __init__(self, reactor, app, width, height, path, timeout):
         """
         @param reactor: twisted reactor
@@ -58,7 +62,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
         self._timeout = timeout
         #NLA server can't be screenshooting
         self._security = rdp.SecurityLevel.RDP_LEVEL_SSL
-        
+
     def clientConnectionLost(self, connector, reason):
         """
         @summary: Connection lost event
@@ -70,14 +74,14 @@ class RDPScreenShotFactory(rdp.ClientFactory):
             self._security = rdp.SecurityLevel.RDP_LEVEL_RDP
             connector.connect()
             return
-        
-        log.info("connection lost : %s"%reason)
+
+        log.info("connection lost : %s" % reason)
         RDPScreenShotFactory.__STATE__.append((connector.host, connector.port, reason))
         RDPScreenShotFactory.__INSTANCE__ -= 1
         if(RDPScreenShotFactory.__INSTANCE__ == 0):
             self._reactor.stop()
             self._app.exit()
-        
+
     def clientConnectionFailed(self, connector, reason):
         """
         @summary: Connection failed event
@@ -90,8 +94,7 @@ class RDPScreenShotFactory(rdp.ClientFactory):
         if(RDPScreenShotFactory.__INSTANCE__ == 0):
             self._reactor.stop()
             self._app.exit()
-        
-        
+
     def buildObserver(self, controller, addr):
         """
         @summary: build ScreenShot observer
@@ -117,46 +120,46 @@ class RDPScreenShotFactory(rdp.ClientFactory):
                 self._timeout = timeout
                 self._startTimeout = False
                 self._reactor = reactor
-                
+
             def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
                 """
                 @summary: callback use when bitmap is received 
                 """
                 image = RDPBitmapToQtImage(width, height, bitsPerPixel, isCompress, data);
                 with QtGui.QPainter(self._buffer) as qp:
-                #draw image
+                # draw image
                     qp.drawImage(destLeft, destTop, image, 0, 0, destRight - destLeft + 1, destBottom - destTop + 1)
                 if not self._startTimeout:
                     self._startTimeout = False
                     self._reactor.callLater(self._timeout, self.checkUpdate)
-                   
+
             def onReady(self):
                 """
                 @summary: callback use when RDP stack is connected (just before received bitmap)
                 """
-                log.info("connected %s"%addr)
-            
+                log.info("connected %s" % addr)
+
             def onSessionReady(self):
                 """
                 @summary: Windows session is ready
                 @see: rdp.RDPClientObserver.onSessionReady
                 """
                 pass
-            
+
             def onClose(self):
                 """
                 @summary: callback use when RDP stack is closed
                 """
-                log.info("save screenshot into %s"%self._path)
+                log.info("save screenshot into %s" % self._path)
                 self._buffer.save(self._path)
-                
+
             def checkUpdate(self):
                 self._controller.close();
-                
-        controller.setScreen(width, height);
+
+        controller.setScreen(self._width, self._height);
         controller.setSecurityLevel(self._security)
         return ScreenShotObserver(controller, self._width, self._height, self._path, self._timeout, self._reactor)
-    
+
 def main(width, height, path, timeout, hosts):
     """
     @summary: main algorithm
@@ -168,39 +171,40 @@ def main(width, height, path, timeout, hosts):
     """
     #create application
     app = QtGui.QApplication(sys.argv)
-    
+
     #add qt4 reactor
     import qt4reactor
     qt4reactor.install()
-    
+
     from twisted.internet import reactor
-        
+
     for host in hosts:      
         if ':' in host:
             ip, port = host.split(':')
         else:
             ip, port = host, "3389"
-            
-        reactor.connectTCP(ip, int(port), RDPScreenShotFactory(reactor, app, width, height, path + "%s.jpg"%ip, timeout))
-        
+
+        reactor.connectTCP(ip, int(port), RDPScreenShotFactory(reactor, app, width, height, path + "%s.jpg" % ip, timeout))
+
     reactor.runReturn()
     app.exec_()
     return RDPScreenShotFactory.__STATE__
-        
+
+
 def help():
     print "Usage: rdpy-rdpscreenshot [options] ip[:port]"
     print "\t-w: width of screen default value is 1024"
     print "\t-l: height of screen default value is 800"
     print "\t-o: file path of screenshot default(/tmp/rdpy-rdpscreenshot.jpg)"
     print "\t-t: timeout of connection without any updating order (default is 2s)"
-        
+
 if __name__ == '__main__':
-    #default script argument
+    # default script argument
     width = 1024
     height = 800
     path = "/tmp/"
     timeout = 5.0
-    
+
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hw:l:o:t:")
     except getopt.GetoptError:
@@ -217,5 +221,5 @@ if __name__ == '__main__':
             path = arg
         elif opt == "-t":
             timeout = float(arg)
-    
+
     main(width, height, path, timeout, args)
