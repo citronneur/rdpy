@@ -70,7 +70,7 @@ class HoneyPotServer(rdp.RDPServerObserver):
     def onClose(self):
         """ HoneyPot """
         
-    def onKeyEventScancode(self, code, isPressed):
+    def onKeyEventScancode(self, code, isPressed, isExtended):
         """ HoneyPot """
     
     def onKeyEventUnicode(self, code, isPressed):

@@ -234,7 +234,7 @@ class LicPacket(CompositeType):
                 if self.bMsgtype.value == c._MESSAGE_TYPE_:
                     return c(readLen = self.wMsgSize - 4)
             log.debug("unknown license message : %s"%self.bMsgtype.value)
-            return String()
+            return String(readLen = self.wMsgSize - 4)
         
         if message is None:
             message = FactoryType(LicensingMessageFactory)

@@ -92,16 +92,17 @@ class ProxyServer(rdp.RDPServerObserver):
             return
         self._client._controller.close()
         
-    def onKeyEventScancode(self, code, isPressed):
+    def onKeyEventScancode(self, code, isPressed, isExtended):
         """
         @summary: Event call when a keyboard event is catch in scan code format
-        @param code: {int} scan code of key
-        @param isPressed: {bool} True if key is down
+        @param code: {integer} scan code of key
+        @param isPressed: {boolean} True if key is down
+        @param isExtended: {boolean} True if a special key
         @see: rdp.RDPServerObserver.onKeyEventScancode
         """
         if self._client is None:
             return
-        self._client._controller.sendKeyEventScancode(code, isPressed)
+        self._client._controller.sendKeyEventScancode(code, isPressed, isExtended)
         self._rss.keyScancode(code, isPressed)
     
     def onKeyEventUnicode(self, code, isPressed):
@@ -177,6 +178,13 @@ class ProxyClient(rdp.RDPClientObserver):
         self._server.setClient(self)
         #maybe color depth change
         self._server._controller.setColorDepth(self._controller.getColorDepth())
+        
+    def onSessionReady(self):
+        """
+        @summary: Windows session is ready
+        @see: rdp.RDPClientObserver.onSessionReady
+        """
+        pass
         
     def onClose(self):
         """

@@ -172,7 +172,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
             connector.connect()
             return
         
-        QtGui.QMessageBox.warning(self._w, "Warning", "Lost connection : %s"%reason)
+        log.info("Lost connection : %s"%reason)
         reactor.stop()
         app.exit()
         
@@ -182,7 +182,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
         @param connector: twisted connector use for rdp connection (use reconnect to restart connection)
         @param reason: str use to advertise reason of lost connection
         """
-        QtGui.QMessageBox.warning(self._w, "Warning", "Connection failed : %s"%reason)
+        log.info("Connection failed : %s"%reason)
         reactor.stop()
         app.exit()
         

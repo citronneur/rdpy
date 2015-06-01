@@ -477,7 +477,7 @@ class CompositeType(Type):
                 raise e
             
         if not self._readLen is None and readLen < self._readLen.value:
-            log.debug("Still have correct data in packet %s, read it as padding"%self.__class__)
+            log.debug("Still have correct data in packet %s, read %s bytes as padding"%(self.__class__, self._readLen.value - readLen))
             s.read(self._readLen.value - readLen)
             
     def __write__(self, s):

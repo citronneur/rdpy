@@ -100,7 +100,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
     def setUsername(self, username):
         """
         @summary: Set the username for session
-        @param username: username of session
+        @param username: {string} username of session
         """
         #username in PDU info packet
         self._secLayer._info.userName.value = username
@@ -109,7 +109,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
     def setPassword(self, password):
         """
         @summary: Set password for session
-        @param password: password of session
+        @param password: {string} password of session
         """
         self.setAutologon()
         self._secLayer._info.password.value = password
@@ -117,7 +117,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
     def setDomain(self, domain):
         """
         @summary: Set the windows domain of session
-        @param domain: domain of session
+        @param domain: {string} domain of session
         """
         self._secLayer._info.domain.value = domain
         
@@ -126,6 +126,13 @@ class RDPClientController(pdu.layer.PDUClientListener):
         @summary: enable autologon
         """
         self._secLayer._info.flag |= sec.InfoFlag.INFO_AUTOLOGON
+        
+    def setAlternateShell(self, appName):
+        """
+        @summary: set application name of app which start at the begining of session
+        @param appName: {string} application name
+        """
+        self._secLayer._info.alternateShell.value = appName
         
     def setKeyboardLayout(self, layout):
         """
@@ -191,6 +198,15 @@ class RDPClientController(pdu.layer.PDUClientListener):
         #signal all listener
         for observer in self._clientObserver:
             observer.onReady()
+            
+    def onSessionReady(self):
+        """
+        @summary: Call when Windows session is ready (connected)
+        """
+        self._isReady = True
+        #signal all listener
+        for observer in self._clientObserver:
+            observer.onSessionReady()
             
     def onClose(self):
         """
@@ -269,11 +285,12 @@ class RDPClientController(pdu.layer.PDUClientListener):
         except InvalidValue:
             log.info("try send wheel event with incorrect position")
             
-    def sendKeyEventScancode(self, code, isPressed):
+    def sendKeyEventScancode(self, code, isPressed, extended = False):
         """
         @summary: Send a scan code to RDP stack
         @param code: scan code
         @param isPressed: True if key is pressed and false if it's released
+        @param extended: {boolean} extended scancode like ctr or win button
         """
         if not self._isReady:
             return
@@ -281,11 +298,12 @@ class RDPClientController(pdu.layer.PDUClientListener):
         try:
             event = pdu.data.ScancodeKeyEvent()
             event.keyCode.value = code
-            if isPressed:
-                event.keyboardFlags.value |= pdu.data.KeyboardFlag.KBDFLAGS_DOWN
-            else:
+            if not isPressed:
                 event.keyboardFlags.value |= pdu.data.KeyboardFlag.KBDFLAGS_RELEASE
             
+            if extended:
+                event.keyboardFlags.value |= pdu.data.KeyboardFlag.KBDFLAGS_EXTENDED
+                
             #send event
             self._pduLayer.sendInputEvents([event])
             
@@ -478,7 +496,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
             for event in slowPathInputEvents:
                 #scan code
                 if event.messageType.value == pdu.data.InputMessageType.INPUT_EVENT_SCANCODE:
-                    observer.onKeyEventScancode(event.slowPathInputData.keyCode.value, not (event.slowPathInputData.keyboardFlags.value & pdu.data.KeyboardFlag.KBDFLAGS_RELEASE))
+                    observer.onKeyEventScancode(event.slowPathInputData.keyCode.value, not (event.slowPathInputData.keyboardFlags.value & pdu.data.KeyboardFlag.KBDFLAGS_RELEASE), bool(event.slowPathInputData.keyboardFlags.value & pdu.data.KeyboardFlag.KBDFLAGS_EXTENDED))
                 #unicode
                 elif event.messageType.value == pdu.data.InputMessageType.INPUT_EVENT_UNICODE:
                     observer.onKeyEventUnicode(event.slowPathInputData.unicode.value, not (event.slowPathInputData.keyboardFlags.value & pdu.data.KeyboardFlag.KBDFLAGS_RELEASE))
@@ -607,6 +625,12 @@ class RDPClientObserver(object):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "RDPClientObserver")) 
     
+    def onSessionReady(self):
+        """
+        @summary: Windows session is ready
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onSessionReady", "RDPClientObserver")) 
+    
     def onClose(self):
         """
         @summary: Stack is closes
@@ -652,11 +676,12 @@ class RDPServerObserver(object):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onClose", "RDPClientObserver")) 
     
-    def onKeyEventScancode(self, code, isPressed):
+    def onKeyEventScancode(self, code, isPressed, isExtended):
         """
         @summary: Event call when a keyboard event is catch in scan code format
-        @param code: scan code of key
-        @param isPressed: True if key is down
+        @param code: {integer} scan code of key
+        @param isPressed: {boolean} True if key is down
+        @param isExtended: {boolean} True if a special key
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onKeyEventScanCode", "RDPServerObserver"))
     

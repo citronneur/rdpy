@@ -202,6 +202,16 @@ class Display(object):
     SUPPRESS_DISPLAY_UPDATES = 0x00
     ALLOW_DISPLAY_UPDATES = 0x01
     
+class ToogleFlag(object):
+    """
+    @summary: Use to known state of keyboard
+    @see: https://msdn.microsoft.com/en-us/library/cc240588.aspx
+    """
+    TS_SYNC_SCROLL_LOCK = 0x00000001
+    TS_SYNC_NUM_LOCK = 0x00000002
+    TS_SYNC_CAPS_LOCK = 0x00000004
+    TS_SYNC_KANA_LOCK = 0x00000008
+    
 class ErrorInfo(object):
     """
     @summary: Error code use in Error info PDU
@@ -413,8 +423,6 @@ class ErrorInfo(object):
      ERRINFO_VCDATATOOLONG : "The size of a received Virtual Channel PDU (section 2.2.6.1) exceeds the chunking size specified in the Virtual Channel Capability Set (section 2.2.7.1.10).",
     }
     
-
-
 class ShareControlHeader(CompositeType):
     """
     @summary: PDU share control header
@@ -461,10 +469,10 @@ class PDU(CompositeType):
             """
             for c in [DemandActivePDU, ConfirmActivePDU, DataPDU, DeactiveAllPDU]:
                 if self.shareControlHeader.pduType.value == c._PDUTYPE_:
-                    return c()
+                    return c(readLen = CallableValue(self.shareControlHeader.totalLength.value - sizeof(self.shareControlHeader)))
             log.debug("unknown PDU type : %s"%hex(self.shareControlHeader.pduType.value))
             #read entire packet
-            return String()
+            return String(readLen = CallableValue(self.shareControlHeader.totalLength.value - sizeof(self.shareControlHeader)))
             
         if pduMessage is None:
             pduMessage = FactoryType(PDUMessageFactory)
@@ -481,8 +489,8 @@ class DemandActivePDU(CompositeType):
     #may declare the PDU type
     _PDUTYPE_ = PDUType.PDUTYPE_DEMANDACTIVEPDU
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.lengthCombinedCapabilities = UInt16Le(lambda:(sizeof(self.numberCapabilities) + sizeof(self.pad2Octets) + sizeof(self.capabilitySets)))
@@ -500,8 +508,8 @@ class ConfirmActivePDU(CompositeType):
     #may declare the PDU type
     _PDUTYPE_ = PDUType.PDUTYPE_CONFIRMACTIVEPDU
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.shareId = UInt32Le()
         self.originatorId = UInt16Le(0x03EA, constant = True)
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
@@ -519,10 +527,10 @@ class DeactiveAllPDU(CompositeType):
     #may declare the PDU type
     _PDUTYPE_ = PDUType.PDUTYPE_DEACTIVATEALLPDU
     
-    def __init__(self):
+    def __init__(self, readLen = None):
         #in old version this packet is empty i don't know
         #and not specified
-        CompositeType.__init__(self, optional = True)
+        CompositeType.__init__(self, optional = True, readLen = readLen)
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
@@ -534,19 +542,19 @@ class DataPDU(CompositeType):
     #may declare the PDU type
     _PDUTYPE_ = PDUType.PDUTYPE_DATAPDU
     
-    def __init__(self, pduData = None, shareId = 0):
-        CompositeType.__init__(self)
+    def __init__(self, pduData = None, shareId = 0, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.shareDataHeader = ShareDataHeader(lambda:sizeof(self), lambda:self.pduData.__class__._PDUTYPE2_, shareId)
         
         def PDUDataFactory():
             """
             @summary: Create object in accordance self.shareDataHeader.pduType2 value
             """
-            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SupressOutputDataPDU]:
+            for c in [UpdateDataPDU, SynchronizeDataPDU, ControlDataPDU, ErrorInfoDataPDU, FontListDataPDU, FontMapDataPDU, PersistentListPDU, ClientInputEventPDU, ShutdownDeniedPDU, ShutdownRequestPDU, SupressOutputDataPDU, SaveSessionInfoPDU]:
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
-                    return c()
+                    return c(readLen = CallableValue(readLen.value - sizeof(self.shareDataHeader)))
             log.debug("unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value))
-            return String()
+            return String(readLen = CallableValue(readLen.value - sizeof(self.shareDataHeader)))
             
         if pduData is None:
             pduData = FactoryType(PDUDataFactory)
@@ -655,8 +663,8 @@ class PersistentListPDU(CompositeType):
     """
     _PDUTYPE2_ = PDUType2.PDUTYPE2_BITMAPCACHE_PERSISTENT_LIST
     
-    def __init__(self, userId = 0, shareId = 0):
-        CompositeType.__init__(self)
+    def __init__(self, userId = 0, shareId = 0, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.numEntriesCache0 = UInt16Le()
         self.numEntriesCache1 = UInt16Le()
         self.numEntriesCache2 = UInt16Le()
@@ -679,8 +687,8 @@ class ClientInputEventPDU(CompositeType):
     """
     _PDUTYPE2_ = PDUType2.PDUTYPE2_INPUT
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.numEvents = UInt16Le(lambda:len(self.slowPathInputEvents._array))
         self.pad2Octets = UInt16Le()
         self.slowPathInputEvents = ArrayType(SlowPathInputEvent, readLen = self.numEvents)     
@@ -691,8 +699,8 @@ class ShutdownRequestPDU(CompositeType):
     client -> server
     """  
     _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_REQUEST
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
              
 class ShutdownDeniedPDU(CompositeType):
     """
@@ -700,8 +708,8 @@ class ShutdownDeniedPDU(CompositeType):
     server -> client
     """  
     _PDUTYPE2_ = PDUType2.PDUTYPE2_SHUTDOWN_DENIED
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
 
 class InclusiveRectangle(CompositeType):
     """
@@ -761,9 +769,9 @@ class UpdateDataPDU(CompositeType):
             """
             for c in [BitmapUpdateDataPDU]:
                 if self.updateType.value == c._UPDATE_TYPE_:
-                    return c()
+                    return c(readLen = CallableValue(readLen.value - 2))
             log.debug("unknown PDU update data type : %s"%hex(self.updateType.value))
-            return String()
+            return String(readLen = CallableValue(readLen.value - 2))
         
         if updateData is None:
             updateData = FactoryType(UpdateDataFactory, conditional = lambda:(self.updateType.value != UpdateType.UPDATETYPE_SYNCHRONIZE))
@@ -771,7 +779,19 @@ class UpdateDataPDU(CompositeType):
             raise InvalidExpectedDataException("Try to send an invalid data update PDU")
             
         self.updateData = updateData
-
+        
+class SaveSessionInfoPDU(CompositeType):
+    """
+    @see: https://msdn.microsoft.com/en-us/library/cc240636.aspx
+    """
+    _PDUTYPE2_ = PDUType2.PDUTYPE2_SAVE_SESSION_INFO
+    
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
+        self.infoType = UInt32Le()
+        #TODO parse info data
+        self.infoData = String()
+        
 class FastPathUpdatePDU(CompositeType):
     """
     @summary: Fast path update PDU packet
@@ -789,9 +809,9 @@ class FastPathUpdatePDU(CompositeType):
             """
             for c in [FastPathBitmapUpdateDataPDU]:
                 if (self.updateHeader.value & 0xf) == c._FASTPATH_UPDATE_TYPE_:
-                    return c()
+                    return c(readLen = self.size)
             log.debug("unknown Fast Path PDU update data type : %s"%hex(self.updateHeader.value & 0xf))
-            return String()
+            return String(readLen = self.size)
             
         if updateData is None:
             updateData = FactoryType(UpdateDataFactory)
@@ -821,8 +841,8 @@ class OrderUpdateDataPDU(CompositeType):
     @see: http://msdn.microsoft.com/en-us/library/cc241571.aspx
     @todo: not implemented yet but need it
     """
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.pad2OctetsA = UInt16Le()
         self.numberOrders = UInt16Le(lambda:len(self.orderData._array))
         self.pad2OctetsB = UInt16Le()
@@ -882,8 +902,8 @@ class FastPathBitmapUpdateDataPDU(CompositeType):
     """
     _FASTPATH_UPDATE_TYPE_ = FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP
     
-    def __init__(self):
-        CompositeType.__init__(self)
+    def __init__(self, readLen = None):
+        CompositeType.__init__(self, readLen = readLen)
         self.header = UInt16Le(FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP, constant = True)
         self.numberRectangles = UInt16Le(lambda:len(self.rectangles._array))
         self.rectangles = ArrayType(BitmapData, readLen = self.numberRectangles)
@@ -899,11 +919,10 @@ class SlowPathInputEvent(CompositeType):
         self.messageType = UInt16Le(lambda:self.slowPathInputData.__class__._INPUT_MESSAGE_TYPE_)
         
         def SlowPathInputDataFactory():
-            for c in [PointerEvent, ScancodeKeyEvent, UnicodeKeyEvent]:
+            for c in [PointerEvent, ScancodeKeyEvent, UnicodeKeyEvent, SynchronizeEvent]:
                 if self.messageType.value == c._INPUT_MESSAGE_TYPE_:
                     return c()
-            log.debug("unknown slow path input : %s"%hex(self.messageType.value))
-            return String()
+            raise InvalidExpectedDataException("unknown slow path input : %s"%hex(self.messageType.value))
         
         if messageData is None:
             messageData = FactoryType(SlowPathInputDataFactory)
@@ -911,7 +930,19 @@ class SlowPathInputEvent(CompositeType):
             raise InvalidExpectedDataException("try to send an invalid Slow Path Input Event")
             
         self.slowPathInputData = messageData
-            
+
+class SynchronizeEvent(CompositeType):
+    """
+    @summary: Synchronize keyboard
+    @see: https://msdn.microsoft.com/en-us/library/cc240588.aspx
+    """
+    _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_SYNC
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.pad2Octets = UInt16Le()
+        self.toggleFlags = UInt32Le()
+         
 class PointerEvent(CompositeType):
     """
     @summary: Event use to communicate mouse position

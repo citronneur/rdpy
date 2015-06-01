@@ -25,6 +25,7 @@ In this layer are managed all mains bitmap update orders end user inputs
 
 from rdpy.core.layer import LayerAutomata
 from rdpy.core.error import CallPureVirtualFuntion
+from rdpy.core.type import ArrayType
 import rdpy.core.log as log
 import rdpy.protocol.rdp.tpkt as tpkt
 import data, caps
@@ -38,6 +39,13 @@ class PDUClientListener(object):
         @summary: Event call when PDU layer is ready to send events
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onReady", "PDUClientListener"))
+    
+    def onSessionReady(self):
+        """
+        @summary: Event call when Windows session is ready
+        """
+        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onSessionReady", "PDUClientListener"))
+    
     
     def onUpdate(self, rectangles):
         """
@@ -259,15 +267,16 @@ class Client(PDULayer):
         @summary: Main receive function after connection sequence
         @param s: Stream from transport layer
         """
-        pdu = data.PDU()
-        s.readType(pdu)
-        if pdu.shareControlHeader.pduType.value == data.PDUType.PDUTYPE_DATAPDU:
-            self.readDataPDU(pdu.pduMessage)
-        elif pdu.shareControlHeader.pduType.value == data.PDUType.PDUTYPE_DEACTIVATEALLPDU:
-            #use in deactivation-reactivation sequence
-            #next state is either a capabilities re exchange or disconnection
-            #http://msdn.microsoft.com/en-us/library/cc240454.aspx
-            self.setNextState(self.recvDemandActivePDU)
+        pdus = ArrayType(data.PDU)
+        s.readType(pdus)
+        for pdu in pdus:
+            if pdu.shareControlHeader.pduType.value == data.PDUType.PDUTYPE_DATAPDU:
+                self.readDataPDU(pdu.pduMessage)
+            elif pdu.shareControlHeader.pduType.value == data.PDUType.PDUTYPE_DEACTIVATEALLPDU:
+                #use in deactivation-reactivation sequence
+                #next state is either a capabilities re exchange or disconnection
+                #http://msdn.microsoft.com/en-us/library/cc240454.aspx
+                self.setNextState(self.recvDemandActivePDU)
         
     def recvFastPath(self, secFlag, fastPathS):
         """
@@ -276,11 +285,12 @@ class Client(PDULayer):
         @param fastPathS: {Stream} that contain fast path data
         @param secFlag: {SecFlags}
         """
-        fastPathPDU = data.FastPathUpdatePDU()
-        fastPathS.readType(fastPathPDU)
-        if fastPathPDU.updateHeader.value == data.FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
-            self._listener.onUpdate(fastPathPDU.updateData.rectangles._array)
-            
+        updates = ArrayType(data.FastPathUpdatePDU)
+        fastPathS.readType(updates)
+        for update in updates:
+            if update.updateHeader.value == data.FastPathUpdateType.FASTPATH_UPDATETYPE_BITMAP:
+                self._listener.onUpdate(update.updateData.rectangles._array)
+        
     def readDataPDU(self, dataPDU):
         """
         @summary: read a data PDU object
@@ -298,6 +308,9 @@ class Client(PDULayer):
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SHUTDOWN_DENIED:
             #may be an event to ask to user
             self._transport.close()
+        elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_SAVE_SESSION_INFO:
+            #handle session event
+            self._listener.onSessionReady()
         elif dataPDU.shareDataHeader.pduType2.value == data.PDUType2.PDUTYPE2_UPDATE:
             self.readUpdateDataPDU(dataPDU.pduData)
     
