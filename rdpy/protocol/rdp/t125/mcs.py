@@ -27,7 +27,6 @@ It exist channel for file system order, audio channel, clipboard etc...
 from rdpy.core.layer import LayerAutomata, IStreamSender, Layer
 from rdpy.core.type import sizeof, Stream, UInt8, UInt16Le, String
 from rdpy.core.error import InvalidExpectedDataException, InvalidValue, InvalidSize, CallPureVirtualFuntion
-from ber import writeLength
 import rdpy.core.log as log
 
 import ber, gcc, per
@@ -255,7 +254,7 @@ class MCSLayer(LayerAutomata):
         domainParam = (ber.writeInteger(maxChannels), ber.writeInteger(maxUsers), ber.writeInteger(maxTokens),
                        ber.writeInteger(1), ber.writeInteger(0), ber.writeInteger(1),
                        ber.writeInteger(maxPduSize), ber.writeInteger(2))
-        return (ber.writeUniversalTag(ber.Tag.BER_TAG_SEQUENCE, True), writeLength(sizeof(domainParam)), domainParam)
+        return (ber.writeUniversalTag(ber.Tag.BER_TAG_SEQUENCE, True), ber.writeLength(sizeof(domainParam)), domainParam)
     
     def writeMCSPDUHeader(self, mcsPdu, options = 0):
         """
