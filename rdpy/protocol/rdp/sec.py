@@ -24,7 +24,7 @@ RDP Standard security layer
 import sha, md5
 import lic, tpkt
 from t125 import gcc, mcs
-from rdpy.core.type import CompositeType, CallableValue, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
+from rdpy.core.type import CompositeType, CallableValue, Stream, UInt32Le, UInt16Le, String, sizeof
 from rdpy.core.layer import LayerAutomata, IStreamSender
 from rdpy.core.error import InvalidExpectedDataException
 from rdpy.core import log
@@ -56,6 +56,7 @@ class SecurityFlag(object):
 class InfoFlag(object):
     """
     Client capabilities informations
+    @see: https://msdn.microsoft.com/en-us/library/cc240475.aspx
     """
     INFO_MOUSE = 0x00000001
     INFO_DISABLECTRLALTDEL = 0x00000002
@@ -80,6 +81,7 @@ class InfoFlag(object):
 class PerfFlag(object):
     """
     Network performances flag
+    @see: https://msdn.microsoft.com/en-us/library/cc240476.aspx
     """
     PERF_DISABLE_WALLPAPER = 0x00000001
     PERF_DISABLE_FULLWINDOWDRAG = 0x00000002
