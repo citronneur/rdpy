@@ -22,7 +22,7 @@
 RDP Honey pot use Rss scenario file to simulate RDP server
 """
 
-import sys, os, getopt, time
+import sys, os, getopt, time, datetime
 
 from rdpy.core import log, error, rss
 from rdpy.protocol.rdp import rdp
@@ -59,12 +59,7 @@ class HoneyPotServer(rdp.RDPServerObserver):
         
         domain, username, password = self._controller.getCredentials()
         hostname = self._controller.getHostname()
-        log.info("""Credentials:
-        \tdomain : %s
-        \tusername : %s
-        \tpassword : %s
-        \thostname : %s
-        """%(domain, username, password, hostname));
+        log.info("Credentials: timestamp: %s, domain: %s, username: %s, password: %s, hostname: %s"%(datetime.datetime.now().isoformat(), domain, username, password, hostname));
         self.start()
         
     def onClose(self):
@@ -125,7 +120,7 @@ class HoneyPotServerFactory(rdp.ServerFactory):
         @param addr: destination address
         @see: rdp.ServerFactory.buildObserver
         """
-        log.info("Connection from %s:%s"%(addr.host, addr.port))
+        log.info("Connection from %s:%s, timestamp: %s"%(addr.host, addr.port, datetime.datetime.now().isoformat()))
         return HoneyPotServer(controller, self._rssFileSizeList)
     
 def readSize(filePath):
