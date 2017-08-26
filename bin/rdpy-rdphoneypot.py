@@ -59,7 +59,7 @@ class HoneyPotServer(rdp.RDPServerObserver):
         
         domain, username, password = self._controller.getCredentials()
         hostname = self._controller.getHostname()
-        log.info("Credentials: timestamp: %s, domain: %s, username: %s, password: %s, hostname: %s"%(datetime.datetime.now().isoformat(), domain, username, password, hostname));
+        log.info("Credentials: timestamp[%s],domain[%s ],username[%s ],password[%s ],hostname[%s ]"%(datetime.datetime.now().isoformat(), domain, username, password, hostname));
         self.start()
         
     def onClose(self):
@@ -120,7 +120,7 @@ class HoneyPotServerFactory(rdp.ServerFactory):
         @param addr: destination address
         @see: rdp.ServerFactory.buildObserver
         """
-        log.info("Connection from %s:%s, timestamp: %s"%(addr.host, addr.port, datetime.datetime.now().isoformat()))
+        log.info("Connection from [%s:%s],timestamp[%s]"%(addr.host, addr.port, datetime.datetime.now().isoformat()))
         return HoneyPotServer(controller, self._rssFileSizeList)
     
 def readSize(filePath):
