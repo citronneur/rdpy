@@ -21,7 +21,7 @@
 Fake widget
 """
 from rdpy.core.error import CallPureVirtualFuntion
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore
 
 
 class KeyCode(object):
