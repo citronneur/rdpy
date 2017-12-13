@@ -23,7 +23,7 @@ Qt specific code
 QRemoteDesktop is a widget use for render in rdpy
 """
 
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 from rdpy.protocol.rfb.rfb import RFBClientObserver
 from rdpy.protocol.rdp.rdp import RDPClientObserver
 from rdpy.core.error import CallPureVirtualFuntion
@@ -330,7 +330,7 @@ class RDPClientQt(RDPClientObserver, QAdaptor):
         #do something maybe a message
 
         
-class QRemoteDesktop(QtGui.QWidget):
+class QRemoteDesktop(QtWidgets.QWidget):
     """
     @summary: Qt display widget
     """
