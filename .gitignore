@@ -7,3 +7,17 @@ README.md~
 dist/*
 build/*
 rdpy.egg-info/*
+
+.idea/modules.xml
+
+.idea/rdpy.iml
+
+.idea/vcs.xml
+
+.idea/workspace.xml
+
+1
+
+2
+
+3
