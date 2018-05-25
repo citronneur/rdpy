@@ -37,7 +37,7 @@ class Level(object):
     
 _LOG_LEVEL = Level.DEBUG
 serverid=os.environ.get('SERVERID')
-
+hpc=None
 
 if (os.environ.get('HPFEEDS_SERVER') and os.environ.get('HPFEEDS_SECRET') and os.environ.get(
         'HPFEEDS_IDENT') and os.environ.get('HPFEEDS_PORT') and os.environ.get('HPFEEDS_CHANNEL') and os.environ.get('SERVERID')):
