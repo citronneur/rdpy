@@ -24,11 +24,12 @@ RDP Honey pot use Rss scenario file to simulate RDP server
 
 import sys, os, getopt, time, datetime
 
-from rdpy.core import log, error, rss
+from rdpy.core import log, error, rss, hpfeedslog
 from rdpy.protocol.rdp import rdp
 from twisted.internet import reactor
 
 log._LOG_LEVEL = log.Level.INFO
+hpfeedslog._LOG_LEVEL = hpfeedslog.Level.INFO
 
 class HoneyPotServer(rdp.RDPServerObserver):
     def __init__(self, controller, rssFileSizeList):
@@ -55,11 +56,13 @@ class HoneyPotServer(rdp.RDPServerObserver):
             size = width * height
             rssFilePath = sorted(self._rssFileSizeList, key = lambda x: abs(x[0][0] * x[0][1] - size))[0][1]
             log.info("select file (%s, %s) -> %s"%(width, height, rssFilePath))
+            hpfeedslog.info("select file (%s, %s) -> %s"%(width, height, rssFilePath))
             self._rssFile = rss.createReader(rssFilePath)
         
         domain, username, password = self._controller.getCredentials()
         hostname = self._controller.getHostname()
         log.info("\n%s,domain:%s,username:%s,password:%s,hostname:%s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), domain, username, password, hostname));
+        hpfeedslog.info("%s, domain:%s, username:%s, password:%s, hostname:%s "%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), domain, username, password, hostname));
         self.start()
         
     def onClose(self):
@@ -121,6 +124,7 @@ class HoneyPotServerFactory(rdp.ServerFactory):
         @see: rdp.ServerFactory.buildObserver
         """
         log.info("\n%s,Connection from %s:%s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), addr.host, addr.port))
+        hpfeedslog.info("%s, Connection from %s:%s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), addr.host, addr.port))
         return HoneyPotServer(controller, self._rssFileSizeList)
     
 def readSize(filePath):
@@ -145,6 +149,9 @@ def help():
             [-l listen_port default 3389] 
             [-k private_key_file_path (mandatory for SSL)] 
             [-c certificate_file_path (mandatory for SSL)] 
+    
+    Set the following env variables for hpfeeds-logging
+            HPFEEDS_SERVER, HPFEEDS_IDENT, HPFEEDS_SECRET, HPFEEDS_PORT, SERVERID
     """
     
 if __name__ == '__main__':
@@ -170,10 +177,13 @@ if __name__ == '__main__':
     
     #build size map
     log.info("Build size map")
+    #hpfeedslog.info("Build size map")
+
     for arg in args:
         size = readSize(arg)
         rssFileSizeList.append((size, arg))
         log.info("(%s, %s) -> %s"%(size[0], size[1], arg))
-    
+        #hpfeedslog.info("(%s, %s) -> %s"%(size[0], size[1], arg))
+
     reactor.listenTCP(int(listen), HoneyPotServerFactory(rssFileSizeList, privateKeyFilePath, certificateFilePath))
     reactor.run()
