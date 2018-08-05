@@ -268,60 +268,56 @@ class ProxyClientFactory(rdp.ClientFactory):
         controller.setSecurityLevel(self._security)
         controller.setPerformanceSession()
         return ProxyClient(controller, self._server)
-    
-def help():
-    """
-    @summary: Print help in console
-    """
-    print """
-    Usage:  rdpy-rdpmitm.py -o output_directory target
-            [-l listen_port default 3389] 
-            [-k private_key_file_path (mandatory for SSL)] 
-            [-c certificate_file_path (mandatory for SSL)] 
-            [-o output directory for recoded files] 
-            [-r RDP standard security (XP or server 2003 client or older)] 
-            [-n For NLA Client authentication (need to provide credentials)] 
-    """
 
-def parseIpPort(interface, defaultPort = "3389"):
+
+def parseIpPort(interface, defaultPort="3389"):
     if ':' in interface:
-        return interface.split(':')
+        s = interface.split(':')
+        return s[0], int(s[1])
     else:
-        return interface, defaultPort
+        return interface, int(defaultPort)
+
+
+def isDirectory(outputDirectory):
+    if outputDirectory is None or not os.path.dirname(outputDirectory):
+        log.error("{} is an invalid output directory or directory doesn't exist".format(
+                  outputDirectory))
+    return outputDirectory
+
+
+def mapSecurityLayer(layer):
+    return {
+        "rdp": rdp.SecurityLevel.RDP_LEVEL_RDP,
+        "tls": rdp.SecurityLevel.RDP_LEVEL_SSL,
+        "nla": rdp.SecurityLevel.RDP_LEVEL_NLA
+    }[layer]
+
 
 if __name__ == '__main__':
-    listen = "3389"
-    privateKeyFilePath = None
-    certificateFilePath = None
-    ouputDirectory = None
-    #for anonymous authentication
-    clientSecurity = rdp.SecurityLevel.RDP_LEVEL_SSL
-    
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:o:rn")
-    except getopt.GetoptError:
-        help()
-    for opt, arg in opts:
-        if opt == "-h":
-            help()
-            sys.exit()
-        elif opt == "-l":
-            listen = arg
-        elif opt == "-k":
-            privateKeyFilePath = arg
-        elif opt == "-c":
-            certificateFilePath = arg
-        elif opt == "-o":
-            ouputDirectory = arg
-        elif opt == "-r":
-            clientSecurity = rdp.SecurityLevel.RDP_LEVEL_RDP
-        elif opt == "-n":
-            clientSecurity = rdp.SecurityLevel.RDP_LEVEL_NLA
-            
-    if ouputDirectory is None or not os.path.dirname(ouputDirectory):
-        log.error("%s is an invalid output directory"%ouputDirectory)
-        help()
-        sys.exit()
-        
-    reactor.listenTCP(int(listen), ProxyServerFactory(parseIpPort(args[0]), ouputDirectory, privateKeyFilePath, certificateFilePath, clientSecurity))
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    p.add_argument('-l', '--listen', type=parseIpPort, default="0.0.0.0:3389",
+                   help="<addr>[:<port>] to bind the server")
+    p.add_argument('-t', '--target', type=parseIpPort, required=True,
+                   help="<addr>[:<port>] of the target you want to connect to via proxy")
+    p.add_argument('-o', '--output', type=isDirectory,
+                   help="output directory", required=True)
+    p.add_argument('-s', '--sec', choices=["rdp", "tls", "nla"],
+                   default="rdp", help="set protocol security layer")
+    ssl = p.add_argument_group()
+    ssl.add_argument('-c', '--certificate', help="certificate for TLS connections")
+    ssl.add_argument('-k', '--key', help="private key of the given certificate for TLS connections")
+
+    args = p.parse_args()
+
+    if args.certificate and args.key and not args.sec == "nla":
+        args.sec = "tls"
+
+    log.info("running server on {addr}, using {sec} security layer, proxying to {target}".format(
+             addr=args.listen, sec=args.sec.upper(), target=args.target))
+    reactor.listenTCP(args.listen[1], ProxyServerFactory(
+        args.target, args.output, args.key, args.certificate, mapSecurityLayer(args.sec)),
+        interface=args.listen[0])
+
     reactor.run()
