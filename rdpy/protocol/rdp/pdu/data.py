@@ -919,7 +919,7 @@ class SlowPathInputEvent(CompositeType):
         self.messageType = UInt16Le(lambda:self.slowPathInputData.__class__._INPUT_MESSAGE_TYPE_)
         
         def SlowPathInputDataFactory():
-            for c in [PointerEvent, ScancodeKeyEvent, UnicodeKeyEvent, SynchronizeEvent]:
+            for c in [PointerEvent, PointerExEvent, ScancodeKeyEvent, UnicodeKeyEvent, SynchronizeEvent]:
                 if self.messageType.value == c._INPUT_MESSAGE_TYPE_:
                     return c()
             raise InvalidExpectedDataException("unknown slow path input : %s"%hex(self.messageType.value))
@@ -956,6 +956,19 @@ class PointerEvent(CompositeType):
         self.xPos = UInt16Le()
         self.yPos = UInt16Le()
         
+class PointerExEvent(CompositeType):
+    """
+    @summary: Event use to communicate mouse position
+    @see: http://msdn.microsoft.com/en-us/library/cc240587.aspx
+    """
+    _INPUT_MESSAGE_TYPE_ = InputMessageType.INPUT_EVENT_MOUSEX
+    
+    def __init__(self):
+        CompositeType.__init__(self)
+        self.pointerFlags = UInt16Le()
+        self.xPos = UInt16Le()
+        self.yPos = UInt16Le()
+
 class ScancodeKeyEvent(CompositeType):
     """
     @summary: Event use to communicate keyboard informations
