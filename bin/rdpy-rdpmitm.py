@@ -29,7 +29,10 @@ Client RDP -> | ProxyServer | ProxyClient | -> Server RDP
                    -----------------
 """
 
-import sys, os, getopt, time
+import sys
+import os
+import argparse
+import time
 
 from rdpy.core import log, error, rss
 from rdpy.protocol.rdp import rdp
@@ -37,10 +40,12 @@ from twisted.internet import reactor
 
 log._LOG_LEVEL = log.Level.INFO
 
+
 class ProxyServer(rdp.RDPServerObserver):
     """
     @summary: Server side of proxy
     """
+
     def __init__(self, controller, target, clientSecurityLevel, rssRecorder):
         """
         @param controller: {RDPServerController}
@@ -52,14 +57,14 @@ class ProxyServer(rdp.RDPServerObserver):
         self._client = None
         self._rss = rssRecorder
         self._clientSecurityLevel = clientSecurityLevel
-    
+
     def setClient(self, client):
         """
         @summary: Event throw by client when it's ready
         @param client: {ProxyClient}
         """
         self._client = client
-        
+
     def onReady(self):
         """
         @summary:  Event use to inform state of server stack
@@ -69,29 +74,30 @@ class ProxyServer(rdp.RDPServerObserver):
         @see: rdp.RDPServerObserver.onReady
         """
         if self._client is None:
-            #try a connection
+            # try a connection
             domain, username, password = self._controller.getCredentials()
-            self._rss.credentials(username, password, domain, self._controller.getHostname())
-            
+            self._rss.credentials(username, password,
+                                  domain, self._controller.getHostname())
+
             width, height = self._controller.getScreen()
             self._rss.screen(width, height, self._controller.getColorDepth())
-            
-            reactor.connectTCP(self._target[0], int(self._target[1]), ProxyClientFactory(self, width, height, 
-                                                            domain, username, password,self._clientSecurityLevel))
-            
+
+            reactor.connectTCP(self._target[0], int(self._target[1]), ProxyClientFactory(self, width, height,
+                                                                                         domain, username, password, self._clientSecurityLevel))
+
     def onClose(self):
         """
         @summary: Call when human client close connection
         @see: rdp.RDPServerObserver.onClose
         """
-        #end scenario
+        # end scenario
         self._rss.close()
-        
-        #close network stack
+
+        # close network stack
         if self._client is None:
             return
         self._client._controller.close()
-        
+
     def onKeyEventScancode(self, code, isPressed, isExtended):
         """
         @summary: Event call when a keyboard event is catch in scan code format
@@ -102,9 +108,10 @@ class ProxyServer(rdp.RDPServerObserver):
         """
         if self._client is None:
             return
-        self._client._controller.sendKeyEventScancode(code, isPressed, isExtended)
+        self._client._controller.sendKeyEventScancode(
+            code, isPressed, isExtended)
         self._rss.keyScancode(code, isPressed)
-    
+
     def onKeyEventUnicode(self, code, isPressed):
         """
         @summary: Event call when a keyboard event is catch in unicode format
@@ -116,7 +123,7 @@ class ProxyServer(rdp.RDPServerObserver):
             return
         self._client._controller.sendKeyEventUnicode(code, isPressed)
         self._rss.keyUnicode(code, isPressed)
-        
+
     def onPointerEvent(self, x, y, button, isPressed):
         """
         @summary: Event call on mouse event
@@ -129,11 +136,13 @@ class ProxyServer(rdp.RDPServerObserver):
         if self._client is None:
             return
         self._client._controller.sendPointerEvent(x, y, button, isPressed)
-        
+
+
 class ProxyServerFactory(rdp.ServerFactory):
     """
     @summary: Factory on listening events
     """
+
     def __init__(self, target, ouputDir, privateKeyFilePath, certificateFilePath, clientSecurity):
         """
         @param target: {tuple(ip, prt)}
@@ -141,13 +150,14 @@ class ProxyServerFactory(rdp.ServerFactory):
         @param certificateFilePath: {str} file contain server certificate (if none -> back to standard RDP security)
         @param clientSecurity: {str(ssl|rdp)} security layer use in client connection side
         """
-        rdp.ServerFactory.__init__(self, 16, privateKeyFilePath, certificateFilePath)
+        rdp.ServerFactory.__init__(
+            self, 16, privateKeyFilePath, certificateFilePath)
         self._target = target
         self._ouputDir = ouputDir
         self._clientSecurity = clientSecurity
-        #use produce unique file by connection
+        # use produce unique file by connection
         self._uniqueId = 0
-        
+
     def buildObserver(self, controller, addr):
         """
         @param controller: {rdp.RDPServerController}
@@ -155,12 +165,14 @@ class ProxyServerFactory(rdp.ServerFactory):
         @see: rdp.ServerFactory.buildObserver
         """
         self._uniqueId += 1
-        return ProxyServer(controller, self._target, self._clientSecurity, rss.createRecorder(os.path.join(self._ouputDir, "%s_%s_%s.rss"%(time.strftime('%Y%m%d%H%M%S'), addr.host, self._uniqueId))))
-    
+        return ProxyServer(controller, self._target, self._clientSecurity, rss.createRecorder(os.path.join(self._ouputDir, "%s_%s_%s.rss" % (time.strftime('%Y%m%d%H%M%S'), addr.host, self._uniqueId))))
+
+
 class ProxyClient(rdp.RDPClientObserver):
     """
     @summary: Client side of proxy
     """
+
     def __init__(self, controller, server):
         """
         @param controller: {rdp.RDPClientController}
@@ -168,7 +180,7 @@ class ProxyClient(rdp.RDPClientObserver):
         """
         rdp.RDPClientObserver.__init__(self, controller)
         self._server = server
-        
+
     def onReady(self):
         """
         @summary:  Event use to signal that RDP stack is ready
@@ -176,25 +188,26 @@ class ProxyClient(rdp.RDPClientObserver):
         @see: rdp.RDPClientObserver.onReady
         """
         self._server.setClient(self)
-        #maybe color depth change
-        self._server._controller.setColorDepth(self._controller.getColorDepth())
-        
+        # maybe color depth change
+        self._server._controller.setColorDepth(
+            self._controller.getColorDepth())
+
     def onSessionReady(self):
         """
         @summary: Windows session is ready
         @see: rdp.RDPClientObserver.onSessionReady
         """
         pass
-        
+
     def onClose(self):
         """
         @summary: Event inform that stack is close
         @see: rdp.RDPClientObserver.onClose
         """
-        #end scenario
+        # end scenario
         self._server._rss.close()
         self._server._controller.close()
-        
+
     def onUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
         @summary: Event use to inform bitmap update
@@ -209,13 +222,17 @@ class ProxyClient(rdp.RDPClientObserver):
         @param data: {str} bitmap data
         @see: rdp.RDPClientObserver.onUpdate
         """
-        self._server._rss.update(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, rss.UpdateFormat.BMP if isCompress else rss.UpdateFormat.RAW, data)
-        self._server._controller.sendUpdate(destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
+        self._server._rss.update(destLeft, destTop, destRight, destBottom, width, height,
+                                 bitsPerPixel, rss.UpdateFormat.BMP if isCompress else rss.UpdateFormat.RAW, data)
+        self._server._controller.sendUpdate(
+            destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data)
+
 
 class ProxyClientFactory(rdp.ClientFactory):
     """
     @summary: Factory for proxy client
     """
+
     def __init__(self, server, width, height, domain, username, password, security):
         """
         @param server: {ProxyServer}
@@ -233,7 +250,7 @@ class ProxyClientFactory(rdp.ClientFactory):
         self._username = username
         self._password = password
         self._security = security
-        
+
     def buildObserver(self, controller, addr):
         """
         @summary: Build observer
@@ -242,9 +259,9 @@ class ProxyClientFactory(rdp.ClientFactory):
         @see: rdp.ClientFactory.buildObserver
         @return: ProxyClient
         """
-        #set screen resolution
+        # set screen resolution
         controller.setScreen(self._width, self._height)
-        #set credential
+        # set credential
         controller.setDomain(self._domain)
         controller.setUsername(self._username)
         controller.setPassword(self._password)
