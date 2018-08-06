@@ -291,11 +291,13 @@ def parseIpPort(interface, defaultPort="3389"):
         return interface, int(defaultPort)
 
 
-def isDirectory(outputDirectory):
-    if outputDirectory is None or not os.path.dirname(outputDirectory):
-        log.error("{} is an invalid output directory or directory doesn't exist".format(
-                  outputDirectory))
-    return outputDirectory
+def isDirectory(dirname):
+    """Checks if a path is an actual directory"""
+    if not os.path.isdir(dirname):
+        msg = "{0} is not a directory".format(dirname)
+        raise argparse.ArgumentTypeError(msg)
+    else:
+        return dirname
 
 
 def mapSecurityLayer(layer):
@@ -315,7 +317,7 @@ if __name__ == '__main__':
     p.add_argument('-t', '--target', type=parseIpPort, required=True,
                    help="<addr>[:<port>] of the target you want to connect to via proxy")
     p.add_argument('-o', '--output', type=isDirectory,
-                   help="output directory", required=True)
+                   help="record sessions and save them to output directory")
     p.add_argument('-s', '--sec', choices=["rdp", "tls", "nla"],
                    default="rdp", help="set protocol security layer")
     ssl = p.add_argument_group()
