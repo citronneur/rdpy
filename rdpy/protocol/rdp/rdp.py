@@ -228,24 +228,35 @@ class RDPClientController(pdu.layer.PDUClientListener):
             return
 
         try:
-            event = pdu.data.PointerEvent()
-            if isPressed:
-                event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_DOWN
-            
-            if button == 1:
-                event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_BUTTON1
-            elif button == 2:
-                event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_BUTTON2
-            elif button == 3:
-                event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_BUTTON3
+            if button == 4 or button == 5:
+                event = pdu.data.PointerExEvent()
+                if isPressed:
+                    event.pointerFlags.value |= pdu.data.PointerExFlag.PTRXFLAGS_DOWN
+
+                if button == 4:
+                    event.pointerFlags.value |= pdu.data.PointerExFlag.PTRXFLAGS_BUTTON1
+                elif button == 5:
+                    event.pointerFlags.value |= pdu.data.PointerExFlag.PTRXFLAGS_BUTTON2
+
             else:
-                event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_MOVE
+                event = pdu.data.PointerEvent()
+                if isPressed:
+                    event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_DOWN
+                
+                if button == 1:
+                    event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_BUTTON1
+                elif button == 2:
+                    event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_BUTTON2
+                elif button == 3:
+                    event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_BUTTON3
+                else:
+                    event.pointerFlags.value |= pdu.data.PointerFlag.PTRFLAGS_MOVE
             
-            #position
+            # position
             event.xPos.value = x
             event.yPos.value = y
             
-            #send proper event
+            # send proper event
             self._pduLayer.sendInputEvents([event])
             
         except InvalidValue:
@@ -500,7 +511,7 @@ class RDPServerController(pdu.layer.PDUServerListener):
                 #unicode
                 elif event.messageType.value == pdu.data.InputMessageType.INPUT_EVENT_UNICODE:
                     observer.onKeyEventUnicode(event.slowPathInputData.unicode.value, not (event.slowPathInputData.keyboardFlags.value & pdu.data.KeyboardFlag.KBDFLAGS_RELEASE))
-                #mouse event    
+                #mouse events
                 elif event.messageType.value == pdu.data.InputMessageType.INPUT_EVENT_MOUSE:
                     isPressed = event.slowPathInputData.pointerFlags.value & pdu.data.PointerFlag.PTRFLAGS_DOWN
                     button = 0
@@ -511,6 +522,15 @@ class RDPServerController(pdu.layer.PDUServerListener):
                     elif event.slowPathInputData.pointerFlags.value & pdu.data.PointerFlag.PTRFLAGS_BUTTON3:
                         button = 3
                     observer.onPointerEvent(event.slowPathInputData.xPos.value, event.slowPathInputData.yPos.value, button, isPressed)
+                elif event.messageType.value == pdu.data.InputMessageType.INPUT_EVENT_MOUSEX:
+                    isPressed = event.slowPathInputData.pointerFlags.value & pdu.data.PointerExFlag.PTRXFLAGS_DOWN
+                    button = 0
+                    if event.slowPathInputData.pointerFlags.value & pdu.data.PointerExFlag.PTRXFLAGS_BUTTON1:
+                        button = 4
+                    elif event.slowPathInputData.pointerFlags.value & pdu.data.PointerExFlag.PTRXFLAGS_BUTTON2:
+                        button = 5
+                    observer.onPointerEvent(event.slowPathInputData.xPos.value, event.slowPathInputData.yPos.value, button, isPressed)
+
     
     def sendUpdate(self, destLeft, destTop, destRight, destBottom, width, height, bitsPerPixel, isCompress, data):
         """
@@ -698,7 +718,7 @@ class RDPServerObserver(object):
         @summary: Event call on mouse event
         @param x: x position
         @param y: y position
-        @param button: 1, 2 or 3 button
+        @param button: 1, 2, 3, 4 or 5 button
         @param isPressed: True if mouse button is pressed
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "onPointerEvent", "RDPServerObserver"))
