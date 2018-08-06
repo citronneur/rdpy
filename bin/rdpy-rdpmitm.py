@@ -129,7 +129,7 @@ class ProxyServer(rdp.RDPServerObserver):
         @summary: Event call on mouse event
         @param x: {int} x position
         @param y: {int} y position
-        @param button: {int} 1, 2 or 3 button
+        @param button: {int} 1, 2, 3, 4 or 5 button
         @param isPressed: {bool} True if mouse button is pressed
         @see: rdp.RDPServerObserver.onPointerEvent
         """
