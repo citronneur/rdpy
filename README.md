@@ -236,7 +236,7 @@ class MyRDPFactory(rdp.ServerFactory):
                 @summary: Event call on mouse event
                 @param x: x position
                 @param y: y position
-                @param button: 1, 2 or 3 button
+                @param button: 1, 2, 3, 4 or 5 button
                 @param isPressed: True if mouse button is pressed
                 @see: rdp.RDPServerObserver.onPointerEvent
                 """
