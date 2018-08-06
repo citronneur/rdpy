@@ -109,8 +109,10 @@ rdpy-rdpmitm is a RDP proxy allows you to do a Man In The Middle attack on RDP p
 Record Session Scenario into rss file which can be replayed by rdpy-rssplayer.
 
 ```
-$ rdpy-rdpmitm.py -o output_dir [-l listen_port] [-k private_key_file_path] [-c certificate_file_path] [-r (for XP or server 2003 client)] target_host[:target_port]
+$ rdpy-rdpmitm.py -o output_dir -t target_host[:target_port]
 ```
+
+for more options run `rdpy-rdpmitm.py -h`.
 
 Output directory is used to save the rss file with following format (YYYYMMDDHHMMSS_ip_index.rss)
 The private key file and the certificate file are classic cryptographic files for SSL connections. The RDP protocol can negotiate its own security layer If one of both parameters are omitted, the server use standard RDP as security layer.
