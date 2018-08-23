@@ -42,6 +42,6 @@ setup(name='rdpy',
           	'service_identity',
           	'qt4reactor',
           	'rsa',
-          	'pyasn1',
+          	'pyasn1'
 	  	],
 )
