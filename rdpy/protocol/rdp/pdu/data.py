@@ -160,7 +160,16 @@ class PointerFlag(object):
     PTRFLAGS_BUTTON1 = 0x1000
     PTRFLAGS_BUTTON2 = 0x2000
     PTRFLAGS_BUTTON3 = 0x4000
-    
+
+class PointerExFlag(object):
+    """
+    @summary: Use in Pointer event
+    @see: https://msdn.microsoft.com/en-us/library/cc240587.aspx
+    """
+    PTRXFLAGS_DOWN    = 0x8000
+    PTRXFLAGS_BUTTON1 = 0x0001
+    PTRXFLAGS_BUTTON2 = 0x0002
+
 class KeyboardFlag(object):
     """
     @summary: Use in scan code key event
