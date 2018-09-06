@@ -151,7 +151,7 @@ def help():
             [-c certificate_file_path (mandatory for SSL)] 
     
     Set the following env variables for hpfeeds-logging
-            HPFEEDS_SERVER, HPFEEDS_IDENT, HPFEEDS_SECRET, HPFEEDS_PORT, SERVERID
+            HPFEEDS_SERVER, HPFEEDS_IDENT, HPFEEDS_SECRET, HPFEEDS_PORT, SERVERID, HPFEEDS_CHANNEL
     """
     
 if __name__ == '__main__':
