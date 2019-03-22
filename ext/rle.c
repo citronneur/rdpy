@@ -939,9 +939,17 @@ static PyMethodDef rle_methods[] =
      {NULL, NULL, 0, NULL}
 };
  
-PyMODINIT_FUNC
-initrle(void)
+static struct PyModuleDef rle =
 {
-     (void) Py_InitModule("rle", rle_methods);
+    PyModuleDef_HEAD_INIT,
+    "rle", /* name of module */
+    "",          /* module documentation, may be NULL */
+    -1,          /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
+    rle_methods
+};
+ 
+PyMODINIT_FUNC PyInit_rle(void)
+{
+     return PyModule_Create(&rle);
 }
 

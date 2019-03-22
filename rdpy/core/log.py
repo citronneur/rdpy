@@ -39,7 +39,7 @@ def log(message):
     @summary: Main log function
     @param message: string to print
     """
-    print "[*] %s"%message
+    print ("[*] %s"%message)
 
 def error(message):
     """
