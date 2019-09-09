@@ -50,7 +50,7 @@ class InvalidExpectedDataException(Exception):
         @param message: message show when exception is raised
         """
         Exception.__init__(self, message)
-        
+
 class NegotiationFailure(Exception):
     """
     @summary: Raise when negotiation failure in different protocols
@@ -60,7 +60,7 @@ class NegotiationFailure(Exception):
         @param message: message show when exception is raised
         """
         Exception.__init__(self, message)
-        
+
 class InvalidType(Exception):
     """
     @summary: Raise when invalid value type occured
@@ -70,7 +70,7 @@ class InvalidType(Exception):
         @param message: message show when exception is raised
         """
         Exception.__init__(self, message)
-        
+
 class InvalidSize(Exception):
     """
     @summary: Raise when invalid size is present in packet type occured
@@ -80,7 +80,7 @@ class InvalidSize(Exception):
         @param message: message show when exception is raised
         """
         Exception.__init__(self, message)
-        
+
 class ErrorReportedFromPeer(Exception):
     """
     @summary: Raise when peer send an error
@@ -90,7 +90,7 @@ class ErrorReportedFromPeer(Exception):
         @param message: message show when exception is raised
         """
         Exception.__init__(self, message)
-        
+
 class RDPSecurityNegoFail(Exception):
     """
     @summary: Raise when security nego fail

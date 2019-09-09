@@ -44,7 +44,7 @@ def sizeof(element):
         return size
     elif isinstance(element, Type) and element._conditional():
         return element.__sizeof__()
-    return 0 
+    return 0
 
 class Type(object):
     """
@@ -68,21 +68,21 @@ class Type(object):
         self._is_readed = False
         #use to know if type was written
         self._is_writed = False
-        
+
     def write(self, s):
         """
-        @summary:  Check conditional callback 
-                    before call __write__ function 
+        @summary:  Check conditional callback
+                    before call __write__ function
         @param s: Stream that will be written
         """
         self._is_writed = self._conditional()
         if not self._is_writed:
             return
         self.__write__(s)
-    
+
     def read(self, s):
         """
-        @summary:  Check conditional callback 
+        @summary:  Check conditional callback
                     Call __read__ function
                     And check constness state after
         @param s: Stream
@@ -91,12 +91,12 @@ class Type(object):
         self._is_readed = self._conditional()
         if not self._is_readed:
             return
-        
+
         #not constant mode direct reading
         if not self._constant:
             self.__read__(s)
             return
-        
+
         #constant mode
         old = deepcopy(self)
         self.__read__(s)
@@ -105,33 +105,33 @@ class Type(object):
             #rollback read value
             s.pos -= sizeof(self)
             raise InvalidExpectedDataException("%s const value expected %s != %s"%(self.__class__, old.value, self.value))
-        
+
     def __read__(self, s):
         """
         @summary: Interface definition of private read function
-        @param s: Stream 
+        @param s: Stream
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "__read__", "Type"))
-    
+
     def __write__(self, s):
         """
         @summary: Interface definition of private write function
-        @param s: Stream 
+        @param s: Stream
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "__write__", "Type"))
-    
+
     def __sizeof__(self):
         """
         @summary: Return size of type use for sizeof function
         @return: size in byte of type
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "__sizeof__", "Type"))
-        
+
 class CallableValue(object):
     """
     @summary:  Expression evaluate when is get or set
                 Ex: Type contain length of array and array
-                To know the size of array you need to read 
+                To know the size of array you need to read
                 length field before. At ctor time no length was read.
                 You need a callable object that will be evaluate when it will be used
     """
@@ -141,7 +141,7 @@ class CallableValue(object):
         """
         self._value = None
         self.value = value
-    
+
     def __getValue__(self):
         """
         @summary:  Call when value is get -> Evaluate inner expression
@@ -150,7 +150,7 @@ class CallableValue(object):
         @return: value expression evaluated
         """
         return self._value()
-    
+
     def __setValue__(self, value):
         """
         @summary:  Call when value is set
@@ -161,9 +161,9 @@ class CallableValue(object):
         value_callable = lambda:value
         if callable(value):
             value_callable = value
-            
+
         self._value = value_callable
-    
+
     @property
     def value(self):
         """
@@ -171,7 +171,7 @@ class CallableValue(object):
         @return: result of callable value
         """
         return self.__getValue__()
-    
+
     @value.setter
     def value(self, value):
         """
@@ -203,7 +203,7 @@ class SimpleType(Type, CallableValue):
         self._structFormat = structFormat
         Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
         CallableValue.__init__(self, value)
-        
+
     def __getValue__(self):
         """
         @summary:  Check value if match range of type
@@ -214,10 +214,10 @@ class SimpleType(Type, CallableValue):
         @see: CallableValue.__getValue__
         """
         value = CallableValue.__getValue__(self)
-        
+
         #check value now because it can be an callable value
         #and evaluate a this time
-        
+
         if not self.isInRange(value):
             raise InvalidValue("value is out of range for %s"%self.__class__)
         if self._signed:
@@ -236,9 +236,9 @@ class SimpleType(Type, CallableValue):
         #check static value range
         if not callable(value) and not self.isInRange(value):
             raise InvalidValue("value is out of range for %s"%self.__class__)
-        
+
         CallableValue.__setValue__(self, value)
-        
+
     def __write__(self, s):
         """
         @summary:  Write value in stream
@@ -247,7 +247,7 @@ class SimpleType(Type, CallableValue):
         @param s: Stream that will be written
         """
         s.write(struct.pack(self._structFormat, self.value))
-        
+
     def __read__(self, s):
         """
         @summary:  Read inner value from stream
@@ -259,7 +259,7 @@ class SimpleType(Type, CallableValue):
         if s.dataLen() < self._typeSize:
             raise InvalidSize("Stream is too small to read expected SimpleType")
         self.value = struct.unpack(self._structFormat, s.read(self._typeSize))[0]
-      
+
     def mask(self):
         """
         @summary:  Compute bit mask for type
@@ -272,7 +272,7 @@ class SimpleType(Type, CallableValue):
                 mask = mask << 8 | 0xff
             self._mask = mask
         return self._mask
-    
+
     def isInRange(self, value):
         """
         @summary: Check if value is in range represented by mask
@@ -283,14 +283,14 @@ class SimpleType(Type, CallableValue):
             return not (value < -(self.mask() >> 1) or value > (self.mask() >> 1))
         else:
             return not (value < 0 or value > self.mask())
-        
+
     def __sizeof__(self):
         """
         @summary: Return size of type in bytes
         @return: typeSize pass in constructor
         """
         return self._typeSize
-    
+
     def __cmp__(self, other):
         """
         @summary:  Compare two simple type
@@ -302,7 +302,7 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.value.__cmp__(other.value)
-    
+
     def __invert__(self):
         """
         @summary: Implement not operator
@@ -312,7 +312,7 @@ class SimpleType(Type, CallableValue):
         if not self._signed:
             invert &= self.mask()
         return self.__class__(invert)
-    
+
     def __add__(self, other):
         """
         @summary: Implement addition operator
@@ -324,7 +324,7 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__add__(other.value))
-    
+
     def __sub__(self, other):
         """
         @summary: Implement sub operator
@@ -336,7 +336,7 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__sub__(other.value))
-    
+
     def __and__(self, other):
         """
         @summary: Implement bitwise and operator
@@ -348,7 +348,7 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__and__(other.value))
-    
+
     def __or__(self, other):
         """
         @summary: Implement bitwise or operator
@@ -360,7 +360,7 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__or__(other.value))
-    
+
     def __xor__(self, other):
         """
         @summary: Implement bitwise xor operator
@@ -372,7 +372,7 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__xor__(other.value))
-    
+
     def __lshift__(self, other):
         """
         @summary: Left shift operator
@@ -384,7 +384,7 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__lshift__(other.value))
-    
+
     def __rshift__(self, other):
         """
         @summary: Right shift operator
@@ -396,14 +396,14 @@ class SimpleType(Type, CallableValue):
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
         return self.__class__(self.value.__rshift__(other.value))
-    
+
     def __hash__(self):
         """
         @summary: Hash function to handle simple type in hash collection
         @return: hash of inner value
         """
         return hash(self.value)
-    
+
     def __nonzero__(self):
         """
         @summary: Boolean conversion
@@ -411,7 +411,7 @@ class SimpleType(Type, CallableValue):
         """
         return bool(self.value)
 
-        
+
 class CompositeType(Type):
     """
     @summary:  Type node in Type tree
@@ -432,7 +432,7 @@ class CompositeType(Type):
         #list of ordoned type
         self._typeName = []
         self._readLen = readLen
-    
+
     def __setattr__(self, name, value):
         """
         @summary:  Track Type field
@@ -444,7 +444,7 @@ class CompositeType(Type):
         if name[0] != '_' and (isinstance(value, Type) or isinstance(value, tuple)) and not name in self._typeName:
             self._typeName.append(name)
         self.__dict__[name] = value
-            
+
     def __read__(self, s):
         """
         @summary:  Read composite type
@@ -455,7 +455,7 @@ class CompositeType(Type):
         @raise InvalidSize: if stream is greater than readLen parameter
         """
         readLen = 0
-        for name in self._typeName:            
+        for name in self._typeName:
             try:
                 s.readType(self.__dict__[name])
                 readLen += sizeof(self.__dict__[name])
@@ -466,7 +466,7 @@ class CompositeType(Type):
                     #and notify if not optional
                     if not self.__dict__[name]._optional:
                         raise InvalidSize("Impossible to read type %s : read length is too small"%(self.__class__))
-                
+
             except Exception as e:
                 log.error("Error during read %s::%s"%(self.__class__, name))
                 #roll back already read
@@ -475,11 +475,11 @@ class CompositeType(Type):
                         break
                     s.pos -= sizeof(self.__dict__[tmpName])
                 raise e
-            
+
         if not self._readLen is None and readLen < self._readLen.value:
             log.debug("Still have correct data in packet %s, read %s bytes as padding"%(self.__class__, self._readLen.value - readLen))
             s.read(self._readLen.value - readLen)
-            
+
     def __write__(self, s):
         """
         @summary:  Write all sub-type handle by __setattr__ function
@@ -492,7 +492,7 @@ class CompositeType(Type):
             except Exception as e:
                 log.error("Error during write %s::%s"%(self.__class__, name))
                 raise e
-            
+
     def __sizeof__(self):
         """
         @summary: Call sizeof on each sub type
@@ -500,7 +500,7 @@ class CompositeType(Type):
         """
         if self._is_readed and not self._readLen is None:
             return self._readLen.value
-        
+
         size = 0
         for name in self._typeName:
             size += sizeof(self.__dict__[name])
@@ -519,7 +519,7 @@ class CompositeType(Type):
             if self.__dict__[name] != other.__dict__[name]:
                 return False
         return True
-    
+
     def __ne__(self, other):
         """
         @summary: return not equal result operator
@@ -535,7 +535,7 @@ All simple Raw type use in RDPY
 class UInt8(SimpleType):
     """
     @summary: unsigned byte
-    """    
+    """
     def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
         """
         @param value: python value wrap
@@ -550,7 +550,7 @@ class UInt8(SimpleType):
 class SInt8(SimpleType):
     """
     @summary: signed byte
-    """   
+    """
     def __init__(self, value = 0, conditional = lambda:True, optional = False, constant = False):
         """
         @param value: python value wrap
@@ -561,8 +561,8 @@ class SInt8(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, "b", 1, True, value, conditional = conditional, optional = optional, constant = constant)
-        
-        
+
+
 class UInt16Be(SimpleType):
     """
     @summary: unsigned short
@@ -578,7 +578,8 @@ class UInt16Be(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, ">H", 2, False, value, conditional = conditional, optional = optional, constant = constant)
-        
+
+
 class UInt16Le(SimpleType):
     """
     @summary: unsigned short
@@ -594,7 +595,8 @@ class UInt16Le(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, "<H", 2, False, value, conditional = conditional, optional = optional, constant = constant)
-        
+
+
 class SInt16Le(SimpleType):
     """
     @summary: signed short
@@ -610,7 +612,8 @@ class SInt16Le(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, "<h", 2, True, value, conditional = conditional, optional = optional, constant = constant)
-        
+
+
 class UInt32Be(SimpleType):
     """
     @summary: unsigned int
@@ -626,7 +629,8 @@ class UInt32Be(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, ">I", 4, False, value, conditional = conditional, optional = optional, constant = constant)
-        
+
+
 class UInt32Le(SimpleType):
     """
     @summary: unsigned int
@@ -642,7 +646,8 @@ class UInt32Le(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, "<I", 4, False, value, conditional = conditional, optional = optional, constant = constant)
-    
+
+
 class SInt32Le(SimpleType):
     """
     @summary: signed int
@@ -658,7 +663,8 @@ class SInt32Le(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, "<I", 4, True, value, conditional = conditional, optional = optional, constant = constant)
-        
+
+
 class SInt32Be(SimpleType):
     """
     @summary: signed int
@@ -674,7 +680,8 @@ class SInt32Be(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, ">I", 4, True, value, conditional = conditional, optional = optional, constant = constant)
-        
+
+
 class UInt24Be(SimpleType):
     """
     @summary: unsigned 24 bit integer
@@ -690,21 +697,22 @@ class UInt24Be(SimpleType):
         @param constant:   Check if object value doesn't change after read operation
         """
         SimpleType.__init__(self, ">I", 3, False, value, conditional = conditional, optional = optional, constant = constant)
-        
+
     def __write__(self, s):
         """
         @summary: special write for a special type
         @param s: Stream
         """
         s.write(struct.pack(">I", self.value)[1:])
-        
+
     def __read__(self, s):
         """
         @summary: special read for a special type
         @param s: Stream
         """
         self.value = struct.unpack(self._structFormat, '\x00' + s.read(self._typeSize))[0]
-        
+
+
 class UInt24Le(SimpleType):
     """
     @summary: unsigned 24 bit integer
@@ -719,8 +727,8 @@ class UInt24Le(SimpleType):
                             And optional is True, read type is ignored
         @param constant:   Check if object value doesn't change after read operation
         """
-        SimpleType.__init__(self, "<I", 3, False, value, conditional = conditional, optional = optional, constant = constant)   
-            
+        SimpleType.__init__(self, "<I", 3, False, value, conditional = conditional, optional = optional, constant = constant)
+
     def __write__(self, s):
         """
         @summary: special write for a special type
@@ -728,14 +736,15 @@ class UInt24Le(SimpleType):
         """
         #don't write first byte
         s.write(struct.pack("<I", self.value)[:3])
-        
+
     def __read__(self, s):
         """
         @summary: special read for a special type
         @param s: Stream
         """
         self.value = struct.unpack(self._structFormat, s.read(self._typeSize) + '\x00')[0]
-        
+
+
 class String(Type, CallableValue):
     """
     @summary:  String type
@@ -759,7 +768,7 @@ class String(Type, CallableValue):
         self._readLen = readLen
         self._unicode = unicode
         self._until = until
-        
+
     def __cmp__(self, other):
         """
         @summary: call raw compare value
@@ -767,21 +776,21 @@ class String(Type, CallableValue):
         @return: if two inner value are equals
         """
         return cmp(self.value, other.value)
-    
+
     def __hash__(self):
         """
         @summary: hash function to treat simple type in hash collection
         @return: hash of inner value
         """
         return hash(self.value)
-    
+
     def __str__(self):
         """
         @summary: call when str function is call
         @return: inner python string
         """
         return self.value
-    
+
     def __write__(self, s):
         """
         @summary:  Write the inner value after evaluation
@@ -790,15 +799,15 @@ class String(Type, CallableValue):
         @param s: Stream
         """
         toWrite = self.value
-        
+
         if not self._until is None:
             toWrite += self._until
-            
+
         if self._unicode:
             s.write(encodeUnicode(self.value))
         else:
             s.write(self.value)
-    
+
     def __read__(self, s):
         """
         @summary:  Read readLen bytes as string
@@ -815,10 +824,10 @@ class String(Type, CallableValue):
                     self.value += s.read(1)
         else:
             self.value = s.read(self._readLen.value)
-        
+
         if self._unicode:
             self.value = decodeUnicode(self.value)
-        
+
     def __sizeof__(self):
         """
         @summary:  return length of string
@@ -829,7 +838,7 @@ class String(Type, CallableValue):
             return 2 * len(self.value) + 2
         else:
             return len(self.value)
-    
+
 def encodeUnicode(s):
     """
     @summary: Encode string in unicode
@@ -852,6 +861,7 @@ def decodeUnicode(s):
         i += 1
     return r
 
+
 class Stream(StringIO):
     """
     @summary:  Stream use to read all types
@@ -861,14 +871,14 @@ class Stream(StringIO):
         @return: not yet read length
         """
         return self.len - self.pos
-    
+
     def readLen(self):
         """
         @summary: compute already read size
         @return: read size of stream
         """
         return self.pos
-    
+
     def readType(self, value):
         """
         @summary:  call specific read on type object
@@ -889,13 +899,13 @@ class Stream(StringIO):
                         self.pos -= sizeof(tmpElement)
                     raise e
             return
-        
+
         #optional value not present
         if self.dataLen() == 0 and value._optional:
             return
 
         value.read(self)
-        
+
     def readNextType(self, t):
         """
         @summary: read next type but didn't consume it
@@ -903,7 +913,7 @@ class Stream(StringIO):
         """
         self.readType(t)
         self.pos -= sizeof(t)
-    
+
     def writeType(self, value):
         """
         @summary:  Call specific write on type object
@@ -916,7 +926,8 @@ class Stream(StringIO):
                 self.writeType(element)
             return
         value.write(self)
-        
+
+
 class ArrayType(Type):
     """
     @summary: Factory af n element
@@ -938,7 +949,7 @@ class ArrayType(Type):
         self._array = []
         if not init is None:
             self._array = init
-        
+
     def __read__(self, s):
         """
         @summary: Create readLen new object and read it
@@ -955,27 +966,28 @@ class ArrayType(Type):
                 break
             self._array.append(element)
             i += 1
-    
+
     def __write__(self, s):
         """
         @summary: Just write array
         @param s: Stream
         """
         s.writeType(self._array)
-        
+
     def __getitem__(self, item):
         """
         @summary: Magic function to be FactoryType as transparent as possible
         @return: index of _value
         """
         return self._array.__getitem__(item)
-    
+
     def __sizeof__(self):
         """
         @summary: Size in bytes of all inner type
         """
         return sizeof(self._array)
-    
+
+
 class FactoryType(Type):
     """
     @summary:  Call a factory callback at read or write time
@@ -996,7 +1008,7 @@ class FactoryType(Type):
             self._factory = lambda:factory
 
         self._value = None
-    
+
     def __read__(self, s):
         """
         @summary: Call factory and write it
@@ -1004,7 +1016,7 @@ class FactoryType(Type):
         """
         self._value = self._factory()
         s.readType(self._value)
-        
+
     def __write__(self, s):
         """
         @summary: Call factory and read it
@@ -1012,21 +1024,21 @@ class FactoryType(Type):
         """
         self._value = self._factory()
         s.writeType(self._value)
-    
+
     def __getattr__(self, name):
         """
         @summary: Magic function to be FactoryType as transparent as possible
         @return: _value parameter
         """
         return self._value.__getattribute__(name)
-    
+
     def __getitem__(self, item):
         """
         @summary: Magic function to be FactoryType as transparent as possible
         @return: index of _value
         """
         return self._value.__getitem__(item)
-    
+
     def __sizeof__(self):
         """
         @summary: Size of of object returned by factory

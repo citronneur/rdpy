@@ -35,10 +35,10 @@ class IStreamListener(object):
         @param s: Stream
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
-    
+
 class IStreamSender(object):
     """
-    @summary: Interface use to inform stream sender capability 
+    @summary: Interface use to inform stream sender capability
     """
     def send(self, data):
         """
@@ -46,7 +46,7 @@ class IStreamSender(object):
         @param data: Type or tuple element handle by transport layer
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "send", "IStreamSender"))
-    
+
 class Layer(object):
     """
     @summary:  A simple double linked list with presentation and transport layer
@@ -63,7 +63,7 @@ class Layer(object):
         #auto set transport layer of own presentation layer
         if not self._presentation is None:
             self._presentation._transport = self
-    
+
     def connect(self):
         """
         @summary:  Call when transport layer is connected
@@ -71,7 +71,7 @@ class Layer(object):
         """
         if not self._presentation is None:
             self._presentation.connect()
-    
+
     def close(self):
         """
         @summary:  Close layer event
@@ -79,7 +79,7 @@ class Layer(object):
         """
         if not self._transport is None:
             self._transport.close()
-            
+
 class LayerAutomata(Layer, IStreamListener):
     """
     @summary:  Layer with automata callback
@@ -92,7 +92,7 @@ class LayerAutomata(Layer, IStreamListener):
         """
         #call parent constructor
         Layer.__init__(self, presentation)
-        
+
     def setNextState(self, callback = None):
         """
         @summary: Set the next callback in automata
@@ -100,13 +100,13 @@ class LayerAutomata(Layer, IStreamListener):
         """
         if callback is None:
             callback = lambda x:self.__class__.recv(self, x)
-        
+
         self.recv = callback
 
 #twisted layer concept
 from twisted.internet import protocol
 from twisted.internet.abstract import FileDescriptor
-#first that handle stream     
+#first that handle stream
 from type import Stream
 
 class RawLayerClientFactory(protocol.ClientFactory):
@@ -121,14 +121,14 @@ class RawLayerClientFactory(protocol.ClientFactory):
         rawLayer = self.buildRawLayer(addr)
         rawLayer.setFactory(self)
         return rawLayer
-        
+
     def buildRawLayer(self, addr):
         """
         @summary: Override this function to build raw layer
         @param addr: destination address
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildRawLayer", "RawLayerClientFactory"))
-    
+
     def connectionLost(self, rawlayer, reason):
         """
         @summary: Override this method to handle connection lost
@@ -136,7 +136,7 @@ class RawLayerClientFactory(protocol.ClientFactory):
         @param reason: twisted reason
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "connectionLost", "RawLayerClientFactory"))
-    
+
 class RawLayerServerFactory(protocol.ServerFactory):
     """
     @summary: Abstract class for Raw layer server factory
@@ -149,14 +149,14 @@ class RawLayerServerFactory(protocol.ServerFactory):
         rawLayer = self.buildRawLayer(addr)
         rawLayer.setFactory(self)
         return rawLayer
-    
+
     def buildRawLayer(self, addr):
         """
         @summary: Override this function to build raw layer
         @param addr: destination address
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
-    
+
     def connectionLost(self, rawlayer, reason):
         """
         @summary: Override this method to handle connection lost
@@ -164,7 +164,7 @@ class RawLayerServerFactory(protocol.ServerFactory):
         @param reason: twisted reason
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "recv", "IStreamListener"))
-    
+
 
 class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
     """
@@ -183,14 +183,14 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         #len of next packet pass to next state function
         self._expectedLen = 0
         self._factory = None
-        
+
     def setFactory(self, factory):
         """
         @summary: Call by RawLayer Factory
         @param param: RawLayerClientFactory or RawLayerFactory
         """
         self._factory = factory
-        
+
     def dataReceived(self, data):
         """
         @summary:  Inherit from twisted.protocol class
@@ -207,38 +207,38 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
             self._buffer = self._buffer[self._expectedLen:]
             #call recv function
             self.recv(expectedData)
-            
+
     def connectionMade(self):
         """
         @summary: inherit from twisted protocol
         """
         #join two scheme
         self.connect()
-        
+
     def connectionLost(self, reason):
         """
         @summary: Call from twisted engine when protocol is closed
         @param reason: str represent reason of close connection
         """
         self._factory.connectionLost(self, reason)
-        
+
     def getDescriptor(self):
         """
         @return: the twited file descriptor
         """
         return self.transport
-        
+
     def close(self):
         """
         @summary:  Close raw layer
-                    Use File descriptor directly to not use TLS close
+        Use File descriptor directly to not use TLS close
                     Because is bugged
         """
         FileDescriptor.loseConnection(self.getDescriptor())
-            
+
     def expect(self, expectedLen, callback = None):
         """
-        @summary:  Set next automata callback, 
+        @summary:  Set next automata callback,
                     But this callback will be only called when
                     data have expectedLen
         @param expectedLen: in bytes length use to call next state
@@ -247,7 +247,7 @@ class RawLayer(protocol.Protocol, LayerAutomata, IStreamSender):
         self._expectedLen = expectedLen
         #default callback is recv from LayerAutomata
         self.setNextState(callback)
-        
+
     def send(self, message):
         """
         @summary:  Send Stream on TCP layer

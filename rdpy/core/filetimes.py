@@ -1,16 +1,16 @@
 # Copyright (c) 2009, David Buxton <david@gasmark6.com>
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
-# 
+#
 #     * Redistributions of source code must retain the above copyright
 # notice, this list of conditions and the following disclaimer.
 #     * Redistributions in binary form must reproduce the above copyright
 # notice, this list of conditions and the following disclaimer in the
 # documentation and/or other materials provided with the distribution.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 # IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 # TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
@@ -65,7 +65,7 @@ def dt_to_filetime(dt):
 
     >>> "%.0f" % dt_to_filetime(datetime(1970, 1, 1, 0, 0))
     '116444736000000000'
-    
+
     >>> dt_to_filetime(datetime(2009, 7, 25, 23, 0, 0, 100))
     128930364000001000
     """
@@ -84,7 +84,7 @@ def filetime_to_dt(ft):
 
     >>> filetime_to_dt(128930364000000000)
     datetime.datetime(2009, 7, 25, 23, 0)
-    
+
     >>> filetime_to_dt(128930364000001000)
     datetime.datetime(2009, 7, 25, 23, 0, 0, 100)
     """
@@ -95,4 +95,3 @@ def filetime_to_dt(ft):
     # Add remainder in as microseconds. Python 3.2 requires an integer
     dt = dt.replace(microsecond=(ns100 // 10))
     return dt
-    

@@ -36,7 +36,7 @@ class EventType(object):
     CLOSE = 0x0004
     KEY_UNICODE = 0x0005
     KEY_SCANCODE = 0x0006
-    
+
 class UpdateFormat(object):
     """
     @summary: format of update bitmap
@@ -53,7 +53,7 @@ class Event(CompositeType):
         self.type = UInt16Le(lambda:event.__class__._TYPE_)
         self.timestamp = UInt32Le()
         self.length = UInt32Le(lambda:(sizeof(self) - 10))
-        
+
         def EventFactory():
             """
             @summary: Closure for event factory
@@ -64,14 +64,14 @@ class Event(CompositeType):
             log.debug("unknown event type : %s"%hex(self.type.value))
             #read entire packet
             return String(readLen = self.length)
-        
+
         if event is None:
             event = FactoryType(EventFactory)
         elif not "_TYPE_" in event.__class__.__dict__:
             raise error.InvalidExpectedDataException("Try to send an invalid event block")
-            
+
         self.event = event
-        
+
 class UpdateEvent(CompositeType):
     """
     @summary: Update event
@@ -89,7 +89,7 @@ class UpdateEvent(CompositeType):
         self.format = UInt8()
         self.length = UInt32Le(lambda:sizeof(self.data))
         self.data = String(readLen = self.length)
-        
+
 class InfoEvent(CompositeType):
     """
     @summary: Info event
@@ -105,7 +105,7 @@ class InfoEvent(CompositeType):
         self.domain = String(readLen = self.lenDomain)
         self.lenHostname = UInt16Le(lambda:sizeof(self.hostname))
         self.hostname = String(readLen = self.lenHostname)
-        
+
 class ScreenEvent(CompositeType):
     """
     @summary: screen information event
@@ -116,7 +116,7 @@ class ScreenEvent(CompositeType):
         self.width = UInt16Le()
         self.height = UInt16Le()
         self.colorDepth = UInt8()
-        
+
 class CloseEvent(CompositeType):
     """
     @summary: end of session event
@@ -124,7 +124,7 @@ class CloseEvent(CompositeType):
     _TYPE_ = EventType.CLOSE
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        
+
 class KeyEventUnicode(CompositeType):
     """
     @summary: keyboard event (keylogger) as unicode event
@@ -134,7 +134,7 @@ class KeyEventUnicode(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.code = UInt32Le()
         self.isPressed = UInt8()
-        
+
 class KeyEventScancode(CompositeType):
     """
     @summary: keyboard event (keylogger)
@@ -144,13 +144,13 @@ class KeyEventScancode(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.code = UInt32Le()
         self.isPressed = UInt8()
-        
+
 def timeMs():
     """
     @return: {int} time stamp in milliseconds
     """
     return int(time.time() * 1000)
-        
+
 class FileRecorder(object):
     """
     @summary: RSR File recorder
@@ -162,25 +162,25 @@ class FileRecorder(object):
         self._file = f
         #init timer
         self._lastEventTimer = timeMs()
-        
+
     def rec(self, event):
         """
         @summary: save event in file
         @param event: {UpdateEvent}
         """
-        
+
         now = timeMs()
         #wrap around event message
         e = Event(event)
         #timestamp is time since last event
         e.timestamp.value = now - self._lastEventTimer
         self._lastEventTimer = now
-        
+
         s = Stream()
         s.writeType(e)
-        
+
         self._file.write(s.getvalue())
-        
+
     def update(self, destLeft, destTop, destRight, destBottom, width, height, bpp, upateFormat, data):
         """
         @summary: record update event
@@ -205,7 +205,7 @@ class FileRecorder(object):
         updateEvent.format.value = upateFormat
         updateEvent.data.value = data
         self.rec(updateEvent)
-        
+
     def screen(self, width, height, colorDepth):
         """
         @summary: record resize event of screen (maybe first event)
@@ -218,7 +218,7 @@ class FileRecorder(object):
         screenEvent.height.value = height
         screenEvent.colorDepth.value = colorDepth
         self.rec(screenEvent)
-        
+
     def credentials(self, username, password, domain = "", hostname = ""):
         """
         @summary: Record informations event
@@ -229,11 +229,11 @@ class FileRecorder(object):
         """
         infoEvent = InfoEvent()
         infoEvent.username.value = username
-        infoEvent.password.value = password 
-        infoEvent.domain.value = domain 
-        infoEvent.hostname.value = hostname 
+        infoEvent.password.value = password
+        infoEvent.domain.value = domain
+        infoEvent.hostname.value = hostname
         self.rec(infoEvent)
-        
+
     def keyUnicode(self, code, isPressed):
         """
         @summary: record key event as unicode
@@ -244,7 +244,7 @@ class FileRecorder(object):
         keyEvent.code.value = code
         keyEvent.isPressed.value = 0 if isPressed else 1
         self.rec(keyEvent)
-        
+
     def keyScancode(self, code, isPressed):
         """
         @summary: record key event as scancode
@@ -255,13 +255,13 @@ class FileRecorder(object):
         keyEvent.code.value = code
         keyEvent.isPressed.value = 0 if isPressed else 1
         self.rec(keyEvent)
-    
+
     def close(self):
         """
         @summary: end of scenario
         """
         self.rec(CloseEvent())
-                
+
 class FileReader(object):
     """
     @summary: RSR File reader
@@ -271,7 +271,7 @@ class FileReader(object):
         @param f: {file} file pointer use to read
         """
         self._s = Stream(f.read())
-        
+
     def nextEvent(self):
         """
         @summary: read next event and return it
@@ -281,7 +281,7 @@ class FileReader(object):
         e = Event()
         self._s.readType(e)
         return e
-        
+
 def createRecorder(path):
     """
     @summary: open file from path and return FileRecorder

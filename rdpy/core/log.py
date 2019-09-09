@@ -31,7 +31,7 @@ class Level(object):
     WARNING = 2
     ERROR = 3
     NONE = 4
-    
+
 _LOG_LEVEL = Level.DEBUG
 
 def log(message):
@@ -49,7 +49,7 @@ def error(message):
     if _LOG_LEVEL > Level.ERROR:
         return
     log("ERROR:\t%s"%message)
-    
+
 def warning(message):
     """
     @summary: Log warning message
@@ -67,7 +67,7 @@ def info(message):
     if _LOG_LEVEL > Level.INFO:
         return
     log("INFO:\t%s"%message)
-    
+
 def debug(message):
     """
     @summary: Log debug message

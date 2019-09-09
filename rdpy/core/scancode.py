@@ -49,7 +49,7 @@ _SCANCODE_QWERTY_ = {
     0x31 : "n",
     0x32 : "m"
 }
-        
+
 def scancodeToChar(code):
     """
     @summary: try to convert native code to char code
