@@ -107,7 +107,7 @@ class LayerAutomata(Layer, IStreamListener):
 from twisted.internet import protocol
 from twisted.internet.abstract import FileDescriptor
 #first that handle stream
-from type import Stream
+from rdpy.core.type import Stream
 
 class RawLayerClientFactory(protocol.ClientFactory):
     """
