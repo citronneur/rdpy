@@ -264,10 +264,16 @@ if __name__ == '__main__':
         elif opt == "-r":
             recodedPath = arg
             
-    if ':' in args[0]:
-        ip, port = args[0].split(':')
+    if len(sys.argv) > 1:
+        if ':' in args[0]:
+            ip, port = args[0].split(':')
+        else:
+            ip, port = args[0], "3389"
     else:
-        ip, port = args[0], "3389"
+        print "Missing IP address.Specify argument in this format. <IP Address>:<Port No>"
+        sys.exit()
+
+
     
     #create application
     app = QtGui.QApplication(sys.argv)
