@@ -33,12 +33,17 @@ class Level(object):
     NONE = 4
     
 _LOG_LEVEL = Level.DEBUG
+_LOG_FILE = False 
 
 def log(message):
     """
     @summary: Main log function
     @param message: string to print
     """
+    if _LOG_FILE:
+        f = open(_LOG_FILE, "a+")
+        f.write("%s\n"%message)
+        f.close()
     print "[*] %s"%message
 
 def error(message):
