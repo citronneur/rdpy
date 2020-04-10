@@ -22,7 +22,7 @@
 RDP Honey pot use Rss scenario file to simulate RDP server
 """
 
-import sys, os, getopt, time
+import sys, os, getopt, time, datetime
 
 from rdpy.core import log, error, rss
 from rdpy.protocol.rdp import rdp
@@ -54,17 +54,12 @@ class HoneyPotServer(rdp.RDPServerObserver):
             width, height = self._controller.getScreen()
             size = width * height
             rssFilePath = sorted(self._rssFileSizeList, key = lambda x: abs(x[0][0] * x[0][1] - size))[0][1]
-            log.info("select file (%s, %s) -> %s"%(width, height, rssFilePath))
+            log.info("%s --- select file (%s, %s) -> %s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),width, height, rssFilePath))
             self._rssFile = rss.createReader(rssFilePath)
         
         domain, username, password = self._controller.getCredentials()
         hostname = self._controller.getHostname()
-        log.info("""Credentials:
-        \tdomain : %s
-        \tusername : %s
-        \tpassword : %s
-        \thostname : %s
-        """%(domain, username, password, hostname));
+        log.info("""%s --- Credentials: domain: %s username: %s password: %s hostname: %s"""%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), domain, username, password, hostname));
         self.start()
         
     def onClose(self):
@@ -125,7 +120,7 @@ class HoneyPotServerFactory(rdp.ServerFactory):
         @param addr: destination address
         @see: rdp.ServerFactory.buildObserver
         """
-        log.info("Connection from %s:%s"%(addr.host, addr.port))
+        log.info("%s --- Connection from %s:%s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), addr.host, addr.port))
         return HoneyPotServer(controller, self._rssFileSizeList)
     
 def readSize(filePath):
@@ -146,10 +141,12 @@ def help():
     @summary: Print help in console
     """
     print """
-    Usage:  rdpy-rdphoneypot.py rss_filepath(1..n)
+    Usage:  rdpy-rdphoneypot.py 
+            [-L logfile]
             [-l listen_port default 3389] 
             [-k private_key_file_path (mandatory for SSL)] 
             [-c certificate_file_path (mandatory for SSL)] 
+            rss_filepath(1..n)
     """
     
 if __name__ == '__main__':
@@ -159,13 +156,15 @@ if __name__ == '__main__':
     rssFileSizeList = []
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:")
+        opts, args = getopt.getopt(sys.argv[1:], "hl:k:c:L:")
     except getopt.GetoptError:
         help()
     for opt, arg in opts:
         if opt == "-h":
             help()
             sys.exit()
+        elif opt == "-L":
+            log._LOG_FILE = arg 
         elif opt == "-l":
             listen = arg
         elif opt == "-k":
@@ -174,11 +173,12 @@ if __name__ == '__main__':
             certificateFilePath = arg
     
     #build size map
-    log.info("Build size map")
+    log.info("%s --- Start rdphoneypot"%datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'))
+    log.info("%s --- Build size map"%datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'))
     for arg in args:
         size = readSize(arg)
         rssFileSizeList.append((size, arg))
-        log.info("(%s, %s) -> %s"%(size[0], size[1], arg))
+        log.info("%s --- (%s, %s) -> %s"%(datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%fZ'), size[0], size[1], arg))
     
     reactor.listenTCP(int(listen), HoneyPotServerFactory(rssFileSizeList, privateKeyFilePath, certificateFilePath))
     reactor.run()
