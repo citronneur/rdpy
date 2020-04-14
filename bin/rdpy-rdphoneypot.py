@@ -22,10 +22,10 @@
 RDP Honey pot use Rss scenario file to simulate RDP server
 """
 
-import sys, os, getopt, time, datetime
+import sys, getopt, datetime
 
-from rdpy.core import log, error, rss
-from rdpy.protocol.rdp import rdp
+from rdpy.core import log, rss
+from rdpy.core import rdp
 from twisted.internet import reactor
 
 log._LOG_LEVEL = log.Level.INFO

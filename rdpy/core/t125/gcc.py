@@ -22,11 +22,11 @@ Implement GCC structure use in RDP protocol
 http://msdn.microsoft.com/en-us/library/cc240508.aspx
 """
 
-import md5
-from rdpy.core.type import UInt8, UInt16Le, UInt32Le, CompositeType, CallableValue, String, Stream, sizeof, FactoryType, ArrayType
-import per, mcs
-from rdpy.core.error import InvalidExpectedDataException
-from rdpy.core import log
+from hashlib import md5
+from rdpy.model.type import UInt8, UInt16Le, UInt32Le, CompositeType, CallableValue, String, Stream, sizeof, FactoryType, ArrayType
+from rdpy.core.t125 import per, mcs
+from rdpy.model.error import InvalidExpectedDataException
+from rdpy.model import log
 from rdpy.security import x509
 import rdpy.security.rsa_wrapper as rsa
 

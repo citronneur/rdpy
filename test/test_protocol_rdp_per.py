@@ -26,7 +26,7 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import unittest
-import rdpy.protocol.rdp.t125.per as per
+import rdpy.core.t125.per as per
 import rdpy.core.type as type
 import rdpy.core.error as error
 
@@ -81,7 +81,7 @@ class PERTest(unittest.TestCase):
             s.writeType((per.writeLength(type.sizeof(v)), v))
             s.pos = 0
             
-            self.assertTrue(per.readInteger(s) == 3, "invalid readLength for type %s"%t)
+            self.assertTrue(per.readInteger(s) == 3, "invalid readLength for type %s" % t)
         
         #error case
         for l in [0, 3, 5]:

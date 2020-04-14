@@ -26,9 +26,9 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import unittest
-import rdpy.protocol.rdp.tpkt as tpkt
+import rdpy.core.tpkt as tpkt
 import rdpy.core.type as type
-import rdpy.core.error as error
+
 
 class TPKTTest(unittest.TestCase):
     """

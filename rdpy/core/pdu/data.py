@@ -22,10 +22,10 @@ Implement the main graphic layer
 
 In this layer are managed all mains bitmap update orders end user inputs
 """
-from rdpy.core.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
-from rdpy.core.error import InvalidExpectedDataException
-import rdpy.core.log as log
-import caps, order
+from rdpy.model.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+from rdpy.model.error import InvalidExpectedDataException
+import rdpy.model.log as log
+from rdpy.core.pdu import caps, order
  
 class PDUType(object):
     """

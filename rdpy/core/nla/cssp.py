@@ -27,11 +27,9 @@ import pyasn1.codec.der.encoder as der_encoder
 import pyasn1.codec.der.decoder as der_decoder
 import pyasn1.codec.ber.encoder as ber_encoder
 
-from rdpy.core.type import Stream
-from twisted.internet import protocol
-from OpenSSL import crypto
+from rdpy.model.type import Stream
 from rdpy.security import x509
-from rdpy.core import error
+from rdpy.model import error
 
 class NegoToken(univ.Sequence):
     componentType = namedtype.NamedTypes(
@@ -175,7 +173,7 @@ def encodeDERTCredentials(domain, username, password):
     
     return der_encoder.encode(credentials)
 
-class CSSP(protocol.Protocol):
+class CSSP:
     """
     @summary: Handle CSSP connection
     Proxy class for authentication

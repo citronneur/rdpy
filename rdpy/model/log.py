@@ -44,7 +44,7 @@ def log(message):
         f = open(_LOG_FILE, "a+")
         f.write("%s\n"%message)
         f.close()
-    print "[*] %s"%message
+    print("[*] %s"%message)
 
 def error(message):
     """

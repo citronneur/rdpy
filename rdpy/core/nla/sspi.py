@@ -21,7 +21,7 @@
 @summary: security service provider interface (Microsoft)
 """
 
-from rdpy.core.error import CallPureVirtualFuntion
+from rdpy.model.error import CallPureVirtualFuntion
 
 class IAuthenticationProtocol(object):
     """

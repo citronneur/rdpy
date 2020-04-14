@@ -23,12 +23,13 @@ Implement the main graphic layer
 In this layer are managed all mains bitmap update orders end user inputs
 """
 
-from rdpy.core.layer import LayerAutomata
-from rdpy.core.error import CallPureVirtualFuntion
-from rdpy.core.type import ArrayType
-import rdpy.core.log as log
-import rdpy.protocol.rdp.tpkt as tpkt
-import data, caps
+from rdpy.model.layer import LayerAutomata
+from rdpy.model.error import CallPureVirtualFuntion
+from rdpy.model.type import ArrayType
+import rdpy.model.log as log
+from rdpy.core import tpkt
+from rdpy.core.pdu import data, caps
+
 
 class PDUClientListener(object):
     """

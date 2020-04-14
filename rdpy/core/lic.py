@@ -22,11 +22,11 @@
 @see: http://msdn.microsoft.com/en-us/library/cc241880.aspx
 """
 
-from rdpy.core.type import CompositeType, CallableValue, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
-from rdpy.core.error import InvalidExpectedDataException
-import rdpy.core.log as log
-import sec
-from t125 import gcc
+from rdpy.model.type import CompositeType, CallableValue, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
+from rdpy.model.error import InvalidExpectedDataException
+import rdpy.model.log as log
+from rdpy.core import sec
+from rdpy.core.t125 import gcc
 from rdpy.security import rc4
 from rdpy.security import rsa_wrapper as rsa
 

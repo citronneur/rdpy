@@ -22,8 +22,8 @@ Remote Session Scenario File format
 Private protocol format to save events
 """
 
-from rdpy.core.type import CompositeType, FactoryType, UInt8, UInt16Le, UInt32Le, String, sizeof, Stream
-from rdpy.core import log, error
+from rdpy.model.type import CompositeType, FactoryType, UInt8, UInt16Le, UInt32Le, String, sizeof, Stream
+from rdpy.model import log, error
 import time
 
 class EventType(object):

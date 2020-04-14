@@ -26,7 +26,7 @@ import os, sys
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 
 import unittest
-from rdpy.protocol.rdp import lic, sec
+from rdpy.core import lic, sec
 import rdpy.core.type as type
 
 #dump of server request

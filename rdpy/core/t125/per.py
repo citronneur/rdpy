@@ -21,8 +21,8 @@
 Per encoded function
 """
 
-from rdpy.core.type import UInt8, UInt16Be, UInt32Be, String
-from rdpy.core.error import InvalidValue, InvalidExpectedDataException
+from rdpy.model.type import UInt8, UInt16Be, UInt32Be, String
+from rdpy.model.error import InvalidValue, InvalidExpectedDataException
 
 def readLength(s):
     """

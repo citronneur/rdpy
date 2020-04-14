@@ -24,15 +24,13 @@ take screenshot of login page
 """
 
 import getopt
-import os
 import sys
 
-from PyQt4 import QtCore, QtGui
-from rdpy.protocol.rdp import rdp
+from PyQt4 import QtGui
+from rdpy.core import rdp
 from rdpy.ui.qt4 import RDPBitmapToQtImage
 import rdpy.core.log as log
 from rdpy.core.error import RDPSecurityNegoFail
-from twisted.internet import task
 
 # set log level
 log._LOG_LEVEL = log.Level.INFO

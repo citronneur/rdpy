@@ -23,12 +23,12 @@
 """
 
 import hashlib, hmac, struct, datetime
-import sspi
+from rdpy.core.nla import sspi
 import rdpy.security.pyDes as pyDes
 import rdpy.security.rc4 as rc4
 from rdpy.security.rsa_wrapper import random
-from rdpy.core.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt24Le, UInt32Le, sizeof, Stream
-from rdpy.core import filetimes, error
+from rdpy.model.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt24Le, UInt32Le, sizeof, Stream
+from rdpy.model import filetimes, error
 
 class MajorVersion(object):
     """

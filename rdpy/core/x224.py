@@ -23,11 +23,11 @@ Implement transport PDU layer
 This layer have main goal to negociate SSL transport
 RDP basic security is supported only on client side
 """
-from rdpy.core import log
+from rdpy.model import log
 
-from rdpy.core.layer import LayerAutomata, IStreamSender
-from rdpy.core.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
-from rdpy.core.error import InvalidExpectedDataException, RDPSecurityNegoFail
+from rdpy.model.layer import LayerAutomata, IStreamSender
+from rdpy.model.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
+from rdpy.model.error import InvalidExpectedDataException, RDPSecurityNegoFail
 
 class MessageType(object):
     """
@@ -303,38 +303,8 @@ class Server(X224Layer):
         if self._selectedProtocol == Protocols.PROTOCOL_SSL:
             log.debug("*" * 10 + " select SSL layer " + "*" * 10)
             #_transport is TPKT and transport is TCP layer of twisted
-            self._transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
+            #self._transport.startTLS(ServerTLSContext(self._serverPrivateKeyFileName, self._serverCertificateFileName))
             
         #connection is done send to presentation
         self.setNextState(self.recvData)
         self._presentation.connect()
-
-#open ssl needed
-from twisted.internet import ssl
-from OpenSSL import SSL
-
-class ClientTLSContext(ssl.ClientContextFactory):
-    """
-    @summary: client context factory for open ssl
-    """
-    def getContext(self):
-        context = SSL.Context(SSL.TLSv1_METHOD)
-        context.set_options(SSL.OP_DONT_INSERT_EMPTY_FRAGMENTS)
-        context.set_options(SSL.OP_TLS_BLOCK_PADDING_BUG)
-        return context
-    
-class ServerTLSContext(ssl.DefaultOpenSSLContextFactory):
-    """
-    @summary: Server context factory for open ssl
-    @param privateKeyFileName: Name of a file containing a private key
-    @param certificateFileName: Name of a file containing a certificate
-    """
-    def __init__(self, privateKeyFileName, certificateFileName):
-        class TPDUSSLContext(SSL.Context):
-            def __init__(self, method):
-                SSL.Context.__init__(self, method)
-                self.set_options(SSL.OP_DONT_INSERT_EMPTY_FRAGMENTS)
-                self.set_options(SSL.OP_TLS_BLOCK_PADDING_BUG)
-
-        ssl.DefaultOpenSSLContextFactory.__init__(self, privateKeyFileName, certificateFileName, SSL.SSLv23_METHOD, TPDUSSLContext)
-        

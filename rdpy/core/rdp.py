@@ -21,15 +21,19 @@
 Use to manage RDP stack in twisted
 """
 
-from rdpy.core import layer
-from rdpy.core.error import CallPureVirtualFuntion, InvalidValue
-import pdu.layer
-import pdu.data
-import pdu.caps
-import rdpy.core.log as log
-import tpkt, x224, sec
-from t125 import mcs, gcc
-from nla import cssp, ntlm
+from rdpy.model import layer
+from rdpy.model.error import CallPureVirtualFuntion, InvalidValue
+from rdpy.core.pdu.layer import PDUClientListener, PDUServerListener
+from rdpy.core.pdu import data
+from rdpy.core.pdu import caps
+from rdpy.core.pdu import layer as pdu
+import rdpy.model.log as log
+import rdpy.core.tpkt as tpkt
+import rdpy.core.x224 as x224
+import rdpy.core.sec as sec
+from rdpy.core.t125 import mcs, gcc
+from rdpy.core.nla import cssp, ntlm
+
 
 class SecurityLevel(object):
     """
@@ -39,7 +43,8 @@ class SecurityLevel(object):
     RDP_LEVEL_SSL = 1
     RDP_LEVEL_NLA = 2
 
-class RDPClientController(pdu.layer.PDUClientListener):
+
+class RDPClientController(PDUClientListener):
     """
     Manage RDP stack as client
     """
@@ -47,7 +52,7 @@ class RDPClientController(pdu.layer.PDUClientListener):
         #list of observer
         self._clientObserver = []
         #PDU layer
-        self._pduLayer = pdu.layer.Client(self)
+        self._pduLayer = pdu.Client(self)
         #secure layer
         self._secLayer = sec.Client(self._pduLayer)
         #multi channel service
@@ -365,7 +370,8 @@ class RDPClientController(pdu.layer.PDUClientListener):
         """
         self._pduLayer.close()
 
-class RDPServerController(pdu.layer.PDUServerListener):
+
+class RDPServerController(PDUServerListener):
     """
     @summary: Controller use in server side mode
     """               
@@ -585,49 +591,50 @@ class ClientFactory(layer.RawLayerClientFactory):
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ClientFactory"))
 
-class ServerFactory(layer.RawLayerServerFactory):
-    """
-    @summary: Factory of Server RDP protocol
-    """
-    def __init__(self, colorDepth, privateKeyFileName = None, certificateFileName = None):
-        """
-        @param colorDepth: color depth of session
-        @param privateKeyFileName: file contain server private key (if none -> back to standard RDP security)
-        @param certficiateFileName: file that contain public key (if none -> back to standard RDP security)
-        """
-        self._colorDepth = colorDepth
-        self._privateKeyFileName = privateKeyFileName
-        self._certificateFileName = certificateFileName
-    
-    def connectionLost(self, tpktLayer, reason):
-        """
-        @param reason: twisted reason
-        """
-        #retrieve controller
-        x224Layer = tpktLayer._presentation
-        mcsLayer = x224Layer._presentation
-        secLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
-        pduLayer = secLayer._presentation
-        controller = pduLayer._listener
-        controller.onClose()
-    
-    def buildRawLayer(self, addr):
-        """
-        @summary: Function call from twisted and build rdp protocol stack
-        @param addr: destination address
-        """
-        controller = RDPServerController(self._colorDepth, self._privateKeyFileName, self._certificateFileName)
-        self.buildObserver(controller, addr)
-        return controller.getProtocol()
-    
-    def buildObserver(self, controller, addr):
-        """
-        @summary: Build observer use for connection
-        @param controller: RDP stack controller
-        @param addr: destination address
-        """
-        raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ServerFactory")) 
-        
+
+# class ServerFactory(RawLayerServerFactory):
+#     """
+#     @summary: Factory of Server RDP protocol
+#     """
+#     def __init__(self, colorDepth, privateKeyFileName = None, certificateFileName = None):
+#         """
+#         @param colorDepth: color depth of session
+#         @param privateKeyFileName: file contain server private key (if none -> back to standard RDP security)
+#         @param certficiateFileName: file that contain public key (if none -> back to standard RDP security)
+#         """
+#         self._colorDepth = colorDepth
+#         self._privateKeyFileName = privateKeyFileName
+#         self._certificateFileName = certificateFileName
+#
+#     def connectionLost(self, tpktLayer, reason):
+#         """
+#         @param reason: twisted reason
+#         """
+#         #retrieve controller
+#         x224Layer = tpktLayer._presentation
+#         mcsLayer = x224Layer._presentation
+#         secLayer = mcsLayer._channels[mcs.Channel.MCS_GLOBAL_CHANNEL]
+#         pduLayer = secLayer._presentation
+#         controller = pduLayer._listener
+#         controller.onClose()
+#
+#     def buildRawLayer(self, addr):
+#         """
+#         @summary: Function call from twisted and build rdp protocol stack
+#         @param addr: destination address
+#         """
+#         controller = RDPServerController(self._colorDepth, self._privateKeyFileName, self._certificateFileName)
+#         self.buildObserver(controller, addr)
+#         return controller.getProtocol()
+#
+#     def buildObserver(self, controller, addr):
+#         """
+#         @summary: Build observer use for connection
+#         @param controller: RDP stack controller
+#         @param addr: destination address
+#         """
+#         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "buildObserver", "ServerFactory"))
+#
 class RDPClientObserver(object):
     """
     @summary: Class use to inform all RDP event handle by RDPY

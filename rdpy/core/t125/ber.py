@@ -22,8 +22,8 @@ Basic Encoding Rules use in RDP.
 ASN.1 standard
 """
 
-from rdpy.core.type import UInt8, UInt16Be, UInt32Be, String
-from rdpy.core.error import InvalidExpectedDataException, InvalidSize
+from rdpy.model.type import UInt8, UInt16Be, UInt32Be, String
+from rdpy.model.error import InvalidExpectedDataException, InvalidSize
 
 class BerPc(object):
     BER_PC_MASK = 0x20

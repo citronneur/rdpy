@@ -26,9 +26,10 @@ We are in python!
 
 import struct
 from copy import deepcopy
-from StringIO import StringIO
-from rdpy.core.error import InvalidExpectedDataException, InvalidSize, CallPureVirtualFuntion, InvalidValue
-import rdpy.core.log as log
+from io import BytesIO
+from rdpy.model.error import InvalidExpectedDataException, InvalidSize, CallPureVirtualFuntion, InvalidValue
+import rdpy.model.log as log
+
 
 def sizeof(element):
     """
@@ -852,7 +853,8 @@ def decodeUnicode(s):
         i += 1
     return r
 
-class Stream(StringIO):
+
+class Stream(BytesIO):
     """
     @summary:  Stream use to read all types
     """

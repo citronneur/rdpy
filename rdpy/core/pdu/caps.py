@@ -16,16 +16,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-from rdpy.core.error import InvalidExpectedDataException
-import rdpy.core.log as log
+from rdpy.model.error import InvalidExpectedDataException
+import rdpy.model.log as log
 
 """
 Definition of structure use for capabilities nego
 Use in PDU layer
 """
 
-from rdpy.core.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
-    
+from rdpy.model.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+
+
 class CapsType(object):
     """
     @summary: Different type of capabilities

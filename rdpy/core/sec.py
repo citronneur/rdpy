@@ -21,13 +21,14 @@
 RDP Standard security layer
 """
 
-import sha, md5
-import lic, tpkt
-from t125 import gcc, mcs
-from rdpy.core.type import CompositeType, CallableValue, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
-from rdpy.core.layer import LayerAutomata, IStreamSender
-from rdpy.core.error import InvalidExpectedDataException
-from rdpy.core import log
+from hashlib import sha1 as sha
+from hashlib import md5
+from rdpy.core import tpkt, lic
+from rdpy.core.t125 import gcc, mcs
+from rdpy.model.type import CompositeType, CallableValue, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
+from rdpy.model.layer import LayerAutomata, IStreamSender
+from rdpy.model.error import InvalidExpectedDataException
+from rdpy.model import log
 from rdpy.security import rc4
 import rdpy.security.rsa_wrapper as rsa
 

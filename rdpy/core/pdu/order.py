@@ -21,9 +21,9 @@
 GDI order structure
 """
 
-from rdpy.core import log
-from rdpy.core.error import InvalidExpectedDataException
-from rdpy.core.type import CompositeType, UInt8, String, FactoryType, SInt8, SInt16Le
+from rdpy.model import log
+from rdpy.model.error import InvalidExpectedDataException
+from rdpy.model.type import CompositeType, UInt8, String, FactoryType, SInt8, SInt16Le
 
 class ControlFlag(object):
     """
