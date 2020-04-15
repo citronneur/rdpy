@@ -40,7 +40,7 @@ setup(name='rdpy',
 			'twisted',
           	'pyopenssl',
           	'service_identity',
-          	'qt4reactor',
+          	'qt5reactor',
           	'rsa',
           	'pyasn1'
 	  	],

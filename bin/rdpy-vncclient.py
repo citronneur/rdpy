@@ -23,8 +23,8 @@ example of use rdpy as VNC client
 """
 
 import sys, os, getopt
-from PyQt4 import QtGui
-from rdpy.ui.qt4 import RFBClientQt
+from PyQt5 import QtGui, QtWidgets
+from rdpy.ui.qt5 import RFBClientQt
 from rdpy.protocol.rfb import rfb
 
 import rdpy.core.log as log
@@ -98,11 +98,11 @@ if __name__ == '__main__':
         ip, port = args[0], "5900"
         
     #create application
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     
-    #add qt4 reactor
-    import qt4reactor
-    qt4reactor.install()
+    #add qt5 reactor
+    import qt5reactor
+    qt5reactor.install()
 
     from twisted.internet import reactor
     reactor.connectTCP(ip, int(port), RFBClientQtFactory(password))

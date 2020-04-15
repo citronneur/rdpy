@@ -27,9 +27,9 @@ import getopt
 import os
 import sys
 
-from PyQt4 import QtCore, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 from rdpy.protocol.rdp import rdp
-from rdpy.ui.qt4 import RDPBitmapToQtImage
+from rdpy.ui.qt5 import RDPBitmapToQtImage
 import rdpy.core.log as log
 from rdpy.core.error import RDPSecurityNegoFail
 from twisted.internet import task
@@ -170,11 +170,11 @@ def main(width, height, path, timeout, hosts):
     @return: {list(tuple(ip, port, Failure instance)} list of connection state
     """
     #create application
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
 
-    #add qt4 reactor
-    import qt4reactor
-    qt4reactor.install()
+    #add qt5 reactor
+    import qt5reactor
+    qt5reactor.install()
 
     from twisted.internet import reactor
 
