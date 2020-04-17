@@ -371,12 +371,12 @@ class ProprietaryServerCertificate(CompositeType):
         @summary: compute hash
         """
         s = Stream()
-        s.writeType(UInt32Le(self.__class__._TYPE_))
-        s.writeType(self.dwSigAlgId)
-        s.writeType(self.dwKeyAlgId)
-        s.writeType(self.wPublicKeyBlobType)
-        s.writeType(self.wPublicKeyBlobLen)
-        s.writeType(self.PublicKeyBlob)
+        s.write_type(UInt32Le(self.__class__._TYPE_))
+        s.write_type(self.dwSigAlgId)
+        s.write_type(self.dwKeyAlgId)
+        s.write_type(self.wPublicKeyBlobType)
+        s.write_type(self.wPublicKeyBlobLen)
+        s.write_type(self.PublicKeyBlob)
     
         md5Digest = md5.new()
         md5Digest.update(s.getvalue())
@@ -555,7 +555,7 @@ def readConferenceCreateRequest(s):
     per.readOctetStream(s, h221_cs_key, 4)
     length = per.readLength(s)
     clientSettings = Settings(readLen = CallableValue(length))
-    s.readType(clientSettings)
+    s.read_type(clientSettings)
     return clientSettings
     
 def readConferenceCreateResponse(s):
@@ -579,7 +579,7 @@ def readConferenceCreateResponse(s):
     
     length = per.readLength(s)
     serverSettings = Settings(readLen = CallableValue(length))
-    s.readType(serverSettings)
+    s.read_type(serverSettings)
     return serverSettings
 
 def writeConferenceCreateRequest(userData):
@@ -589,7 +589,7 @@ def writeConferenceCreateRequest(userData):
     @return: GCC packet
     """
     userDataStream = Stream()
-    userDataStream.writeType(userData)
+    userDataStream.write_type(userData)
     
     return (per.writeChoice(0), per.writeObjectIdentifier(t124_02_98_oid),
             per.writeLength(len(userDataStream.getvalue()) + 14), per.writeChoice(0),
@@ -604,7 +604,7 @@ def writeConferenceCreateResponse(serverData):
     @return: gcc packet
     """
     serverDataStream = Stream()
-    serverDataStream.writeType(serverData)
+    serverDataStream.write_type(serverData)
     
     return (per.writeChoice(0), per.writeObjectIdentifier(t124_02_98_oid),
             per.writeLength(len(serverDataStream.getvalue()) + 14), per.writeChoice(0x14),

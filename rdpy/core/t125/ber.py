@@ -69,7 +69,7 @@ def readLength(s):
     """
     size = None
     length = UInt8()
-    s.readType(length)
+    s.read_type(length)
     byte = length.value
     if byte & 0x80:
         byte &= ~0x80
@@ -79,7 +79,7 @@ def readLength(s):
             size = UInt16Be()
         else:
             raise InvalidExpectedDataException("BER length may be 1 or 2")
-        s.readType(size)
+        s.read_type(size)
     else:
         size = length
     return size.value
@@ -103,7 +103,7 @@ def readUniversalTag(s, tag, pc):
     @return: true if tag is correctly read
     """
     byte = UInt8()
-    s.readType(byte)
+    s.read_type(byte)
     return byte.value == ((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
 
 def writeUniversalTag(tag, pc):
@@ -123,11 +123,11 @@ def readApplicationTag(s, tag):
     @return: length of application packet
     """
     byte = UInt8()
-    s.readType(byte)
+    s.read_type(byte)
     if tag.value > 30:
         if byte.value != ((Class.BER_CLASS_APPL | BerPc.BER_CONSTRUCT) | Tag.BER_TAG_MASK):
             raise InvalidExpectedDataException()
-        s.readType(byte)
+        s.read_type(byte)
         if byte.value != tag.value:
             raise InvalidExpectedDataException("bad tag")
     else:
@@ -159,7 +159,7 @@ def readBoolean(s):
     if size != 1:
         raise InvalidExpectedDataException("bad boolean size")
     b = UInt8()
-    s.readType(b)
+    s.read_type(b)
     return bool(b.value)
 
 def writeBoolean(b):
@@ -186,21 +186,21 @@ def readInteger(s):
     
     if size == 1:
         integer = UInt8()
-        s.readType(integer)
+        s.read_type(integer)
         return integer.value
     elif size == 2:
         integer = UInt16Be()
-        s.readType(integer)
+        s.read_type(integer)
         return integer.value
     elif size == 3:
         integer1 = UInt8()
         integer2 = UInt16Be()
-        s.readType(integer1)
-        s.readType(integer2)
+        s.read_type(integer1)
+        s.read_type(integer2)
         return integer2.value + (integer1.value << 16)
     elif size == 4:
         integer = UInt32Be()
-        s.readType(integer)
+        s.read_type(integer)
         return integer.value
     else:
         raise InvalidExpectedDataException("Wrong integer size")
@@ -248,7 +248,7 @@ def readEnumerated(s):
     if readLength(s) != 1:
         raise InvalidSize("enumerate size is wrong")
     enumer = UInt8()
-    s.readType(enumer)
+    s.read_type(enumer)
     return enumer.value
 
 def writeEnumerated(enumerated):

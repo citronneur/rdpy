@@ -256,5 +256,5 @@ class RawLayer(asyncio.Protocol, LayerAutomata, IStreamSender):
         @param message: (tuple | Type)
         """
         s = Stream()
-        s.writeType(message)
+        s.write_type(message)
         self.transport.write(s.getvalue())

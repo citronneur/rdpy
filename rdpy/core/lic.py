@@ -272,7 +272,7 @@ class LicenseManager(object):
         @return true when license automata is finish
         """            
         licPacket = LicPacket()
-        s.readType(licPacket)
+        s.read_type(licPacket)
         
         #end of automata
         if licPacket.bMsgtype.value == MessageType.ERROR_ALERT and licPacket.licensingMessage.dwErrorCode.value == ErrorCode.STATUS_VALID_CLIENT and licPacket.licensingMessage.dwStateTransition.value == StateTransition.ST_NO_TRANSITION:
@@ -308,7 +308,7 @@ class LicenseManager(object):
         else:
             s = Stream(licenseRequest.serverCertificate.blobData.value)
             serverCertificate = gcc.ServerCertificate()
-            s.readType(serverCertificate)
+            s.read_type(serverCertificate)
         
         #generate crypto values
         clientRandom = rsa.random(256)
@@ -340,7 +340,7 @@ class LicenseManager(object):
         
         #generate hwid
         s = Stream()
-        s.writeType((UInt32Le(2), String(self._hostname + self._username + "\x00" * 16)))
+        s.write_type((UInt32Le(2), String(self._hostname + self._username + "\x00" * 16)))
         hwid = s.getvalue()[:20]
         
         message = ClientPLatformChallengeResponse()

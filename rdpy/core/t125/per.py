@@ -31,12 +31,12 @@ def readLength(s):
     @return: int python
     """
     byte = UInt8()
-    s.readType(byte)
+    s.read_type(byte)
     size = 0
     if byte.value & 0x80:
         byte.value &= ~0x80
         size = byte.value << 8
-        s.readType(byte)
+        s.read_type(byte)
         size += byte.value
     else:
         size = byte.value
@@ -60,7 +60,7 @@ def readChoice(s):
     @return: int that represent choice
     """
     choice = UInt8()
-    s.readType(choice)
+    s.read_type(choice)
     return choice.value
 
 def writeChoice(choice):
@@ -78,7 +78,7 @@ def readSelection(s):
     @return: int that represent selection
     """
     choice = UInt8()
-    s.readType(choice)
+    s.read_type(choice)
     return choice.value
 
 def writeSelection(selection):
@@ -96,7 +96,7 @@ def readNumberOfSet(s):
     @return: int that represent numberOfSet
     """
     choice = UInt8()
-    s.readType(choice)
+    s.read_type(choice)
     return choice.value
 
 def writeNumberOfSet(numberOfSet):
@@ -114,7 +114,7 @@ def readEnumerates(s):
     @return: int that represent enumerate
     """
     choice = UInt8()
-    s.readType(choice)
+    s.read_type(choice)
     return choice.value
 
 def writeEnumerates(enumer):
@@ -142,7 +142,7 @@ def readInteger(s):
         result = UInt32Be()
     else:
         raise InvalidValue("invalid integer size %d"%size)
-    s.readType(result)
+    s.read_type(result)
     return result.value
 
 def writeInteger(value):
@@ -166,7 +166,7 @@ def readInteger16(s, minimum = 0):
     @return: int or long python value
     """
     result = UInt16Be()
-    s.readType(result)
+    s.read_type(result)
     return result.value + minimum
 
 def writeInteger16(value, minimum = 0):
@@ -190,16 +190,16 @@ def readObjectIdentifier(s, oid):
         raise InvalidValue("size of stream oid is wrong %d != 5"%size)
     a_oid = [0, 0, 0, 0, 0, 0]
     t12 = UInt8()
-    s.readType(t12)
+    s.read_type(t12)
     a_oid[0] = t12.value >> 4
     a_oid[1] = t12.value & 0x0f
-    s.readType(t12)
+    s.read_type(t12)
     a_oid[2] = t12.value
-    s.readType(t12)
+    s.read_type(t12)
     a_oid[3] = t12.value
-    s.readType(t12)
+    s.read_type(t12)
     a_oid[4] = t12.value
-    s.readType(t12)
+    s.read_type(t12)
     a_oid[5] = t12.value
     
     if list(oid) != a_oid:
@@ -279,7 +279,7 @@ def readOctetStream(s, octetStream, minValue = 0):
         raise InvalidValue("incompatible size %d != %d"(len(octetStream), size))
     for i in range(0, size):
         c = UInt8()
-        s.readType(c)
+        s.read_type(c)
         if ord(octetStream[i]) != c.value:
             return False
         

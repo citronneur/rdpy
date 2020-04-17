@@ -40,7 +40,7 @@ class PERTest(unittest.TestCase):
         @summary: test readLength function in per module
         """
         s1 = type.Stream()
-        s1.writeType(type.UInt8(0x1a))
+        s1.write_type(type.UInt8(0x1a))
         s1.pos = 0
         
         l1 = per.readLength(s1)
@@ -48,7 +48,7 @@ class PERTest(unittest.TestCase):
         self.assertTrue(l1 == 0x1a, "readLength fail in small format")
         
         s2 = type.Stream()
-        s2.writeType(type.UInt16Be(0x1abc | 0x8000))
+        s2.write_type(type.UInt16Be(0x1abc | 0x8000))
         s2.pos = 0
         
         l2 = per.readLength(s2)
@@ -78,7 +78,7 @@ class PERTest(unittest.TestCase):
         for t in [type.UInt8, type.UInt16Be, type.UInt32Be]:
             v = t(3)
             s = type.Stream()
-            s.writeType((per.writeLength(type.sizeof(v)), v))
+            s.write_type((per.writeLength(type.sizeof(v)), v))
             s.pos = 0
             
             self.assertTrue(per.readInteger(s) == 3, "invalid readLength for type %s" % t)
@@ -86,7 +86,7 @@ class PERTest(unittest.TestCase):
         #error case
         for l in [0, 3, 5]:
             s = type.Stream()
-            s.writeType(per.writeLength(l))
+            s.write_type(per.writeLength(l))
             s.pos = 0
             
             self.assertRaises(error.InvalidValue, per.readInteger, s)

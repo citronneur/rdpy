@@ -53,12 +53,12 @@ class X224Test(unittest.TestCase):
         """
         class Presentation(object):
             def recv(self, data):
-                data.readType(type.String('test_x224_layer_recvData', constant = True))
+                data.read_type(type.String('test_x224_layer_recvData', constant = True))
                 raise X224Test.X224_PASS()
                 
         layer = x224.X224Layer(Presentation())
         s = type.Stream()
-        s.writeType((x224.X224DataHeader(), type.String('test_x224_layer_recvData')))
+        s.write_type((x224.X224DataHeader(), type.String('test_x224_layer_recvData')))
         #reinit position
         s.pos = 0
         
@@ -71,10 +71,10 @@ class X224Test(unittest.TestCase):
         class Transport(object):
             def send(self, data):
                 s = type.Stream()
-                s.writeType(data)
+                s.write_type(data)
                 s.pos = 0
-                s.readType(x224.X224DataHeader())
-                s.readType(type.String('test_x224_layer_send', constant = True))
+                s.read_type(x224.X224DataHeader())
+                s.read_type(type.String('test_x224_layer_send', constant = True))
                 raise X224Test.X224_PASS()
         
         layer = x224.X224Layer(None)
@@ -89,10 +89,10 @@ class X224Test(unittest.TestCase):
         class Transport(object):
             def send(self, data):
                 s = type.Stream()
-                s.writeType(data)
+                s.write_type(data)
                 s.pos = 0
                 t = x224.ClientConnectionRequestPDU()
-                s.readType(t)
+                s.read_type(t)
                 
                 if t.protocolNeg.code != x224.NegociationType.TYPE_RDP_NEG_REQ:
                     raise X224Test.X224_FAIL()
@@ -115,7 +115,7 @@ class X224Test(unittest.TestCase):
         message = x224.ServerConnectionConfirm()
         message.protocolNeg.code.value = x224.NegociationType.TYPE_RDP_NEG_FAILURE
         s = type.Stream()
-        s.writeType(message)
+        s.write_type(message)
         s.pos = 0
         layer = x224.Client(None)
         self.assertRaises(error.RDPSecurityNegoFail, layer.recvConnectionConfirm, s)
@@ -145,7 +145,7 @@ class X224Test(unittest.TestCase):
         message.protocolNeg.selectedProtocol.value = x224.Protocols.PROTOCOL_SSL
         
         s = type.Stream()
-        s.writeType(message)
+        s.write_type(message)
         s.pos = 0
         layer = x224.Client(Presentation())
         layer._transport = Transport()
@@ -175,7 +175,7 @@ class X224Test(unittest.TestCase):
         message = x224.ClientConnectionRequestPDU()
         message.protocolNeg.selectedProtocol.value = x224.Protocols.PROTOCOL_HYBRID
         s = type.Stream()
-        s.writeType(message)
+        s.write_type(message)
         s.pos = 0
         
         layer = x224.Server(None, "key", "cert", True)
@@ -217,7 +217,7 @@ class X224Test(unittest.TestCase):
         message = x224.ClientConnectionRequestPDU()
         message.protocolNeg.selectedProtocol.value = x224.Protocols.PROTOCOL_SSL | x224.Protocols.PROTOCOL_RDP
         s = type.Stream()
-        s.writeType(message)
+        s.write_type(message)
         s.pos = 0
         
         layer = x224.Server(Presentation(), "key", "cert")

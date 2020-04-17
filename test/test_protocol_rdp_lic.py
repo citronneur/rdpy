@@ -91,7 +91,7 @@ class TestLic(unittest.TestCase):
     def test_valid_client_licensing_error_message(self):
         l = lic.LicenseManager(None)
         s = type.Stream()
-        s.writeType(lic.createValidClientLicensingErrorMessage())
+        s.write_type(lic.createValidClientLicensingErrorMessage())
         #reinit position
         s.pos = 0
         
@@ -105,9 +105,9 @@ class TestLic(unittest.TestCase):
                 if flag != sec.SecurityFlag.SEC_LICENSE_PKT:
                     return
                 s = type.Stream()
-                s.writeType(message)
+                s.write_type(message)
                 s.pos = 0
-                s.readType(lic.LicPacket(lic.ClientNewLicenseRequest()))
+                s.read_type(lic.LicPacket(lic.ClientNewLicenseRequest()))
                 self._state = True
             def getGCCServerSettings(self):
                 class A:

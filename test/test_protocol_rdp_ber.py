@@ -40,7 +40,7 @@ class BERTest(unittest.TestCase):
         @summary: test readLength function in ber module
         """
         s1 = type.Stream()
-        s1.writeType(type.UInt8(0x1a))
+        s1.write_type(type.UInt8(0x1a))
         s1.pos = 0
         
         l1 = ber.readLength(s1)
@@ -48,7 +48,7 @@ class BERTest(unittest.TestCase):
         self.assertTrue(l1 == 0x1a, "readLength fail in small format")
         
         s2 = type.Stream()
-        s2.writeType((type.UInt8(0x81),type.UInt8(0xab)))
+        s2.write_type((type.UInt8(0x81), type.UInt8(0xab)))
         s2.pos = 0
         
         l2 = ber.readLength(s2)
@@ -56,7 +56,7 @@ class BERTest(unittest.TestCase):
         self.assertTrue(l2 == 0xab, "readLength fail in big format of size 1")
         
         s3 = type.Stream()
-        s3.writeType((type.UInt8(0x82),type.UInt16Be(0xabab)))
+        s3.write_type((type.UInt8(0x82), type.UInt16Be(0xabab)))
         s3.pos = 0
         
         l3 = ber.readLength(s3)

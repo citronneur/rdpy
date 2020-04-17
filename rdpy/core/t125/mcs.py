@@ -216,7 +216,7 @@ class MCSLayer(LayerAutomata):
         @param data: {Stream} 
         """
         opcode = UInt8()
-        data.readType(opcode)
+        data.read_type(opcode)
         
         if self.readMCSPDUHeader(opcode.value, DomainMCSPDU.DISCONNECT_PROVIDER_ULTIMATUM):
             log.info("MCS DISCONNECT_PROVIDER_ULTIMATUM")
@@ -367,7 +367,7 @@ class Client(MCSLayer):
         if not ber.readUniversalTag(data, ber.Tag.BER_TAG_OCTET_STRING, False):
             raise InvalidExpectedDataException("invalid expected BER tag")
         gccRequestLength = ber.readLength(data)
-        if data.dataLen() != gccRequestLength:
+        if data.data_len() != gccRequestLength:
             raise InvalidSize("bad size of GCC request")
         self._serverSettings = gcc.readConferenceCreateResponse(data)
         
@@ -385,7 +385,7 @@ class Client(MCSLayer):
         @param data: {Stream}
         """
         opcode = UInt8()
-        data.readType(opcode)
+        data.read_type(opcode)
         
         if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.ATTACH_USER_CONFIRM):
             raise InvalidExpectedDataException("Invalid MCS PDU : ATTACH_USER_CONFIRM expected")
@@ -404,7 +404,7 @@ class Client(MCSLayer):
         @param data: {Stream}
         """
         opcode = UInt8()
-        data.readType(opcode)
+        data.read_type(opcode)
         
         if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.CHANNEL_JOIN_CONFIRM):
             raise InvalidExpectedDataException("Invalid MCS PDU : CHANNEL_JOIN_CONFIRM expected")
@@ -435,7 +435,7 @@ class Client(MCSLayer):
         """
         ccReq = gcc.writeConferenceCreateRequest(self._clientSettings)
         ccReqStream = Stream()
-        ccReqStream.writeType(ccReq)
+        ccReqStream.write_type(ccReq)
         
         tmp = (ber.writeOctetstring("\x01"), ber.writeOctetstring("\x01"), ber.writeBoolean(True),
                self.writeDomainParams(34, 2, 0, 0xffff),
@@ -536,7 +536,7 @@ class Server(MCSLayer):
         @param data: {Stream}
         """
         opcode = UInt8()
-        data.readType(opcode)
+        data.read_type(opcode)
         
         if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.ERECT_DOMAIN_REQUEST):
             raise InvalidExpectedDataException("Invalid MCS PDU : ERECT_DOMAIN_REQUEST expected")
@@ -554,7 +554,7 @@ class Server(MCSLayer):
         @param data: {Stream}
         """
         opcode = UInt8()
-        data.readType(opcode)
+        data.read_type(opcode)
         
         if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.ATTACH_USER_REQUEST):
             raise InvalidExpectedDataException("Invalid MCS PDU : ATTACH_USER_REQUEST expected")
@@ -570,7 +570,7 @@ class Server(MCSLayer):
         
         """
         opcode = UInt8()
-        data.readType(opcode)
+        data.read_type(opcode)
         
         if not self.readMCSPDUHeader(opcode.value, DomainMCSPDU.CHANNEL_JOIN_REQUEST):
             raise InvalidExpectedDataException("Invalid MCS PDU : CHANNEL_JOIN_REQUEST expected")
@@ -593,7 +593,7 @@ class Server(MCSLayer):
         """
         ccReq = gcc.writeConferenceCreateResponse(self._serverSettings)
         ccReqStream = Stream()
-        ccReqStream.writeType(ccReq)
+        ccReqStream.write_type(ccReq)
         
         tmp = (ber.writeEnumerated(0), ber.writeInteger(0), self.writeDomainParams(22, 3, 0, 0xfff8), 
                ber.writeOctetstring(ccReqStream.getvalue()))

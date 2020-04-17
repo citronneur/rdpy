@@ -56,7 +56,7 @@ class LayerTest(unittest.TestCase):
         """
         class TestAutomata(rdpy.core.layer.RawLayer):
             def expectedCallBack(self, data):
-                if data.dataLen() == 4:
+                if data.data_len() == 4:
                     raise LayerTest.LayerCaseException()
             
         t = TestAutomata()
@@ -69,7 +69,7 @@ class LayerTest(unittest.TestCase):
         """
         class TestAutomata(rdpy.core.layer.RawLayer):
             def expectedCallBack(self, data):
-                if data.dataLen() == 4:
+                if data.data_len() == 4:
                     raise LayerTest.LayerCaseException()
             
         t = TestAutomata()

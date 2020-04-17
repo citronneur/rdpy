@@ -167,7 +167,7 @@ def macData(macSaltKey, data):
     
     #encode length
     dataLength = Stream()
-    dataLength.writeType(UInt32Le(len(data)))
+    dataLength.write_type(UInt32Le(len(data)))
     
     sha1Digest.update(macSaltKey)
     sha1Digest.update("\x36" * 40)
@@ -195,10 +195,10 @@ def macSaltedData(macSaltKey, data, encryptionCount):
     
     #encode length
     dataLengthS = Stream()
-    dataLengthS.writeType(UInt32Le(len(data)))
+    dataLengthS.write_type(UInt32Le(len(data)))
     
     encryptionCountS = Stream()
-    encryptionCountS.writeType(UInt32Le(encryptionCount))
+    encryptionCountS.write_type(UInt32Le(encryptionCount))
     
     sha1Digest.update(macSaltKey)
     sha1Digest.update("\x36" * 40)
@@ -412,7 +412,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         
         signature = String(readLen = CallableValue(8))
         encryptedPayload = String()
-        s.readType((signature, encryptedPayload))
+        s.read_type((signature, encryptedPayload))
         decrypted = rc4.crypt(self._decryptRc4, encryptedPayload.value)
 
         #ckeck signature
@@ -444,7 +444,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         self._nbEncryptedPacket += 1
         
         s = Stream()
-        s.writeType(data)
+        s.write_type(data)
         
         if saltedMacGeneration:
             return (String(macSaltedData(self._macKey, s.getvalue(), self._nbEncryptedPacket - 1)[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
@@ -463,7 +463,7 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         
         securityFlag = UInt16Le()
         securityFlagHi = UInt16Le()
-        data.readType((securityFlag, securityFlagHi))
+        data.read_type((securityFlag, securityFlagHi))
         
         if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
             data = self.readEncryptedPayload(data, securityFlag.value & SecurityFlag.SEC_SECURE_CHECKSUM)
@@ -631,7 +631,7 @@ class Client(SecLayer):
         #packet preambule
         securityFlag = UInt16Le()
         securityFlagHi = UInt16Le()
-        s.readType((securityFlag, securityFlagHi))
+        s.read_type((securityFlag, securityFlagHi))
         
         if not (securityFlag.value & SecurityFlag.SEC_LICENSE_PKT):
             raise InvalidExpectedDataException("waiting license packet")
@@ -680,13 +680,13 @@ class Server(SecLayer):
         #packet preambule
         securityFlag = UInt16Le()
         securityFlagHi = UInt16Le()
-        s.readType((securityFlag, securityFlagHi))
+        s.read_type((securityFlag, securityFlagHi))
         
         if not (securityFlag.value & SecurityFlag.SEC_EXCHANGE_PKT):
             raise InvalidExpectedDataException("waiting client random")
         
         message = ClientSecurityExchangePDU()
-        s.readType(message)
+        s.read_type(message)
         clientRandom = rsa.decrypt(message.encryptedClientRandom.value[::-1], self._rsaPrivateKey)[::-1]
         
         self._macKey, self._initialEncryptKey, self._initialDecrytKey = generateKeys(   clientRandom, 
@@ -711,7 +711,7 @@ class Server(SecLayer):
         """
         securityFlag = UInt16Le()
         securityFlagHi = UInt16Le()
-        s.readType((securityFlag, securityFlagHi))
+        s.read_type((securityFlag, securityFlagHi))
         
         if not (securityFlag.value & SecurityFlag.SEC_INFO_PKT):
             raise InvalidExpectedDataException("Waiting info packet")
@@ -719,7 +719,7 @@ class Server(SecLayer):
         if securityFlag.value & SecurityFlag.SEC_ENCRYPT:
             s = self.readEncryptedPayload(s, securityFlag.value & SecurityFlag.SEC_SECURE_CHECKSUM)
         
-        s.readType(self._info)
+        s.read_type(self._info)
         #next state send error license
         self.sendLicensingErrorMessage()
         #reinit state

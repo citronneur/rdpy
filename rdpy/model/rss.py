@@ -177,7 +177,7 @@ class FileRecorder(object):
         self._lastEventTimer = now
         
         s = Stream()
-        s.writeType(e)
+        s.write_type(e)
         
         self._file.write(s.getvalue())
         
@@ -276,10 +276,10 @@ class FileReader(object):
         """
         @summary: read next event and return it
         """
-        if self._s.dataLen() == 0:
+        if self._s.data_len() == 0:
             return None
         e = Event()
-        self._s.readType(e)
+        self._s.read_type(e)
         return e
         
 def createRecorder(path):

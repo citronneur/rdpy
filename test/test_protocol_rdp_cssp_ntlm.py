@@ -73,25 +73,25 @@ class TestCsspNtlm(unittest.TestCase):
     @summary: test generate ntlmv2 over cssp authentication protocol
     """
     def testCSSPNTLMAuthentication(self):
-        negotiate_data_request = cssp.decodeDERTRequest(peer0_0.decode('base64'))
-        challenge_data_request = cssp.decodeDERTRequest(peer1_0.decode('base64'))
-        authenticate_data_request = cssp.decodeDERTRequest(peer0_1.decode('base64'))
+        negotiate_data_request = cssp.decode_der_trequest(peer0_0.decode('base64'))
+        challenge_data_request = cssp.decode_der_trequest(peer1_0.decode('base64'))
+        authenticate_data_request = cssp.decode_der_trequest(peer0_1.decode('base64'))
         
         negotiate_data = cssp.getNegoTokens(negotiate_data_request)[0]
         challenge_data = cssp.getNegoTokens(challenge_data_request)[0]
         authenticate_data = cssp.getNegoTokens(authenticate_data_request)[0]
         
         negotiate = ntlm.NegotiateMessage()
-        negotiate_data.readType(negotiate)
+        negotiate_data.read_type(negotiate)
         
         challenge = ntlm.ChallengeMessage()
-        challenge_data.readType(challenge)
+        challenge_data.read_type(challenge)
         
         ServerChallenge = challenge.ServerChallenge.value
         ServerName = challenge.getTargetInfo()
     
         authenticate = ntlm.AuthenticateMessage()
-        authenticate_data.readType(authenticate)
+        authenticate_data.read_type(authenticate)
         
         NtChallengeResponseTemp = authenticate.getNtChallengeResponse()
         NTProofStr = NtChallengeResponseTemp[:16]

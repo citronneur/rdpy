@@ -47,12 +47,13 @@ def sizeof(element):
         return element.__sizeof__()
     return 0 
 
-class Type(object):
+
+class Type:
     """
     @summary:  Root type object inheritance
                 Record conditional optional of constant mechanism
     """
-    def __init__(self, conditional = lambda:True, optional = False, constant = False):
+    def __init__(self, conditional=lambda:True, optional=False, constant=False):
         """
         @param conditional :    Callable object
                                  Read and Write operation depend on return of this function
@@ -63,11 +64,11 @@ class Type(object):
         self._conditional = conditional
         self._optional = optional
         self._constant = constant
-        #use to record read state
-        #if type is optional and not present during read
-        #this boolean stay false
+        # use to record read state
+        # if type is optional and not present during read
+        # this boolean stay false
         self._is_readed = False
-        #use to know if type was written
+        # use to know if type was written
         self._is_writed = False
         
     def write(self, s):
@@ -93,18 +94,18 @@ class Type(object):
         if not self._is_readed:
             return
         
-        #not constant mode direct reading
+        # not constant mode direct reading
         if not self._constant:
             self.__read__(s)
             return
         
-        #constant mode
+        # constant mode
         old = deepcopy(self)
         self.__read__(s)
-        #check constant value
+        # check constant value
         if old != self:
-            #rollback read value
-            s.pos -= sizeof(self)
+            # rollback read value
+            s.seek(-sizeof(self), 1)
             raise InvalidExpectedDataException("%s const value expected %s != %s"%(self.__class__, old.value, self.value))
         
     def __read__(self, s):
@@ -127,8 +128,9 @@ class Type(object):
         @return: size in byte of type
         """
         raise CallPureVirtualFuntion("%s:%s defined by interface %s"%(self.__class__, "__sizeof__", "Type"))
-        
-class CallableValue(object):
+
+
+class CallableValue:
     """
     @summary:  Expression evaluate when is get or set
                 Ex: Type contain length of array and array
@@ -180,6 +182,7 @@ class CallableValue(object):
         @param value: new value encompass in value type object
         """
         self.__setValue__(value)
+
 
 class SimpleType(Type, CallableValue):
     """
@@ -257,7 +260,7 @@ class SimpleType(Type, CallableValue):
         @param s: Stream that will be read
         @raise InvalidSize: if there is not enough data in stream
         """
-        if s.dataLen() < self._typeSize:
+        if s.data_len() < self._typeSize:
             raise InvalidSize("Stream is too small to read expected SimpleType")
         self.value = struct.unpack(self._structFormat, s.read(self._typeSize))[0]
       
@@ -267,7 +270,7 @@ class SimpleType(Type, CallableValue):
                     Because in Python all numbers are Int long or float
                     Cache result in self._mask field
         """
-        if not self.__dict__.has_key("_mask"):
+        if "_mask" not in self.__dict__.keys():
             mask = 0xff
             for _ in range(1, self._typeSize):
                 mask = mask << 8 | 0xff
@@ -292,7 +295,7 @@ class SimpleType(Type, CallableValue):
         """
         return self._typeSize
     
-    def __cmp__(self, other):
+    def __eq__(self, other):
         """
         @summary:  Compare two simple type
                     Call inner value compare operator
@@ -302,7 +305,19 @@ class SimpleType(Type, CallableValue):
         """
         if not isinstance(other, SimpleType):
             other = self.__class__(other)
-        return self.value.__cmp__(other.value)
+        return self.value.__eq__(other.value)
+
+    def __ne__(self, other):
+        """
+        @summary:  Compare two simple type
+                    Call inner value compare operator
+        @param other:  SimpleType value or try to build same type as self
+                        around value
+        @return: python value compare
+        """
+        if not isinstance(other, SimpleType):
+            other = self.__class__(other)
+        return self.value.__ne__(other.value)
     
     def __invert__(self):
         """
@@ -458,7 +473,7 @@ class CompositeType(Type):
         readLen = 0
         for name in self._typeName:            
             try:
-                s.readType(self.__dict__[name])
+                s.read_type(self.__dict__[name])
                 readLen += sizeof(self.__dict__[name])
                 #read is ok but read out of bound
                 if not self._readLen is None and readLen > self._readLen.value:
@@ -474,7 +489,7 @@ class CompositeType(Type):
                 for tmpName in self._typeName:
                     if tmpName == name:
                         break
-                    s.pos -= sizeof(self.__dict__[tmpName])
+                    s.seek(-sizeof(self.__dict__[tmpName]), 1)
                 raise e
             
         if not self._readLen is None and readLen < self._readLen.value:
@@ -489,7 +504,7 @@ class CompositeType(Type):
         """
         for name in self._typeName:
             try:
-                s.writeType(self.__dict__[name])
+                s.write_type(self.__dict__[name])
             except Exception as e:
                 log.error("Error during write %s::%s"%(self.__class__, name))
                 raise e
@@ -736,13 +751,14 @@ class UInt24Le(SimpleType):
         @param s: Stream
         """
         self.value = struct.unpack(self._structFormat, s.read(self._typeSize) + '\x00')[0]
-        
+
+
 class String(Type, CallableValue):
     """
     @summary:  String type
                 Leaf in Type tree
     """
-    def __init__(self, value = "", readLen = None, conditional = lambda:True, optional = False, constant = False, unicode = False, until = None):
+    def __init__(self, value=b"", readLen = None, encoding=None, conditional=lambda:True, optional=False, constant=False, until=None):
         """
         @param value: python string use for inner value
         @param readLen: length use to read in stream (SimpleType) if 0 read entire stream
@@ -754,20 +770,24 @@ class String(Type, CallableValue):
         @param unicode: Encode and decode value as unicode
         @param until: read until sequence is readed or write sequence at the end of string
         """
-        Type.__init__(self, conditional = conditional, optional = optional, constant = constant)
+        Type.__init__(self, conditional=conditional, optional=optional, constant=constant)
         CallableValue.__init__(self, value)
         #type use to know read length
         self._readLen = readLen
-        self._unicode = unicode
+        self._encoding = encoding
         self._until = until
         
-    def __cmp__(self, other):
+    def __eq__(self, other):
         """
-        @summary: call raw compare value
-        @param other: other String parameter
-        @return: if two inner value are equals
+
         """
-        return cmp(self.value, other.value)
+        return self.value.__eq__(other.value)
+
+    def __ne__(self, other):
+        """
+
+        """
+        return self.value.__ne__(other.value)
     
     def __hash__(self):
         """
@@ -796,9 +816,9 @@ class String(Type, CallableValue):
             toWrite += self._until
             
         if self._unicode:
-            s.write(encodeUnicode(self.value))
+            s.write(bytes(self.value.encode("utf-16le"), "utf-16le"))
         else:
-            s.write(self.value)
+            s.write(bytes(self.value, "ascii"))
     
     def __read__(self, s):
         """
@@ -809,16 +829,16 @@ class String(Type, CallableValue):
         """
         if self._readLen is None:
             if self._until is None:
-                self.value = s.getvalue()[s.pos:]
+                self.value = s.getvalue()[s.tell():]
             else:
                 self.value = ""
-                while self.value[-len(self._until):] != self._until and s.dataLen() != 0:
+                while self.value[-len(self._until):] != self._until and s.data_len() != 0:
                     self.value += s.read(1)
         else:
             self.value = s.read(self._readLen.value)
         
         if self._unicode:
-            self.value = decodeUnicode(self.value)
+            self.value = self.value.decode("utf-16le")
         
     def __sizeof__(self):
         """
@@ -858,33 +878,33 @@ class Stream(BytesIO):
     """
     @summary:  Stream use to read all types
     """
-    def dataLen(self):
+    def data_len(self) -> int:
         """
-        @return: not yet read length
+        :returns: not yet read length
         """
-        return self.len - self.pos
+        return len(self.getvalue()) - self.tell()
     
-    def readLen(self):
+    def read_len(self) -> int:
         """
-        @summary: compute already read size
-        @return: read size of stream
+        Compute already read size
+        :returns: read size of stream
         """
-        return self.pos
+        return self.seek()
     
-    def readType(self, value):
+    def read_type(self, value: Type):
         """
-        @summary:  call specific read on type object
-                    or iterate over tuple elements
-                    rollback read if error occurred during read value
-        @param value: (tuple | Type) object
+        Call specific read on type object
+        or iterate over tuple elements
+        rollback read if error occurred during read value
+        :ivar tuple | Type object
         """
-        #read each tuple
+        # read each tuple
         if isinstance(value, tuple) or isinstance(value, list):
             for element in value:
                 try:
-                    self.readType(element)
+                    self.read_type(element)
                 except Exception as e:
-                    #rollback already readed elements
+                    # rollback already readed elements
                     for tmpElement in value:
                         if tmpElement == element:
                             break
@@ -892,8 +912,8 @@ class Stream(BytesIO):
                     raise e
             return
         
-        #optional value not present
-        if self.dataLen() == 0 and value._optional:
+        # optional value not present
+        if self.data_len() == 0 and value._optional:
             return
 
         value.read(self)
@@ -903,22 +923,24 @@ class Stream(BytesIO):
         @summary: read next type but didn't consume it
         @param t: Type element
         """
-        self.readType(t)
+        self.read_type(t)
         self.pos -= sizeof(t)
     
-    def writeType(self, value):
+    def write_type(self, value: Type):
         """
-        @summary:  Call specific write on type object
-                    or iterate over tuple element
-        @param value: (tuple | Type)
+        Call specific write on type object
+        or iterate over tuple element
+
+        :ivar Type: Type to write
         """
-        #write each element of tuple
+        # write each element of tuple
         if isinstance(value, tuple) or isinstance(value, list):
             for element in value:
-                self.writeType(element)
+                self.write_type(element)
             return
         value.write(self)
-        
+
+
 class ArrayType(Type):
     """
     @summary: Factory af n element
@@ -952,7 +974,7 @@ class ArrayType(Type):
         while self._readLen is None or i < self._readLen.value:
             element = self._typeFactory()
             element._optional = self._readLen is None
-            s.readType(element)
+            s.read_type(element)
             if not element._is_readed:
                 break
             self._array.append(element)
@@ -963,7 +985,7 @@ class ArrayType(Type):
         @summary: Just write array
         @param s: Stream
         """
-        s.writeType(self._array)
+        s.write_type(self._array)
         
     def __getitem__(self, item):
         """
@@ -1005,7 +1027,7 @@ class FactoryType(Type):
         @param s: Stream
         """
         self._value = self._factory()
-        s.readType(self._value)
+        s.read_type(self._value)
         
     def __write__(self, s):
         """
@@ -1013,7 +1035,7 @@ class FactoryType(Type):
         @param s: Stream
         """
         self._value = self._factory()
-        s.writeType(self._value)
+        s.write_type(self._value)
     
     def __getattr__(self, name):
         """
