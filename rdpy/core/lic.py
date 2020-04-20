@@ -22,7 +22,7 @@
 @see: http://msdn.microsoft.com/en-us/library/cc241880.aspx
 """
 
-from rdpy.model.type import CompositeType, CallableValue, UInt8, UInt16Le, UInt32Le, String, sizeof, FactoryType, ArrayType, Stream
+from rdpy.model.type import CompositeType, CallableValue, UInt8, UInt16Le, UInt32Le, Buffer, sizeof, FactoryType, ArrayType, Stream
 from rdpy.model.error import InvalidExpectedDataException
 import rdpy.model.log as log
 from rdpy.core import sec
@@ -102,7 +102,7 @@ class LicenseBinaryBlob(CompositeType):
         CompositeType.__init__(self, optional = optional)
         self.wBlobType = UInt16Le(blobType, constant = True if blobType != BinaryBlobType.BB_ANY_BLOB else False)
         self.wBlobLen = UInt16Le(lambda:sizeof(self.blobData))
-        self.blobData = String(readLen = self.wBlobLen)
+        self.blobData = Buffer(readLen = self.wBlobLen)
 
 class LicensingErrorMessage(CompositeType):
     """
@@ -127,10 +127,10 @@ class ProductInformation(CompositeType):
         self.dwVersion = UInt32Le()
         self.cbCompanyName = UInt32Le(lambda:sizeof(self.pbCompanyName))
         #may contain "Microsoft Corporation" from server microsoft
-        self.pbCompanyName = String("Microsoft Corporation", readLen = self.cbCompanyName, unicode = True)
+        self.pbCompanyName = Buffer("Microsoft Corporation", readLen = self.cbCompanyName, unicode = True)
         self.cbProductId = UInt32Le(lambda:sizeof(self.pbProductId))
         #may contain "A02" from microsoft license server
-        self.pbProductId = String("A02", readLen = self.cbProductId, unicode = True)
+        self.pbProductId = Buffer("A02", readLen = self.cbProductId, unicode = True)
 
 
 class Scope(CompositeType):
@@ -162,7 +162,7 @@ class ServerLicenseRequest(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.serverRandom = String("\x00" * 32, readLen = CallableValue(32))
+        self.serverRandom = Buffer("\x00" * 32, readLen = CallableValue(32))
         self.productInfo = ProductInformation()
         self.keyExchangeList = LicenseBinaryBlob(BinaryBlobType.BB_KEY_EXCHG_ALG_BLOB)
         self.serverCertificate = LicenseBinaryBlob(BinaryBlobType.BB_CERTIFICATE_BLOB)
@@ -183,7 +183,7 @@ class ClientNewLicenseRequest(CompositeType):
         #pure microsoft client ;-)
         #http://msdn.microsoft.com/en-us/library/1040af38-c733-4fb3-acd1-8db8cc979eda#id10
         self.platformId = UInt32Le(0x04000000 | 0x00010000)
-        self.clientRandom = String("\x00" * 32, readLen = CallableValue(32))
+        self.clientRandom = Buffer("\x00" * 32, readLen = CallableValue(32))
         self.encryptedPreMasterSecret = LicenseBinaryBlob(BinaryBlobType.BB_RANDOM_BLOB)
         self.ClientUserName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_USER_NAME_BLOB)
         self.ClientMachineName = LicenseBinaryBlob(BinaryBlobType.BB_CLIENT_MACHINE_NAME_BLOB)
@@ -199,7 +199,7 @@ class ServerPlatformChallenge(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.connectFlags = UInt32Le()
         self.encryptedPlatformChallenge = LicenseBinaryBlob(BinaryBlobType.BB_ANY_BLOB)
-        self.MACData = String(readLen = CallableValue(16))
+        self.MACData = Buffer(readLen = CallableValue(16))
 
 class ClientPLatformChallengeResponse(CompositeType):
     """
@@ -212,7 +212,7 @@ class ClientPLatformChallengeResponse(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.encryptedPlatformChallengeResponse = LicenseBinaryBlob(BinaryBlobType.BB_DATA_BLOB)
         self.encryptedHWID = LicenseBinaryBlob(BinaryBlobType.BB_DATA_BLOB)
-        self.MACData = String(readLen = CallableValue(16))
+        self.MACData = Buffer(readLen = CallableValue(16))
 
 class LicPacket(CompositeType):
     """
@@ -234,7 +234,7 @@ class LicPacket(CompositeType):
                 if self.bMsgtype.value == c._MESSAGE_TYPE_:
                     return c(readLen = self.wMsgSize - 4)
             log.debug("unknown license message : %s"%self.bMsgtype.value)
-            return String(readLen = self.wMsgSize - 4)
+            return Buffer(readLen =self.wMsgSize - 4)
         
         if message is None:
             message = FactoryType(LicensingMessageFactory)
@@ -340,7 +340,7 @@ class LicenseManager(object):
         
         #generate hwid
         s = Stream()
-        s.write_type((UInt32Le(2), String(self._hostname + self._username + "\x00" * 16)))
+        s.write_type((UInt32Le(2), Buffer(self._hostname + self._username + "\x00" * 16)))
         hwid = s.getvalue()[:20]
         
         message = ClientPLatformChallengeResponse()

@@ -23,7 +23,7 @@ GDI order structure
 
 from rdpy.model import log
 from rdpy.model.error import InvalidExpectedDataException
-from rdpy.model.type import CompositeType, UInt8, String, FactoryType, SInt8, SInt16Le
+from rdpy.model.type import CompositeType, UInt8, Buffer, FactoryType, SInt8, SInt16Le
 
 class ControlFlag(object):
     """
@@ -100,7 +100,7 @@ class PrimaryDrawingOrder(CompositeType):
                     return c(self.controlFlags)
             log.debug("unknown Order type : %s"%hex(self.orderType.value))
             #read entire packet
-            return String()
+            return Buffer()
         
         if order is None:
             order = FactoryType(OrderFactory)

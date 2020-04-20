@@ -25,17 +25,18 @@
 from pyasn1.type import namedtype, univ, tag
 import pyasn1.codec.der.encoder as der_encoder
 import pyasn1.codec.der.decoder as der_decoder
-import pyasn1.codec.ber.encoder as ber_encoder
 
 from rdpy.core.nla import sspi
-from rdpy.model.type import Stream
-from rdpy.security import x509
+from rdpy.model.message import Stream
 from rdpy.model import error
+from rdpy.security.x509 import X509Certificate
+
 
 class NegoToken(univ.Sequence):
     componentType = namedtype.NamedTypes(
         namedtype.NamedType('negoToken', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
     )
+
 
 class NegoData(univ.SequenceOf):
     """
@@ -43,6 +44,7 @@ class NegoData(univ.SequenceOf):
     @see: https://msdn.microsoft.com/en-us/library/cc226781.aspx
     """
     componentType = NegoToken()
+
 
 class TSRequest(univ.Sequence):
     """
@@ -57,6 +59,7 @@ class TSRequest(univ.Sequence):
         namedtype.OptionalNamedType('errorCode', univ.Integer().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 4)))
         )
 
+
 class TSCredentials(univ.Sequence):
     """
     @summary: contain user information
@@ -66,7 +69,8 @@ class TSCredentials(univ.Sequence):
         namedtype.NamedType('credType', univ.Integer().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0))),
         namedtype.NamedType('credentials', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1)))
         )
-    
+
+
 class TSPasswordCreds(univ.Sequence):
     """
     @summary: contain username and password
@@ -77,6 +81,7 @@ class TSPasswordCreds(univ.Sequence):
         namedtype.NamedType('userName', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1))),
         namedtype.NamedType('password', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2)))
         )
+
 
 class TSCspDataDetail(univ.Sequence):
     """
@@ -91,6 +96,7 @@ class TSCspDataDetail(univ.Sequence):
         namedtype.OptionalNamedType('cspName', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 4)))
         )
 
+
 class TSSmartCardCreds(univ.Sequence):
     """
     @summary: smart card credentials
@@ -103,16 +109,6 @@ class TSSmartCardCreds(univ.Sequence):
         namedtype.OptionalNamedType('domainHint', univ.OctetString().subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 3)))
         )
 
-class OpenSSLRSAPublicKey(univ.Sequence):
-    """
-    @summary: asn1 public rsa key
-    @see: https://tools.ietf.org/html/rfc3447
-    """
-    componentType = namedtype.NamedTypes(
-        namedtype.NamedType('unknow', univ.Integer()),
-        namedtype.NamedType('modulus', univ.Integer()),
-        namedtype.NamedType('publicExponent', univ.Integer()),
-        )
 
 
 def encode_der_trequest(nego_types=[], auth_info=None, pub_key_auth=None):
@@ -161,69 +157,50 @@ def decode_der_trequest(s):
 def getNegoTokens(tRequest):
     negoData = tRequest.getComponentByName("negoTokens")
     return [Stream(negoData.getComponentByPosition(i).getComponentByPosition(0).asOctets()) for i in range(len(negoData))]
-    
-def getPubKeyAuth(tRequest):
-    return tRequest.getComponentByName("pubKeyAuth").asOctets()
 
-def encodeDERTCredentials(domain, username, password):
+
+def encode_der_tcredentials(domain, username, password):
     passwordCred = TSPasswordCreds()
-    passwordCred.setComponentByName("domainName", univ.OctetString(domain).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0)))
-    passwordCred.setComponentByName("userName", univ.OctetString(username).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1)))
-    passwordCred.setComponentByName("password", univ.OctetString(password).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 2)))
+    passwordCred.setComponentByName("domainName", domain)
+    passwordCred.setComponentByName("userName", username)
+    passwordCred.setComponentByName("password", password)
     
     credentials = TSCredentials()
-    credentials.setComponentByName("credType", univ.Integer(1).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 0)))
-    credentials.setComponentByName("credentials", univ.OctetString(der_encoder.encode(passwordCred)).subtype(explicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatConstructed, 1)))
+    credentials.setComponentByName("credType", 1)
+    credentials.setComponentByName("credentials", der_encoder.encode(passwordCred))
     
     return der_encoder.encode(credentials)
 
 
 async def connect(reader, writer, authentication_protocol: sspi.IAuthenticationProtocol):
     """
+    CSSP connection sequence
     """
-
     # send negotiate message
     writer.write(encode_der_trequest(nego_types=[authentication_protocol.getNegotiateMessage()]))
     await writer.drain()
-    print("toto")
+
     trequest = decode_der_trequest(await reader.read(1500))
-    print("yahoo")
     message, interface = authentication_protocol.getAuthenticateMessage(getNegoTokens(trequest)[0])
 
-def recvChallenge(self, data):
-    """
-    @summary: second state in cssp automata
-    @param data : {str} all data available on buffer
-    """
-    request = decode_der_trequest(data)
-    message, self._interface = self._authenticationProtocol.getAuthenticateMessage(getNegoTokens(request)[0])
-    #get back public key
-    #convert from der to ber...
-    pubKeyDer = crypto.dump_privatekey(crypto.FILETYPE_ASN1, self.transport.protocol._tlsConnection.get_peer_certificate().get_pubkey())
-    pubKey = der_decoder.decode(pubKeyDer, asn1Spec=OpenSSLRSAPublicKey())[0]
+    # get binary certificate
+    # There is no other way to get certificate that have net been validated
+    peer_certificate = writer.transport._ssl_protocol._sslpipe.ssl_object._sslobj.getpeercert(True)
+    x509_certificate = der_decoder.decode(peer_certificate, asn1Spec=X509Certificate())[0]
+    public_key = x509_certificate.getComponentByName("tbsCertificate").getComponentByName("subjectPublicKeyInfo").getComponentByName("subjectPublicKey").asOctets()
 
-    rsa = x509.RSAPublicKey()
-    rsa.setComponentByName("modulus", univ.Integer(pubKey.getComponentByName('modulus')._value))
-    rsa.setComponentByName("publicExponent", univ.Integer(pubKey.getComponentByName('publicExponent')._value))
-    self._pubKeyBer = ber_encoder.encode(rsa)
+    # send back public key encrypted with NTLM
+    writer.write(encode_der_trequest(nego_types=[message], pub_key_auth=interface.GSS_WrapEx(public_key)))
+    await writer.drain()
 
-    #send authenticate message with public key encoded
-    self.transport.write(encode_der_trequest(nego_types= [message], pub_key_auth= self._interface.GSS_WrapEx(self._pubKeyBer)))
-    #next step is received public key incremented by one
-    self.dataReceived = self.recvPubKeyInc
+    # now check the increment
+    # sever must respond with the same key incremented to one
+    trequest = decode_der_trequest(await reader.read(1500))
+    public_key_inc = interface.GSS_UnWrapEx(trequest.getComponentByName("pubKeyAuth").asOctets())
 
-def recvPubKeyInc(self, data):
-    """
-    @summary: the server send the pubKeyBer + 1
-    @param data : {str} all data available on buffer
-    """
-    request = decode_der_trequest(data)
-    pubKeyInc = self._interface.GSS_UnWrapEx(getPubKeyAuth(request))
-    #check pubKeyInc = self._pubKeyBer + 1
-    if not (self._pubKeyBer[1:] == pubKeyInc[1:] and ord(self._pubKeyBer[0]) + 1 == ord(pubKeyInc[0])):
+    if int.from_bytes(public_key, "little") + 1 != int.from_bytes(public_key_inc, "little"):
         raise error.InvalidExpectedDataException("CSSP : Invalid public key increment")
 
-    domain, user, password = self._authenticationProtocol.getEncodedCredentials()
-    #send credentials
-    self.transport.write(encode_der_trequest(
-        auth_info= self._interface.GSS_WrapEx(encodeDERTCredentials(domain, user, password))))
+    domain, user, password = authentication_protocol.getEncodedCredentials()
+    writer.write(encode_der_trequest(auth_info=interface.GSS_WrapEx(encode_der_tcredentials(domain, user, password))))
+    await writer.drain()

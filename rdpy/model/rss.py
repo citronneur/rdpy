@@ -22,7 +22,7 @@ Remote Session Scenario File format
 Private protocol format to save events
 """
 
-from rdpy.model.type import CompositeType, FactoryType, UInt8, UInt16Le, UInt32Le, String, sizeof, Stream
+from rdpy.model.type import CompositeType, FactoryType, UInt8, UInt16Le, UInt32Le, Buffer, sizeof, Stream
 from rdpy.model import log, error
 import time
 
@@ -63,7 +63,7 @@ class Event(CompositeType):
                     return c(readLen = self.length)
             log.debug("unknown event type : %s"%hex(self.type.value))
             #read entire packet
-            return String(readLen = self.length)
+            return Buffer(readLen = self.length)
         
         if event is None:
             event = FactoryType(EventFactory)
@@ -88,7 +88,7 @@ class UpdateEvent(CompositeType):
         self.bpp = UInt8()
         self.format = UInt8()
         self.length = UInt32Le(lambda:sizeof(self.data))
-        self.data = String(readLen = self.length)
+        self.data = Buffer(readLen = self.length)
         
 class InfoEvent(CompositeType):
     """
@@ -98,13 +98,13 @@ class InfoEvent(CompositeType):
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
         self.lenUsername = UInt16Le(lambda:sizeof(self.username))
-        self.username = String(readLen = self.lenUsername)
+        self.username = Buffer(readLen = self.lenUsername)
         self.lenPassword = UInt16Le(lambda:sizeof(self.password))
-        self.password = String(readLen = self.lenPassword)
+        self.password = Buffer(readLen = self.lenPassword)
         self.lenDomain = UInt16Le(lambda:sizeof(self.domain))
-        self.domain = String(readLen = self.lenDomain)
+        self.domain = Buffer(readLen = self.lenDomain)
         self.lenHostname = UInt16Le(lambda:sizeof(self.hostname))
-        self.hostname = String(readLen = self.lenHostname)
+        self.hostname = Buffer(readLen = self.lenHostname)
         
 class ScreenEvent(CompositeType):
     """

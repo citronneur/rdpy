@@ -25,7 +25,8 @@ import sys
 import asyncio
 
 from rdpy.core import tpkt, x224
-from rdpy.model.type import UInt8
+from rdpy.core.nla import ntlm
+from rdpy.model.message import UInt8
 
 if __name__ == '__main__':
 
@@ -35,9 +36,9 @@ if __name__ == '__main__':
         reader, writer = await asyncio.open_connection(
             '127.0.0.1', 33389)
 
-        x224_layer = await x224.connect(tpkt.Tpkt(reader, writer))
+        x224_layer = await x224.connect(tpkt.Tpkt(reader, writer), ntlm.NTLMv2("", "sylvain", "sylvain"))
         await x224_layer.write(UInt8(8))
-        await asyncio.sleep(1000)
+        await asyncio.sleep(10)
         print("foooooooooooooooooooo")
 
     asyncio.run(tcp_echo_client('Hello World!'))

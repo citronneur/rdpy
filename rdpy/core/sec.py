@@ -25,7 +25,7 @@ from hashlib import sha1 as sha
 from hashlib import md5
 from rdpy.core import tpkt, lic
 from rdpy.core.t125 import gcc, mcs
-from rdpy.model.type import CompositeType, CallableValue, Stream, UInt32Le, UInt16Le, String, sizeof, UInt8
+from rdpy.model.type import CompositeType, CallableValue, Stream, UInt32Le, UInt16Le, Buffer, sizeof, UInt8
 from rdpy.model.layer import LayerAutomata, IStreamSender
 from rdpy.model.error import InvalidExpectedDataException
 from rdpy.model import log
@@ -310,8 +310,8 @@ class ClientSecurityExchangePDU(CompositeType):
     def __init__(self):
         CompositeType.__init__(self)
         self.length = UInt32Le(lambda:(sizeof(self) - 4))
-        self.encryptedClientRandom = String(readLen = CallableValue(lambda:(self.length.value - 8)))
-        self.padding = String("\x00" * 8, readLen = CallableValue(8))
+        self.encryptedClientRandom = Buffer(readLen = CallableValue(lambda:(self.length.value - 8)))
+        self.padding = Buffer("\x00" * 8, readLen = CallableValue(8))
         
 class RDPInfo(CompositeType):
     """
@@ -331,13 +331,13 @@ class RDPInfo(CompositeType):
         self.cbAlternateShell = UInt16Le(lambda:sizeof(self.alternateShell) - 2)
         self.cbWorkingDir = UInt16Le(lambda:sizeof(self.workingDir) - 2)
         #microsoft domain
-        self.domain = String(readLen = CallableValue(lambda:self.cbDomain.value + 2), unicode = True)
-        self.userName = String(readLen = CallableValue(lambda:self.cbUserName.value + 2), unicode = True)
-        self.password = String(readLen = CallableValue(lambda:self.cbPassword.value + 2), unicode = True)
+        self.domain = Buffer(readLen = CallableValue(lambda: self.cbDomain.value + 2), unicode = True)
+        self.userName = Buffer(readLen = CallableValue(lambda: self.cbUserName.value + 2), unicode = True)
+        self.password = Buffer(readLen = CallableValue(lambda: self.cbPassword.value + 2), unicode = True)
         #shell execute at start of session
-        self.alternateShell = String(readLen = CallableValue(lambda:self.cbAlternateShell.value + 2), unicode = True)
+        self.alternateShell = Buffer(readLen = CallableValue(lambda: self.cbAlternateShell.value + 2), unicode = True)
         #working directory for session
-        self.workingDir = String(readLen = CallableValue(lambda:self.cbWorkingDir.value + 2), unicode = True)
+        self.workingDir = Buffer(readLen = CallableValue(lambda: self.cbWorkingDir.value + 2), unicode = True)
         self.extendedInfo = RDPExtendedInfo(conditional = extendedInfoConditional)
         
 class RDPExtendedInfo(CompositeType):
@@ -348,11 +348,11 @@ class RDPExtendedInfo(CompositeType):
         CompositeType.__init__(self, conditional = conditional)
         self.clientAddressFamily = UInt16Le(AfInet.AF_INET)
         self.cbClientAddress = UInt16Le(lambda:sizeof(self.clientAddress))
-        self.clientAddress = String(readLen = self.cbClientAddress, unicode = True)
+        self.clientAddress = Buffer(readLen = self.cbClientAddress, unicode = True)
         self.cbClientDir = UInt16Le(lambda:sizeof(self.clientDir))
-        self.clientDir = String(readLen = self.cbClientDir, unicode = True)
+        self.clientDir = Buffer(readLen = self.cbClientDir, unicode = True)
         #TODO make tiomezone
-        self.clientTimeZone = String("\x00" * 172)
+        self.clientTimeZone = Buffer("\x00" * 172)
         self.clientSessionId = UInt32Le()
         self.performanceFlags = UInt32Le()
 
@@ -410,8 +410,8 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
             self._decryptRc4 = rc4.RC4Key(self._currentDecrytKey)
             self._nbDecryptedPacket = 0
         
-        signature = String(readLen = CallableValue(8))
-        encryptedPayload = String()
+        signature = Buffer(readLen = CallableValue(8))
+        encryptedPayload = Buffer()
         s.read_type((signature, encryptedPayload))
         decrypted = rc4.crypt(self._decryptRc4, encryptedPayload.value)
 
@@ -447,9 +447,9 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         s.write_type(data)
         
         if saltedMacGeneration:
-            return (String(macSaltedData(self._macKey, s.getvalue(), self._nbEncryptedPacket - 1)[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
+            return (Buffer(macSaltedData(self._macKey, s.getvalue(), self._nbEncryptedPacket - 1)[:8]), Buffer(rc4.crypt(self._encryptRc4, s.getvalue())))
         else:
-            return (String(macData(self._macKey, s.getvalue())[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
+            return (Buffer(macData(self._macKey, s.getvalue())[:8]), Buffer(rc4.crypt(self._encryptRc4, s.getvalue())))
     
     def recv(self, data):
         """

@@ -25,13 +25,12 @@ Use to build correct size packet and handle slow path and fast path mode
 import asyncio
 import ssl
 
-from rdpy.core.nla import cssp, ntlm
+from rdpy.core.nla import cssp, sspi
 from rdpy.model.layer import RawLayer
-from rdpy.model.type import UInt8, UInt16Be, sizeof, Stream
-from rdpy.model.error import CallPureVirtualFuntion
+from rdpy.model.message import UInt8, UInt16Be, sizeof, Stream
 
 
-class Action(object):
+class Action:
     """
     @see: http://msdn.microsoft.com/en-us/library/cc240621.aspx
     @see: http://msdn.microsoft.com/en-us/library/cc240589.aspx
@@ -40,7 +39,7 @@ class Action(object):
     FASTPATH_ACTION_X224 = 0x3
 
 
-class SecFlags(object):
+class SecFlags:
     """
     @see: http://msdn.microsoft.com/en-us/library/cc240621.aspx
     """
@@ -163,13 +162,18 @@ class Tpkt:
         ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ssl_ctx.check_hostname = False
         ssl_ctx.verify_mode = ssl.VerifyMode.CERT_NONE
+
         reader, writer = await asyncio.open_connection(sock=self.writer.transport._sock, ssl=ssl_ctx, server_hostname="")
         return Tpkt(reader, writer)
        
-    async def start_nla(self):
+    async def start_nla(self, authentication_protocol: sspi.IAuthenticationProtocol):
         """
         use to start NLA (NTLM over SSL) protocol
         must be called after startTLS function
+
+        :ivar authentication_protocol: Authentication protocol use by CSSP to authenticate user
+            and transfert credentials
         """
         tpkt = await self.start_tls()
-        await cssp.connect(tpkt.reader, tpkt.writer, ntlm.NTLMv2("", "sylvain", "sylvain"))
+        await cssp.connect(tpkt.reader, tpkt.writer, authentication_protocol)
+        return tpkt

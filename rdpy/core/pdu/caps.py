@@ -24,7 +24,7 @@ Definition of structure use for capabilities nego
 Use in PDU layer
 """
 
-from rdpy.model.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+from rdpy.model.type import CompositeType, CallableValue, Buffer, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
 
 
 class CapsType(object):
@@ -241,7 +241,7 @@ class Capability(CompositeType):
                     return c(readLen = self.lengthCapability - 4)
             log.debug("unknown Capability type : %s"%hex(self.capabilitySetType.value))
             #read entire packet
-            return String(readLen = self.lengthCapability - 4)
+            return Buffer(readLen =self.lengthCapability - 4)
         
         if capability is None:
             capability = FactoryType(CapabilityFactory)
@@ -309,7 +309,7 @@ class OrderCapability(CompositeType):
     
     def __init__(self, readLen = None):
         CompositeType.__init__(self, readLen = readLen)
-        self.terminalDescriptor = String("\x00" * 16, readLen = CallableValue(16))
+        self.terminalDescriptor = Buffer("\x00" * 16, readLen = CallableValue(16))
         self.pad4octetsA = UInt32Le(0)
         self.desktopSaveXGranularity = UInt16Le(1)
         self.desktopSaveYGranularity = UInt16Le(20)
@@ -389,7 +389,7 @@ class InputCapability(CompositeType):
         #same value as gcc.ClientCoreSettings.keyboardFnKeys
         self.keyboardFunctionKey = UInt32Le()
         #same value as gcc.ClientCoreSettingrrs.imeFileName
-        self.imeFileName = String("\x00" * 64, readLen = CallableValue(64))
+        self.imeFileName = Buffer("\x00" * 64, readLen = CallableValue(64))
         
 class BrushCapability(CompositeType):
     """

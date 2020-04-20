@@ -24,13 +24,14 @@ This layer have main goal to negociate SSL transport
 RDP basic security is supported only on client side
 """
 from rdpy.core import tpkt
+from rdpy.core.nla import sspi
 from rdpy.model import log
 
-from rdpy.model.layer import LayerAutomata, IStreamSender
-from rdpy.model.type import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, String
+from rdpy.model.message import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, Buffer
 from rdpy.model.error import InvalidExpectedDataException, RDPSecurityNegoFail
 
-class MessageType(object):
+
+class MessageType:
     """
     @summary: Message type
     """
@@ -40,7 +41,8 @@ class MessageType(object):
     X224_TPDU_DATA = 0xF0
     X224_TPDU_ERROR = 0x70
 
-class NegociationType(object):
+
+class NegociationType:
     """
     @summary: Negotiation header
     """
@@ -48,7 +50,8 @@ class NegociationType(object):
     TYPE_RDP_NEG_RSP = 0x02
     TYPE_RDP_NEG_FAILURE = 0x03
 
-class Protocols(object):
+
+class Protocols:
     """
     @summary: Protocols available for x224 layer
     @see: https://msdn.microsoft.com/en-us/library/cc240500.aspx
@@ -57,8 +60,9 @@ class Protocols(object):
     PROTOCOL_SSL = 0x00000001
     PROTOCOL_HYBRID = 0x00000002
     PROTOCOL_HYBRID_EX = 0x00000008
-        
-class NegotiationFailureCode(object):
+
+
+class NegotiationFailureCode:
     """
     @summary: Protocol negotiation failure code
     """
@@ -70,23 +74,23 @@ class NegotiationFailureCode(object):
     SSL_WITH_USER_AUTH_REQUIRED_BY_SERVER = 0x00000006
 
 
-class ClientConnectionRequestPDU(CompositeType):
+class ConnectionRequestPDU(CompositeType):
     """
-    @summary:  Connection request
-                client -> server
-    @see: http://msdn.microsoft.com/en-us/library/cc240470.aspx
+    Connection Request PDU
+    Use to send protocol security level available for the client
+    :see: http://msdn.microsoft.com/en-us/library/cc240470.aspx
     """
     def __init__(self):
         CompositeType.__init__(self)
         self.len = UInt8(lambda:sizeof(self) - 1)
-        self.code = UInt8(MessageType.X224_TPDU_CONNECTION_REQUEST, constant = True)
+        self.code = UInt8(MessageType.X224_TPDU_CONNECTION_REQUEST, constant=True)
         self.padding = (UInt16Be(), UInt16Be(), UInt8())
-        self.cookie = String(until = "\x0d\x0a", conditional = lambda:(self.len._is_readed and self.len.value > 14))
-        #read if there is enough data
+        self.cookie = Buffer(until=b"\x0d\x0a", conditional=lambda: (self.len._is_readed and self.len.value > 14))
+        # read if there is enough data
         self.protocolNeg = Negotiation(optional = True)
 
 
-class ServerConnectionConfirm(CompositeType):
+class ConnectionConfirmPDU(CompositeType):
     """
     @summary: Server response
     @see: http://msdn.microsoft.com/en-us/library/cc240506.aspx
@@ -159,55 +163,38 @@ class X224:
         await self.tpkt.write((X224DataHeader(), message))
 
 
-async def connect(tpkt: tpkt.Tpkt) -> X224:
+async def connect(tpkt: tpkt.Tpkt, authentication_protocol: sspi.IAuthenticationProtocol) -> X224:
     """
-    @summary:  Write connection request message
-                Next state is recvConnectionConfirm
-    @see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
+    Negotiate the security level and generate a X224 configured layer
+
+    :ivar tpkt: this is the tpkt layer use to negotiate the security level
+    :ivar authentication_protocol: Authentication protocol is used by NLA authentication
+        Actually only NTLMv2 is available
+
+    :see: http://msdn.microsoft.com/en-us/library/cc240500.aspx
     """
-    message = ClientConnectionRequestPDU()
-    message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_REQ
-    message.protocolNeg.selectedProtocol.value = Protocols.PROTOCOL_HYBRID | Protocols.PROTOCOL_SSL
-    await tpkt.write(message)
-    selected_protocol = await read_connection_confirm(await tpkt.read())
+    request = ConnectionRequestPDU()
+    request.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_REQ
+    request.protocolNeg.selectedProtocol.value = Protocols.PROTOCOL_HYBRID | Protocols.PROTOCOL_SSL
+    await tpkt.write(request)
+
+    respond = (await tpkt.read()).read_type(ConnectionConfirmPDU())
+    if respond.protocolNeg.failureCode._is_readed:
+        raise RDPSecurityNegoFail("negotiation failure code %x"%respond.protocolNeg.failureCode.value)
+
+    selected_protocol = Protocols.PROTOCOL_RDP
+    if respond.protocolNeg._is_readed:
+        selected_protocol = respond.protocolNeg.selectedProtocol.value
+
     if selected_protocol in [Protocols.PROTOCOL_HYBRID_EX]:
         raise InvalidExpectedDataException("RDPY doesn't support PROTOCOL_HYBRID_EX security Layer")
 
-    if selected_protocol ==  Protocols.PROTOCOL_RDP:
-        log.warning("*" * 43)
-        log.warning("*" + " " * 10  + "RDP Security selected" + " " * 10 + "*")
-        log.warning("*" * 43)
+    if selected_protocol == Protocols.PROTOCOL_RDP:
         return X224(tpkt)
     elif selected_protocol == Protocols.PROTOCOL_SSL:
-        log.info("*" * 43)
-        log.info("*" + " " * 10 + "SSL Security selected" + " " * 10 + "*")
-        log.info("*" * 43)
         return X224(await tpkt.start_tls())
     elif selected_protocol == Protocols.PROTOCOL_HYBRID:
-        log.info("*" * 43)
-        log.info("*" + " " * 10  + "NLA Security selected" + " " * 10 + "*")
-        log.info("*" * 43)
-        return X224(await tpkt.start_nla())
-
-
-async def read_connection_confirm(data) -> int:
-    """
-    Read connection confirm and return the negotiated protocol
-    :ivar data: Stream that contain connection confirm
-    :see: response -> https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpbcgr/b2975bdc-6d56-49ee-9c57-f2ff3a0b6817
-    :see: failure -> https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpbcgr/1b3920e7-0116-4345-bc45-f2c4ad012761
-    """
-    message = ServerConnectionConfirm()
-    data.read_type(message)
-
-    if message.protocolNeg.failureCode._is_readed:
-        raise RDPSecurityNegoFail("negotiation failure code %x"%message.protocolNeg.failureCode.value)
-
-    # check presence of negotiation response
-    if message.protocolNeg._is_readed:
-        return message.protocolNeg.selectedProtocol.value
-    else:
-        return Protocols.PROTOCOL_RDP
+        return X224(await tpkt.start_nla(authentication_protocol))
 
 
 class Server(X224):
@@ -240,7 +227,7 @@ class Server(X224):
         @param data: {Stream}
         @see : http://msdn.microsoft.com/en-us/library/cc240470.aspx
         """
-        message = ClientConnectionRequestPDU()
+        message = ConnectionRequestPDU()
         data.read_type(message)
         
         if not message.protocolNeg._is_readed:
@@ -258,7 +245,7 @@ class Server(X224):
         if not self._selectedProtocol & Protocols.PROTOCOL_SSL and self._forceSSL:
             log.warning("server reject client because doesn't support SSL")
             #send error message and quit
-            message = ServerConnectionConfirm()
+            message = ConnectionConfirmPDU()
             message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_FAILURE
             message.protocolNeg.failureCode.value = NegotiationFailureCode.SSL_REQUIRED_BY_SERVER
             self._transport.send(message)
@@ -274,7 +261,7 @@ class Server(X224):
                     Next state is recvData
         @see : http://msdn.microsoft.com/en-us/library/cc240501.aspx
         """
-        message = ServerConnectionConfirm()
+        message = ConnectionConfirmPDU()
         message.protocolNeg.code.value = NegociationType.TYPE_RDP_NEG_RSP
         message.protocolNeg.selectedProtocol.value = self._selectedProtocol
         self._transport.send(message)

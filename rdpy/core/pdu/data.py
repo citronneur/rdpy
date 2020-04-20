@@ -22,7 +22,7 @@ Implement the main graphic layer
 
 In this layer are managed all mains bitmap update orders end user inputs
 """
-from rdpy.model.type import CompositeType, CallableValue, String, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
+from rdpy.model.type import CompositeType, CallableValue, Buffer, UInt8, UInt16Le, UInt32Le, sizeof, ArrayType, FactoryType
 from rdpy.model.error import InvalidExpectedDataException
 import rdpy.model.log as log
 from rdpy.core.pdu import caps, order
@@ -481,7 +481,7 @@ class PDU(CompositeType):
                     return c(readLen = CallableValue(self.shareControlHeader.totalLength.value - sizeof(self.shareControlHeader)))
             log.debug("unknown PDU type : %s"%hex(self.shareControlHeader.pduType.value))
             #read entire packet
-            return String(readLen = CallableValue(self.shareControlHeader.totalLength.value - sizeof(self.shareControlHeader)))
+            return Buffer(readLen = CallableValue(self.shareControlHeader.totalLength.value - sizeof(self.shareControlHeader)))
             
         if pduMessage is None:
             pduMessage = FactoryType(PDUMessageFactory)
@@ -503,7 +503,7 @@ class DemandActivePDU(CompositeType):
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.lengthCombinedCapabilities = UInt16Le(lambda:(sizeof(self.numberCapabilities) + sizeof(self.pad2Octets) + sizeof(self.capabilitySets)))
-        self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
+        self.sourceDescriptor = Buffer("rdpy", readLen = self.lengthSourceDescriptor)
         self.numberCapabilities = UInt16Le(lambda:len(self.capabilitySets._array))
         self.pad2Octets = UInt16Le()
         self.capabilitySets = ArrayType(caps.Capability, readLen = self.numberCapabilities)
@@ -523,7 +523,7 @@ class ConfirmActivePDU(CompositeType):
         self.originatorId = UInt16Le(0x03EA, constant = True)
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
         self.lengthCombinedCapabilities = UInt16Le(lambda:(sizeof(self.numberCapabilities) + sizeof(self.pad2Octets) + sizeof(self.capabilitySets)))
-        self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
+        self.sourceDescriptor = Buffer("rdpy", readLen = self.lengthSourceDescriptor)
         self.numberCapabilities = UInt16Le(lambda:len(self.capabilitySets._array))
         self.pad2Octets = UInt16Le()
         self.capabilitySets = ArrayType(caps.Capability, readLen = self.numberCapabilities)
@@ -542,7 +542,7 @@ class DeactiveAllPDU(CompositeType):
         CompositeType.__init__(self, optional = True, readLen = readLen)
         self.shareId = UInt32Le()
         self.lengthSourceDescriptor = UInt16Le(lambda:sizeof(self.sourceDescriptor))
-        self.sourceDescriptor = String("rdpy", readLen = self.lengthSourceDescriptor)
+        self.sourceDescriptor = Buffer("rdpy", readLen = self.lengthSourceDescriptor)
 
 class DataPDU(CompositeType):
     """
@@ -563,7 +563,7 @@ class DataPDU(CompositeType):
                 if self.shareDataHeader.pduType2.value == c._PDUTYPE2_:
                     return c(readLen = CallableValue(readLen.value - sizeof(self.shareDataHeader)))
             log.debug("unknown PDU data type : %s"%hex(self.shareDataHeader.pduType2.value))
-            return String(readLen = CallableValue(readLen.value - sizeof(self.shareDataHeader)))
+            return Buffer(readLen = CallableValue(readLen.value - sizeof(self.shareDataHeader)))
             
         if pduData is None:
             pduData = FactoryType(PDUDataFactory)
@@ -780,7 +780,7 @@ class UpdateDataPDU(CompositeType):
                 if self.updateType.value == c._UPDATE_TYPE_:
                     return c(readLen = CallableValue(readLen.value - 2))
             log.debug("unknown PDU update data type : %s"%hex(self.updateType.value))
-            return String(readLen = CallableValue(readLen.value - 2))
+            return Buffer(readLen = CallableValue(readLen.value - 2))
         
         if updateData is None:
             updateData = FactoryType(UpdateDataFactory, conditional = lambda:(self.updateType.value != UpdateType.UPDATETYPE_SYNCHRONIZE))
@@ -799,7 +799,7 @@ class SaveSessionInfoPDU(CompositeType):
         CompositeType.__init__(self, readLen = readLen)
         self.infoType = UInt32Le()
         #TODO parse info data
-        self.infoData = String()
+        self.infoData = Buffer()
         
 class FastPathUpdatePDU(CompositeType):
     """
@@ -820,7 +820,7 @@ class FastPathUpdatePDU(CompositeType):
                 if (self.updateHeader.value & 0xf) == c._FASTPATH_UPDATE_TYPE_:
                     return c(readLen = self.size)
             log.debug("unknown Fast Path PDU update data type : %s"%hex(self.updateHeader.value & 0xf))
-            return String(readLen = self.size)
+            return Buffer(readLen = self.size)
             
         if updateData is None:
             updateData = FactoryType(UpdateDataFactory)
@@ -902,7 +902,7 @@ class BitmapData(CompositeType):
         self.flags = UInt16Le()
         self.bitmapLength = UInt16Le(lambda:(sizeof(self.bitmapComprHdr) + sizeof(self.bitmapDataStream)))
         self.bitmapComprHdr = BitmapCompressedDataHeader(bodySize = lambda:sizeof(self.bitmapDataStream), scanWidth = lambda:self.width.value, uncompressedSize = lambda:(self.width.value * self.height.value * self.bitsPerPixel.value), conditional = lambda:((self.flags.value & BitmapFlag.BITMAP_COMPRESSION) and not (self.flags.value & BitmapFlag.NO_BITMAP_COMPRESSION_HDR)))
-        self.bitmapDataStream = String(bitmapDataStream, readLen = CallableValue(lambda:(self.bitmapLength.value if (not self.flags.value & BitmapFlag.BITMAP_COMPRESSION or self.flags.value & BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
+        self.bitmapDataStream = Buffer(bitmapDataStream, readLen = CallableValue(lambda:(self.bitmapLength.value if (not self.flags.value & BitmapFlag.BITMAP_COMPRESSION or self.flags.value & BitmapFlag.NO_BITMAP_COMPRESSION_HDR) else self.bitmapComprHdr.cbCompMainBodySize.value)))
 
 class FastPathBitmapUpdateDataPDU(CompositeType):
     """
