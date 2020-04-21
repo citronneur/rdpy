@@ -256,7 +256,7 @@ class ClientCoreData(CompositeType):
         self.sasSequence = UInt16Le(Sequence.RNS_UD_SAS_DEL)
         self.kbdLayout = UInt32Le(KeyboardLayout.US)
         self.clientBuild = UInt32Le(3790)
-        self.clientName = Buffer(b"rdpy" + b"\x00" * 11, read_len=lambda: 32)
+        self.clientName = Buffer(("rdpy" + "\x00" * 12).encode("utf-16le"), read_len=lambda: 32)
         self.keyboardType = UInt32Le(KeyboardType.IBM_101_102_KEYS)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
@@ -310,13 +310,14 @@ class ServerSecurityData(CompositeType):
         self.serverRandom = Buffer(read_len=lambda: self.serverRandomLen.value, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
         self.serverCertificate = ServerCertificate(readLen=lambda: self.serverCertLen.value, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
 
+
 class ServerCertificate(CompositeType):
     """
     @summary: Server certificate structure
     @see: http://msdn.microsoft.com/en-us/library/cc240521.aspx
     """
-    def __init__(self, certData = None, readLen = None, conditional = lambda:True):
-        CompositeType.__init__(self, readLen = readLen, conditional = conditional)
+    def __init__(self, certData = None, read_len = None, conditional = lambda:True):
+        CompositeType.__init__(self, read_len=read_len, conditional = conditional)
         self.dwVersion = UInt32Le(lambda:(self.certData.__class__._TYPE_))
         
         def CertificateFactory():
@@ -492,7 +493,7 @@ class Settings(CompositeType):
     """
     def __init__(self, init=None, read_len=None):
         super().__init__(read_len=read_len)
-        self.settings = ArrayType(DataBlock, [DataBlock(i) for i in init])
+        self.settings = ArrayType(DataBlock, [DataBlock(i) for i in init or []])
     
     def get_block(self, message_type):
         """

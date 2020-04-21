@@ -380,7 +380,7 @@ class CompositeType(Message):
                 s.read_type(self.__dict__[name])
                 read_len += sizeof(self.__dict__[name])
                 # read is ok but read out of bound
-                if self._read_len is not None and read_len > self._read_len.value:
+                if self._read_len is not None and read_len > self._read_len():
                     # roll back
                     s.seek(-sizeof(self.__dict__[name]), 1)
                     # and notify if not optional
@@ -396,9 +396,9 @@ class CompositeType(Message):
                     s.seek(-sizeof(self.__dict__[tmp_name]), 1)
                 raise e
 
-        if self._read_len is not None and read_len < self._read_len.value:
-            log.debug("Still have correct data in packet %s, read %s bytes as padding"%(self.__class__, self._read_len.value - read_len))
-            s.read(self._read_len.value - read_len)
+        if self._read_len is not None and read_len < self._read_len():
+            log.debug("Still have correct data in packet %s, read %s bytes as padding"%(self.__class__, self._read_len() - read_len))
+            s.read(self._read_len() - read_len)
 
     def __write__(self, s):
         """
@@ -419,7 +419,7 @@ class CompositeType(Message):
         @return: sum of sizeof of each Type attributes
         """
         if self._is_readed and not self._read_len is None:
-            return self._read_len.value
+            return self._read_len()
 
         size = 0
         for name in self._type_name:
