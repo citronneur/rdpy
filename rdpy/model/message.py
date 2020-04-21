@@ -354,72 +354,51 @@ class SimpleType(DynMessage):
 
 class CompositeType(Message):
     """
-    @summary:  Type node in Type tree
-                Track type field declared in __init__ function
-                Ex: self.lengthOfPacket = UInt16Le() -> record lengthOfPacket as sub type of node
     """
-    def __init__(self, read_len = None, conditional = lambda:True, optional = False, constant = False, ):
+    def __init__(self, read_len=None, conditional=lambda: True, optional=False, constant=False):
         """
-        @param conditional :    Callable object
-                                 Read and Write operation depend on return of this function
-        @param optional:   If there is no enough byte in current stream
-                            And optional is True, read type is ignored
-        @param constant:   Check if object value doesn't change after read operation
-        @param readLen:    Max length in bytes can be readed from stream
-                            Use to check length information
         """
         super().__init__(conditional=conditional, optional=optional, constant=constant)
 
-        # list of ordoned type
-        self._typeName = []
+        # list of ordorred type
+        self._type_name = []
         self._read_len = read_len
 
     def __setattr__(self, name, value):
         """
-        @summary:  Track Type field
-                    For Type field record it in same order as declared
-                    Keep other but bot handle in read or write function
-        @param name: name of new attribute
-        @param value: value of new attribute
         """
-        if name[0] != '_' and (isinstance(value, Message) or isinstance(value, tuple)) and not name in self._typeName:
-            self._typeName.append(name)
+        if name[0] != '_' and (isinstance(value, Message) or isinstance(value, tuple)) and name not in self._type_name:
+            self._type_name.append(name)
         self.__dict__[name] = value
 
     def __read__(self, s):
         """
-        @summary:  Read composite type
-                    Call read on each ordered sub-type
-                    And check read length parameter
-                    If an error occurred rollback type already read
-        @param s: Stream
-        @raise InvalidSize: if stream is greater than readLen parameter
         """
-        readLen = 0
-        for name in self._typeName:
+        read_len = 0
+        for name in self._type_name:
             try:
                 s.read_type(self.__dict__[name])
-                readLen += sizeof(self.__dict__[name])
+                read_len += sizeof(self.__dict__[name])
                 # read is ok but read out of bound
-                if not self._read_len is None and readLen > self._read_len.value:
+                if self._read_len is not None and read_len > self._read_len.value:
                     # roll back
-                    s.pos -= sizeof(self.__dict__[name])
+                    s.seek(-sizeof(self.__dict__[name]), 1)
                     # and notify if not optional
                     if not self.__dict__[name]._optional:
                         raise InvalidSize("Impossible to read type %s : read length is too small"%(self.__class__))
 
             except Exception as e:
                 log.error("Error during read %s::%s"%(self.__class__, name))
-                #roll back already read
-                for tmpName in self._typeName:
-                    if tmpName == name:
+                # roll back already read
+                for tmp_name in self._type_name:
+                    if tmp_name == name:
                         break
-                    s.seek(-sizeof(self.__dict__[tmpName]), 1)
+                    s.seek(-sizeof(self.__dict__[tmp_name]), 1)
                 raise e
 
-        if not self._read_len is None and readLen < self._read_len.value:
-            log.debug("Still have correct data in packet %s, read %s bytes as padding"%(self.__class__, self._read_len.value - readLen))
-            s.read(self._read_len.value - readLen)
+        if self._read_len is not None and read_len < self._read_len.value:
+            log.debug("Still have correct data in packet %s, read %s bytes as padding"%(self.__class__, self._read_len.value - read_len))
+            s.read(self._read_len.value - read_len)
 
     def __write__(self, s):
         """
@@ -427,7 +406,7 @@ class CompositeType(Message):
                     Call write on each ordered sub type
         @param s: Stream
         """
-        for name in self._typeName:
+        for name in self._type_name:
             try:
                 s.write_type(self.__dict__[name])
             except Exception as e:
@@ -443,7 +422,7 @@ class CompositeType(Message):
             return self._read_len.value
 
         size = 0
-        for name in self._typeName:
+        for name in self._type_name:
             size += sizeof(self.__dict__[name])
         return size
 
@@ -454,9 +433,9 @@ class CompositeType(Message):
         @param other: CompositeType
         @return: True if each sub-type are equals
         """
-        if self._typeName != other._typeName:
+        if self._type_name != other._typeName:
             return False
-        for name in self._typeName:
+        for name in self._type_name:
             if self.__dict__[name] != other.__dict__[name]:
                 return False
         return True
@@ -840,35 +819,23 @@ class ArrayType(Message):
     """
     @summary: Factory af n element
     """
-    def __init__(self, typeFactory, init = None, readLen = None, conditional = lambda:True, optional = False, constant = False):
+    def __init__(self, type_factory, init=None, read_len=None, conditional=lambda:True, optional=False, constant=False):
         """
-        @param typeFactory: class use to init new element on read
-        @param init: init array
-        @param readLen: number of element in sequence
-        @param conditional :    Callable object
-                                 Read and Write operation depend on return of this function
-        @param optional:   If there is no enough byte in current stream
-                            And optional is True, read type is ignored
-        @param constant:   Check if object value doesn't change after read operation
         """
-        Message.__init__(self, conditional, optional, constant)
-        self._typeFactory = typeFactory
-        self._readLen = readLen
-        self._array = []
-        if not init is None:
-            self._array = init
+        super().__init__(conditional, optional, constant)
+        self._type_factory = type_factory
+        self._read_len = read_len
+        self._array = init or []
 
     def __read__(self, s):
         """
-        @summary: Create readLen new object and read it
-        @param s: Stream
         """
         self._array = []
         i = 0
-        #self._readLen is None means that array will be read until end of stream
-        while self._readLen is None or i < self._readLen.value:
-            element = self._typeFactory()
-            element._optional = self._readLen is None
+        # self._read_len is None means that array will be read until end of stream
+        while self._read_len is None or i < self._read_len():
+            element = self._type_factory()
+            element._optional = self._read_len is None
             s.read_type(element)
             if not element._is_readed:
                 break
@@ -877,8 +844,6 @@ class ArrayType(Message):
 
     def __write__(self, s):
         """
-        @summary: Just write array
-        @param s: Stream
         """
         s.write_type(self._array)
 
@@ -894,6 +859,9 @@ class ArrayType(Message):
         @summary: Size in bytes of all inner type
         """
         return sizeof(self._array)
+
+    def __len__(self):
+        return len(self._array)
 
 class FactoryType(Message):
     """

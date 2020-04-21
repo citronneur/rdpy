@@ -223,12 +223,9 @@ def readNumericString(s, minValue):
     length = (length + minValue + 1) / 2
     s.read(length)
 
+
 def writeNumericString(nStr, minValue):
     """
-    @summary: write string in per format
-    @param str: python string to write
-    @param min: min value
-    @return: String type that contain str encoded in per format
     """
     length = len(nStr)
     mlength = minValue
@@ -238,9 +235,9 @@ def writeNumericString(nStr, minValue):
     result = []
     
     for i in range(0, length, 2):
-        c1 = ord(nStr[i])
+        c1 = nStr[i]
         if i + 1 < length:
-            c2 = ord(nStr[i + 1])
+            c2 = nStr[i + 1]
         else:
             c2 = 0x30
         c1 = (c1 - 0x30) % 10
@@ -248,7 +245,7 @@ def writeNumericString(nStr, minValue):
         
         result.append(UInt8((c1 << 4) | c2))
     
-    return (writeLength(mlength), tuple(result))
+    return writeLength(mlength), tuple(result)
 
 def readPadding(s, length):
     """
@@ -264,7 +261,7 @@ def writePadding(length):
     @param length: length of padding
     @return: String with \x00 * length
     """
-    return Buffer("\x00" * length)
+    return Buffer(b"\x00" * length)
 
 def readOctetStream(s, octetStream, minValue = 0):
     """
@@ -300,6 +297,6 @@ def writeOctetStream(oStr, minValue = 0):
     
     result = []
     for i in range(0, length):
-        result.append(UInt8(ord(oStr[i])))
+        result.append(UInt8(oStr[i]))
     
-    return (writeLength(mlength), tuple(result))
+    return writeLength(mlength), tuple(result)

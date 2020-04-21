@@ -99,8 +99,8 @@ class RDPClientController(PDUClientListener):
         @param height: height in pixel of screen
         """
         #set screen definition in MCS layer
-        self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).desktopHeight.value = height
-        self._mcsLayer._clientSettings.getBlock(gcc.MessageType.CS_CORE).desktopWidth.value = width
+        self._mcsLayer._clientSettings.get_block(gcc.MessageType.CS_CORE).desktopHeight.value = height
+        self._mcsLayer._clientSettings.get_block(gcc.MessageType.CS_CORE).desktopWidth.value = width
         
     def setUsername(self, username):
         """

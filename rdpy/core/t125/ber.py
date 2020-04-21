@@ -22,22 +22,25 @@ Basic Encoding Rules use in RDP.
 ASN.1 standard
 """
 
-from rdpy.model.type import UInt8, UInt16Be, UInt32Be, Buffer
+from rdpy.model.message import UInt8, UInt16Be, UInt32Be, Buffer
 from rdpy.model.error import InvalidExpectedDataException, InvalidSize
 
-class BerPc(object):
+
+class BerPc:
     BER_PC_MASK = 0x20
     BER_PRIMITIVE = 0x00
     BER_CONSTRUCT = 0x20
 
-class Class(object):
+
+class Class:
     BER_CLASS_MASK = 0xC0
     BER_CLASS_UNIV = 0x00
     BER_CLASS_APPL = 0x40
     BER_CLASS_CTXT = 0x80
     BER_CLASS_PRIV = 0xC0
-        
-class Tag(object):
+
+
+class Tag:
     BER_TAG_MASK = 0x1F
     BER_TAG_BOOLEAN = 0x01
     BER_TAG_INTEGER = 0x02
@@ -47,6 +50,7 @@ class Tag(object):
     BER_TAG_ENUMERATED = 0x0A
     BER_TAG_SEQUENCE = 0x10
     BER_TAG_SEQUENCE_OF = 0x10
+
 
 def berPC(pc):
     """
@@ -59,7 +63,8 @@ def berPC(pc):
         return BerPc.BER_CONSTRUCT
     else:
         return BerPc.BER_PRIMITIVE
-    
+
+
 def readLength(s):
     """
     @summary: Read length of BER structure
@@ -84,6 +89,7 @@ def readLength(s):
         size = length
     return size.value
 
+
 def writeLength(size):
     """
     @summary: Return structure length as expected in BER specification
@@ -94,7 +100,8 @@ def writeLength(size):
         return (UInt8(0x82), UInt16Be(size))
     else:
         return UInt8(size)
-    
+
+
 def readUniversalTag(s, tag, pc):
     """
     @summary: Read tag of BER packet
@@ -106,6 +113,7 @@ def readUniversalTag(s, tag, pc):
     s.read_type(byte)
     return byte.value == ((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
 
+
 def writeUniversalTag(tag, pc):
     """
     @summary: Return universal tag byte
@@ -114,6 +122,7 @@ def writeUniversalTag(tag, pc):
     @return: UInt8 
     """
     return UInt8((Class.BER_CLASS_UNIV | berPC(pc)) | (Tag.BER_TAG_MASK & tag))
+
 
 def readApplicationTag(s, tag):
     """
@@ -135,6 +144,7 @@ def readApplicationTag(s, tag):
             raise InvalidExpectedDataException()
         
     return readLength(s)
+
 
 def writeApplicationTag(tag, size):
     """

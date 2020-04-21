@@ -23,7 +23,7 @@ http://msdn.microsoft.com/en-us/library/cc240508.aspx
 """
 
 from hashlib import md5
-from rdpy.model.type import UInt8, UInt16Le, UInt32Le, CompositeType, CallableValue, Buffer, Stream, sizeof, FactoryType, ArrayType
+from rdpy.model.message import UInt8, UInt16Le, UInt32Le, CompositeType, Buffer, Stream, sizeof, FactoryType, ArrayType
 from rdpy.core.t125 import per, mcs
 from rdpy.model.error import InvalidExpectedDataException
 from rdpy.model import log
@@ -32,8 +32,8 @@ import rdpy.security.rsa_wrapper as rsa
 
 t124_02_98_oid = ( 0, 0, 20, 124, 0, 1 )
 
-h221_cs_key = "Duca";
-h221_sc_key = "McDn";
+h221_cs_key = b"Duca";
+h221_sc_key = b"McDn";
 
 class MessageType(object):
     """
@@ -208,43 +208,47 @@ class CertificateType(object):
     """
     CERT_CHAIN_VERSION_1 = 0x00000001
     CERT_CHAIN_VERSION_2 = 0x00000002
-    
+
+
 class DataBlock(CompositeType):
     """
     @summary: Block settings
     """
-    def __init__(self, dataBlock = None):
-        CompositeType.__init__(self)
-        self.type = UInt16Le(lambda:self.dataBlock.__class__._TYPE_)
-        self.length = UInt16Le(lambda:sizeof(self))
+    def __init__(self, data_block=None):
+        super().__init__()
+        self.type = UInt16Le(lambda:data_block._TYPE_)
+        self.length = UInt16Le(lambda: sizeof(self))
         
-        def DataBlockFactory():
+        def factory():
             """
-            @summary: build settings in accordance of type self.type.value
             """
-            for c in [ClientCoreData, ClientSecurityData, ClientNetworkData, ServerCoreData, ServerNetworkData, ServerSecurityData]:
+            gcc_type = [
+                ClientCoreData, ClientSecurityData, ClientNetworkData,
+                ServerCoreData, ServerNetworkData, ServerSecurityData
+            ]
+
+            for c in gcc_type:
                 if self.type.value == c._TYPE_:
-                    return c(readLen = self.length - 4)
+                    return c(read_len=lambda: (self.length.value - 4))
             log.debug("unknown GCC block type : %s"%hex(self.type.value))
-            #read entire packet
-            return Buffer(readLen =self.length - 4)
+            # read entire packet
+            return Buffer(read_len=lambda: (self.length.value - 4))
         
-        if dataBlock is None:
-            dataBlock = FactoryType(DataBlockFactory)
-        elif not "_TYPE_" in dataBlock.__class__.__dict__:
+        if data_block is None:
+            data_block = FactoryType(factory)
+        elif "_TYPE_" not in data_block.__class__.__dict__:
             raise InvalidExpectedDataException("Try to send an invalid GCC blocks")
         
-        self.dataBlock = dataBlock
+        self.dataBlock = data_block
+
 
 class ClientCoreData(CompositeType):
     """
-    @summary: Class that represent core setting of client
-    @see: http://msdn.microsoft.com/en-us/library/cc240510.aspx
     """
     _TYPE_ = MessageType.CS_CORE
     
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
+    def __init__(self, read_len=None):
+        super().__init__(read_len=read_len)
         self.rdpVersion = UInt32Le(Version.RDP_VERSION_5_PLUS)
         self.desktopWidth = UInt16Le(1280)
         self.desktopHeight = UInt16Le(800)
@@ -252,62 +256,59 @@ class ClientCoreData(CompositeType):
         self.sasSequence = UInt16Le(Sequence.RNS_UD_SAS_DEL)
         self.kbdLayout = UInt32Le(KeyboardLayout.US)
         self.clientBuild = UInt32Le(3790)
-        self.clientName = Buffer("rdpy" + "\x00" * 11, readLen = CallableValue(32), unicode = True)
+        self.clientName = Buffer(b"rdpy" + b"\x00" * 11, read_len=lambda: 32)
         self.keyboardType = UInt32Le(KeyboardType.IBM_101_102_KEYS)
         self.keyboardSubType = UInt32Le(0)
         self.keyboardFnKeys = UInt32Le(12)
-        self.imeFileName = Buffer("\x00" * 64, readLen = CallableValue(64), optional = True)
-        self.postBeta2ColorDepth = UInt16Le(ColorDepth.RNS_UD_COLOR_8BPP, optional = True)
-        self.clientProductId = UInt16Le(1, optional = True)
-        self.serialNumber = UInt32Le(0, optional = True)
-        self.highColorDepth = UInt16Le(HighColor.HIGH_COLOR_24BPP, optional = True)
-        self.supportedColorDepths = UInt16Le(Support.RNS_UD_15BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT | Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_32BPP_SUPPORT, optional = True)
-        self.earlyCapabilityFlags = UInt16Le(CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU, optional = True)
-        self.clientDigProductId = Buffer("\x00" * 64, readLen = CallableValue(64), optional = True)
-        self.connectionType = UInt8(optional = True)
-        self.pad1octet = UInt8(optional = True)
-        self.serverSelectedProtocol = UInt32Le(optional = True)
-    
+        self.imeFileName = Buffer(b"\x00" * 64, read_len=lambda: 64, optional=True)
+        self.postBeta2ColorDepth = UInt16Le(ColorDepth.RNS_UD_COLOR_8BPP, optional=True)
+        self.clientProductId = UInt16Le(1, optional=True)
+        self.serialNumber = UInt32Le(0, optional=True)
+        self.highColorDepth = UInt16Le(HighColor.HIGH_COLOR_24BPP, optional=True)
+        self.supportedColorDepths = UInt16Le(Support.RNS_UD_15BPP_SUPPORT | Support.RNS_UD_16BPP_SUPPORT | Support.RNS_UD_24BPP_SUPPORT | Support.RNS_UD_32BPP_SUPPORT, optional=True)
+        self.earlyCapabilityFlags = UInt16Le(CapabilityFlags.RNS_UD_CS_SUPPORT_ERRINFO_PDU, optional=True)
+        self.clientDigProductId = Buffer(b"\x00" * 64, read_len=lambda: 64, optional=True)
+        self.connectionType = UInt8(optional=True)
+        self.pad1octet = UInt8(optional=True)
+        self.serverSelectedProtocol = UInt32Le(optional=True)
+
+
 class ServerCoreData(CompositeType):
     """
-    @summary: Server side core settings structure
-    @see: http://msdn.microsoft.com/en-us/library/cc240517.aspx
     """
     _TYPE_ = MessageType.SC_CORE
     
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
+    def __init__(self, read_len=None):
+        super().__init__(read_len=read_len)
         self.rdpVersion = UInt32Le(Version.RDP_VERSION_5_PLUS)
-        self.clientRequestedProtocol = UInt32Le(optional = True)
-        self.earlyCapabilityFlags = UInt32Le(optional = True)
-        
+        self.clientRequestedProtocol = UInt32Le(optional=True)
+        self.earlyCapabilityFlags = UInt32Le(optional=True)
+
+
 class ClientSecurityData(CompositeType):
     """
-    @summary: Client security setting
-    @see: http://msdn.microsoft.com/en-us/library/cc240511.aspx
     """
     _TYPE_ = MessageType.CS_SECURITY
     
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
+    def __init__(self, read_len=None):
+        super().__init__(read_len=read_len)
         self.encryptionMethods = UInt32Le(EncryptionMethod.ENCRYPTION_FLAG_40BIT | EncryptionMethod.ENCRYPTION_FLAG_56BIT | EncryptionMethod.ENCRYPTION_FLAG_128BIT)
         self.extEncryptionMethods = UInt32Le()
-        
+
+
 class ServerSecurityData(CompositeType):
     """
-    @summary: Server security settings
-    @see: http://msdn.microsoft.com/en-us/library/cc240518.aspx
     """
     _TYPE_ = MessageType.SC_SECURITY
     
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
+    def __init__(self, read_len=None):
+        super().__init__(read_len=read_len)
         self.encryptionMethod = UInt32Le()
         self.encryptionLevel = UInt32Le() 
-        self.serverRandomLen = UInt32Le(0x00000020, constant = True, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
-        self.serverCertLen = UInt32Le(lambda:sizeof(self.serverCertificate), conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
-        self.serverRandom = Buffer(readLen = self.serverRandomLen, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
-        self.serverCertificate = ServerCertificate(readLen = self.serverCertLen, conditional = lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel == 0))
+        self.serverRandomLen = UInt32Le(0x00000020, constant=True, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
+        self.serverCertLen = UInt32Le(lambda: sizeof(self.serverCertificate), conditional=lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
+        self.serverRandom = Buffer(read_len=lambda: self.serverRandomLen.value, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
+        self.serverCertificate = ServerCertificate(readLen=lambda: self.serverCertLen.value, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
 
 class ServerCertificate(CompositeType):
     """
@@ -448,79 +449,62 @@ class RSAPublicKey(CompositeType):
         self.datalen = UInt32Le(lambda:((self.bitlen.value / 8) - 1))
         self.pubExp = UInt32Le()
         self.modulus = Buffer(readLen = CallableValue(lambda:(self.keylen.value - 8)))
-        self.padding = Buffer("\x00" * 8, readLen = CallableValue(8))
+        self.padding = Buffer(b"\x00" * 8, readLen = CallableValue(8))
+
 
 class ChannelDef(CompositeType):
     """
-    Channels structure share between client and server
-    @see: http://msdn.microsoft.com/en-us/library/cc240513.aspx
     """
-    def __init__(self, name = "", options = 0):
-        CompositeType.__init__(self)
-        #name of channel
-        self.name = Buffer(name[0:8] + "\x00" * (8 - len(name)), readLen = CallableValue(8))
-        #unknown
+    def __init__(self, name=b""):
+        super().__init__()
+        # name of channel
+        self.name = Buffer(name[0:8] + b"\x00" * (8 - len(name)), read_len=lambda: 8)
+        # unknown
         self.options = UInt32Le()
-        
+
+
 class ClientNetworkData(CompositeType):
     """
-    @summary: GCC client network block
-    All channels asked by client are listed here
-    @see: http://msdn.microsoft.com/en-us/library/cc240512.aspx
     """
     _TYPE_ = MessageType.CS_NET
     
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
-        self.channelCount = UInt32Le(lambda:len(self.channelDefArray._array))
-        self.channelDefArray = ArrayType(ChannelDef, readLen = self.channelCount)
-        
+    def __init__(self, read_len=None):
+        CompositeType.__init__(self, read_len=read_len)
+        self.channelCount = UInt32Le(lambda: len(self.channelDefArray))
+        self.channelDefArray = ArrayType(ChannelDef, read_len=lambda: self.channelCount.value)
+
+
 class ServerNetworkData(CompositeType):
     """
-    @summary: GCC server network block
-    All channels asked by client are listed here
-    @see: All channels asked by client are listed here
     """
     _TYPE_ = MessageType.SC_NET
     
-    def __init__(self, readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
+    def __init__(self, read_len=None):
+        super().__init__(read_len=read_len)
         self.MCSChannelId = UInt16Le(mcs.Channel.MCS_GLOBAL_CHANNEL)
-        self.channelCount = UInt16Le(lambda:len(self.channelIdArray._array))
-        self.channelIdArray = ArrayType(UInt16Le, readLen = self.channelCount)
-        self.pad = UInt16Le(conditional = lambda:((self.channelCount.value % 2) == 1))
-        
+        self.channelCount = UInt16Le(lambda: len(self.channelIdArray))
+        self.channelIdArray = ArrayType(UInt16Le, read_len=lambda: self.channelCount.value)
+        self.pad = UInt16Le(conditional=lambda: ((self.channelCount.value % 2) == 1))
+
+
 class Settings(CompositeType):
     """
-    @summary: Class which group all clients settings supported by RDPY
     """
-    def __init__(self, init = [], readLen = None):
-        CompositeType.__init__(self, readLen = readLen)
+    def __init__(self, init=None, read_len=None):
+        super().__init__(read_len=read_len)
         self.settings = ArrayType(DataBlock, [DataBlock(i) for i in init])
     
-    def getBlock(self, messageType):
+    def get_block(self, message_type):
         """
-        @param messageType: type of block
-        @return: specific block of type messageType
         """
         for i in self.settings._array:
-            if i.type.value == messageType:
+            if i.type.value == message_type:
                 return i.dataBlock
         return None
-    
-    def __getattr__(self, name):
-        """
-        @summary: Magic function for better access
-        @return: _value parameter
-        """
-        if not name in MessageType.__dict__:
-            return None
-        return self.getBlock(MessageType.__dict__[name])
-        
-def clientSettings():
+
+
+def client_settings():
     """
-    @summary: Build settings for client
-    @return: Settings
     """
     return Settings([ClientCoreData(), ClientNetworkData(), ClientSecurityData()])
 
@@ -578,9 +562,9 @@ def readConferenceCreateResponse(s):
         raise InvalidExpectedDataException("cannot read h221_sc_key")
     
     length = per.readLength(s)
-    serverSettings = Settings(readLen = CallableValue(length))
-    s.read_type(serverSettings)
-    return serverSettings
+    server_settings = Settings(read_len=lambda: length)
+    s.read_type(server_settings)
+    return server_settings
 
 def writeConferenceCreateRequest(userData):
     """
@@ -593,7 +577,7 @@ def writeConferenceCreateRequest(userData):
     
     return (per.writeChoice(0), per.writeObjectIdentifier(t124_02_98_oid),
             per.writeLength(len(userDataStream.getvalue()) + 14), per.writeChoice(0),
-            per.writeSelection(0x08), per.writeNumericString("1", 1), per.writePadding(1),
+            per.writeSelection(0x08), per.writeNumericString(b"1", 1), per.writePadding(1),
             per.writeNumberOfSet(1), per.writeChoice(0xc0),
             per.writeOctetStream(h221_cs_key, 4), per.writeOctetStream(userDataStream.getvalue()))
     

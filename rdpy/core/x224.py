@@ -134,20 +134,15 @@ class Negotiation(CompositeType):
 
 class X224:
     """
-    @summary:  x224 layer management
-                there is an connection automata
     """
-    def __init__(self, tpkt: tpkt.Tpkt):
+    def __init__(self, tpkt: tpkt.Tpkt, selected_protocol: int):
         """
-        @param tpkt: TPKT layer
         """
         self.tpkt = tpkt
+        self.selected_protocol = selected_protocol
     
     async def read(self):
         """
-        @summary: Read data header from packet
-                   And pass to presentation layer
-        @param data: Stream
         """
         header = X224DataHeader()
         payload = await self.tpkt.read()
@@ -156,11 +151,11 @@ class X224:
         
     async def write(self, message):
         """
-        @summary:   Write message packet for TPDU layer
-                    Add TPDU header
-        @param message:
         """
         await self.tpkt.write((X224DataHeader(), message))
+
+    def get_selected_protocol(self):
+        return self.selected_protocol
 
 
 async def connect(tpkt: tpkt.Tpkt, authentication_protocol: sspi.IAuthenticationProtocol) -> X224:
@@ -190,11 +185,11 @@ async def connect(tpkt: tpkt.Tpkt, authentication_protocol: sspi.IAuthentication
         raise InvalidExpectedDataException("RDPY doesn't support PROTOCOL_HYBRID_EX security Layer")
 
     if selected_protocol == Protocols.PROTOCOL_RDP:
-        return X224(tpkt)
+        return X224(tpkt, selected_protocol)
     elif selected_protocol == Protocols.PROTOCOL_SSL:
-        return X224(await tpkt.start_tls())
+        return X224(await tpkt.start_tls(), selected_protocol)
     elif selected_protocol == Protocols.PROTOCOL_HYBRID:
-        return X224(await tpkt.start_nla(authentication_protocol))
+        return X224(await tpkt.start_nla(authentication_protocol), selected_protocol)
 
 
 class Server(X224):
