@@ -388,6 +388,10 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         #counter before update
         self._nbEncryptedPacket = 0
         self._nbDecryptedPacket = 0
+
+        #total encrypt packet
+        self._nbEncMacCount = 0
+        self._nbDecMacCount = 0
         
         #current rc4 tab
         self._decryptRc4 = None
@@ -418,11 +422,12 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
         if not saltedMacGeneration and macData(self._macKey, decrypted)[:8] != signature.value:
             raise InvalidExpectedDataException("bad signature")
         
-        if saltedMacGeneration and macSaltedData(self._macKey, decrypted, self._nbDecryptedPacket)[:8] != signature.value:
+        if saltedMacGeneration and macSaltedData(self._macKey, decrypted, self._nbDecMacCount)[:8] != signature.value:
             raise InvalidExpectedDataException("bad signature")
         
         #count
         self._nbDecryptedPacket += 1
+        self._nbDecMacCount += 1
 
         return Stream(decrypted)
     
@@ -441,12 +446,13 @@ class SecLayer(LayerAutomata, IStreamSender, tpkt.IFastPathListener, tpkt.IFastP
             self._nbEncryptedPacket = 0
             
         self._nbEncryptedPacket += 1
+        self._nbEncMacCount += 1
         
         s = Stream()
         s.writeType(data)
         
         if saltedMacGeneration:
-            return (String(macSaltedData(self._macKey, s.getvalue(), self._nbEncryptedPacket - 1)[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
+            return (String(macSaltedData(self._macKey, s.getvalue(), self._nbEncMacCount - 1)[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
         else:
             return (String(macData(self._macKey, s.getvalue())[:8]), String(rc4.crypt(self._encryptRc4, s.getvalue())))
     
