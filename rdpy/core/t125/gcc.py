@@ -308,7 +308,7 @@ class ServerSecurityData(CompositeType):
         self.serverRandomLen = UInt32Le(0x00000020, constant=True, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
         self.serverCertLen = UInt32Le(lambda: sizeof(self.serverCertificate), conditional=lambda:not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
         self.serverRandom = Buffer(read_len=lambda: self.serverRandomLen.value, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
-        self.serverCertificate = ServerCertificate(readLen=lambda: self.serverCertLen.value, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
+        self.serverCertificate = ServerCertificate(read_len=lambda: self.serverCertLen.value, conditional=lambda: not(self.encryptionMethod.value == 0 and self.encryptionLevel.value == 0))
 
 
 class ServerCertificate(CompositeType):

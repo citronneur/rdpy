@@ -27,7 +27,7 @@ from rdpy.core import tpkt
 from rdpy.core.nla import sspi
 from rdpy.model import log
 
-from rdpy.model.message import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, Buffer
+from rdpy.model.message import UInt8, UInt16Le, UInt16Be, UInt32Le, CompositeType, sizeof, Buffer, Stream
 from rdpy.model.error import InvalidExpectedDataException, RDPSecurityNegoFail
 
 
@@ -141,7 +141,7 @@ class X224:
         self.tpkt = tpkt
         self.selected_protocol = selected_protocol
     
-    async def read(self):
+    async def read(self) -> Stream:
         """
         """
         header = X224DataHeader()

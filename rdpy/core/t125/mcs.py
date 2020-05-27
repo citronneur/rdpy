@@ -126,9 +126,65 @@ def read_domain_params(stream: Stream) -> Tuple[int, int, int, int]:
     return max_channels, max_users, max_tokens, max_pdu_size
 
 
+def mcs_pdu_header(mcs_pdu: UInt8, options=0) -> UInt8:
+    return (mcs_pdu << 2) | options
+
+
+def check_mcs_pdu_header(opcode: UInt8, mcs_pdu):
+    return (opcode >> 2) == mcs_pdu
+
+
+def erect_domain_request() -> Tuple:
+    return mcs_pdu_header(UInt8(DomainMCSPDU.ERECT_DOMAIN_REQUEST)), per.writeInteger(0), per.writeInteger(0)
+
+
+def read_attach_confirm(data: Stream) -> int:
+    """
+    """
+    opcode = data.read_type(UInt8())
+
+    if not check_mcs_pdu_header(opcode, DomainMCSPDU.ATTACH_USER_CONFIRM):
+        raise InvalidExpectedDataException("Invalid MCS PDU : ATTACH_USER_CONFIRM expected")
+
+    if per.readEnumerates(data) != 0:
+        raise InvalidExpectedDataException("Server reject user")
+
+    return per.readInteger16(data, Channel.MCS_USERCHANNEL_BASE)
+
+
+def attach_user_request() -> UInt8:
+    return mcs_pdu_header(UInt8(DomainMCSPDU.ATTACH_USER_REQUEST))
+
+
+def channel_join_request(user_id: int, channel_id: int):
+    return (mcs_pdu_header(UInt8(DomainMCSPDU.CHANNEL_JOIN_REQUEST)),
+            per.writeInteger16(user_id, Channel.MCS_USERCHANNEL_BASE),
+            per.writeInteger16(channel_id))
+
+
+def channel_join_confirm(user_id: int, channel_id: int, data: Stream) -> bool:
+    """
+    """
+    opcode = data.read_type(UInt8())
+
+    if not check_mcs_pdu_header(opcode.value, DomainMCSPDU.CHANNEL_JOIN_CONFIRM):
+        raise InvalidExpectedDataException("Invalid MCS PDU : CHANNEL_JOIN_CONFIRM expected")
+
+    confirm = per.readEnumerates(data)
+
+    if user_id != per.readInteger16(data, Channel.MCS_USERCHANNEL_BASE):
+        raise InvalidExpectedDataException("Invalid MCS User Id")
+
+    if channel_id != per.readInteger16(data):
+        raise InvalidExpectedDataException("Invalid MCS channel id")
+
+    return confirm == 0
+
+
 class Client:
     def __init__(self, x224_layer: x224.X224):
         self.x224 = x224_layer
+        self.channel_ids = {}
 
     async def write_connect_initial(self):
         """
@@ -160,9 +216,21 @@ class Client:
             raise InvalidSize("bad size of GCC request")
         gcc.readConferenceCreateResponse(payload)
 
+
     async def connect(self):
         await self.write_connect_initial()
         await self.read_connect_response()
+        await self.x224.write(erect_domain_request())
+        await self.x224.write(attach_user_request())
+        user_id = read_attach_confirm(await self.x224.read())
+        self.channel_ids["global"] = 1003
+        self.channel_ids["user"] = user_id
+
+        # connect all channels
+        for channel_id in self.channel_ids.values():
+            await self.x224.write(channel_join_request(user_id, channel_id))
+            if not channel_join_confirm(user_id, channel_id, await self.x224.read()):
+                print("Server refused channel %s"%channel_id)
 
 
 class MCSLayer(LayerAutomata):
