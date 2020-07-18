@@ -303,7 +303,10 @@ class RFB(RawLayer):
         if self._securityLevel.value == SecurityType.VNC:
             self.expect(16, self.recvVNCChallenge)
         else:
-            self.expect(4, self.recvSecurityResult)
+            if self._securityLevel.value == SecurityType.NONE and self._version.value == ProtocolVersion.RFB003007:
+                self.sendClientInit()
+            else:
+                self.expect(4, self.recvSecurityResult)
     
     def recvVNCChallenge(self, data):
         """
