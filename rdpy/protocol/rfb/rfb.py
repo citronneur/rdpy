@@ -280,8 +280,12 @@ class RFB(RawLayer):
         Server imposed security level
         @param data: well formed packet
         """
-        #TODO!!!
-        pass
+        self._securityLevel = UInt32Be()
+        data.readType(self._securityLevel)
+        if self._securityLevel.value == SecurityType.VNC:
+            self.expect(16, self.recvVNCChallenge)
+        elif self._securityLevel.value == SecurityType.NONE:
+            self.sendClientInit()
         
     def recvSecurityList(self, data):
         """
