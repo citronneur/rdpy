@@ -94,7 +94,7 @@ class RDPClientQtFactory(rdp.ClientFactory):
     def __init__(self, width, height, username, password, domain, fullscreen, keyboardLayout, optimized, security, recodedPath):
         """
         @param width: {integer} width of client
-        @param heigth: {integer} heigth of client
+        @param height: {integer} height of client
         @param username: {str} username present to the server
         @param password: {str} password present to the server
         @param domain: {str} microsoft domain
